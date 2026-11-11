@@ -4,7 +4,7 @@
   python -m fondos precios [--tanda N]  descarga valores liquidativos de lo que toque hoy
   python -m fondos macro                tipos de cambio y €STR del BCE
   python -m fondos diario               macro + precios (lo que lanza GitHub Actions cada mañana)
-  python -m fondos universo [--limite N] actualiza las fichas del universo de Morningstar España
+  python -m fondos universo [--top 30]  fichas de Morningstar España y universo = top 30 por patrimonio de cada categoría
   python -m fondos estado               resumen para cerrar la fase 0: valores, huecos y errores recientes
   python -m fondos prueba-red ISIN      prueba cada fuente con un fondo, sin base de datos
 """
@@ -67,15 +67,19 @@ def orden_estado(repo) -> int:
     return 0
 
 
-def orden_universo(repo, limite: int | None) -> int:
+def orden_universo(repo, limite: int | None, top: int) -> int:
     n = 0
     for f in Morningstar().universo(limite=limite):
         repo.guardar_fondo(f)
         n += 1
         if n % 500 == 0:
             print(f'{n} fichas…', flush=True)
-    print(f'{n} fichas actualizadas')
-    resumen_github(f'### Universo · {hoy()}\n\n{n} fichas de Morningstar España')
+    dentro = repo.marcar_universo(top)
+    mb = dentro * 52 * ingesta.ANOS * 100 / 1e6  # ~100 bytes por valor semanal, con su índice
+    texto = (f'### Universo · {hoy()}\n\n{n} fichas de Morningstar España · {dentro} fondos en el universo '
+             f'(los {top} con más patrimonio de cada categoría, una clase por fondo) · unos {mb:.0f} MB de valores semanales')
+    print(texto)
+    resumen_github(texto)
     return 0
 
 
@@ -115,7 +119,8 @@ def main(argv=None) -> int:
     sub.add_parser('macro')
     sub.add_parser('estado')
     u = sub.add_parser('universo')
-    u.add_argument('--limite', type=int)
+    u.add_argument('--limite', type=int, help='solo las primeras N fichas (pruebas)')
+    u.add_argument('--top', type=int, default=30, help='fondos por categoría en el universo')
     r = sub.add_parser('prueba-red')
     r.add_argument('isin')
     args = p.parse_args(argv)
@@ -138,7 +143,7 @@ def main(argv=None) -> int:
         orden_estado(repo)
         return codigo
     if args.orden == 'universo':
-        return orden_universo(repo, args.limite)
+        return orden_universo(repo, args.limite, args.top)
     if args.orden == 'estado':
         return orden_estado(repo)
     return 2

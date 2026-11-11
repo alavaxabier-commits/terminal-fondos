@@ -18,9 +18,10 @@ tests/               pytest, sin red ni base de datos
 1. **Base de datos**: aplica `db/migraciones/0001_esquema.sql` en el proyecto de Supabase (SQL Editor › Run).
 2. **Secreto en GitHub**: Settings › Secrets and variables › Actions › `DATABASE_URL` = la cadena de conexión de Supabase › Connect › **Session pooler**.
 3. **Prueba de fuentes** (sin base de datos): Actions › Ingesta diaria › Run workflow › orden `prueba-red`, argumentos un ISIN.
-4. **Alta de mis fondos**: orden `alta`, argumentos los ISIN separados por espacios.
-5. **Primera carga**: orden `diario`. Trae 10 años de cada fondo; los del universo van en tandas de 300 por ejecución.
-6. **Estado**: orden `estado` muestra cuántos valores tiene cada fondo, desde y hasta cuándo, el mayor hueco y los errores recientes.
+4. **Universo**: Actions › Universo semanal › Run workflow. Descarga las fichas de Morningstar España y marca como universo los 30 fondos con más patrimonio de cada categoría (una clase por fondo, en EUR si la hay). Se repite cada domingo.
+5. **Mis fondos** (opcional): Ingesta diaria, orden `alta`, argumentos los ISIN separados por espacios. Pasan a datos diarios.
+6. **Primera carga**: Ingesta diaria, orden `diario` (o espera a la ejecución de cada mañana). Trae 10 años de cada fondo; los del universo van en tandas de 300 por ejecución.
+7. **Estado**: orden `estado` muestra cuántos valores tiene cada fondo, desde y hasta cuándo, el mayor hueco y los errores recientes.
 
 ## En local
 

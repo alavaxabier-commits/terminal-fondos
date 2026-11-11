@@ -16,7 +16,8 @@ from ..validacion import Serie
 
 SCREENER = 'https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security/screener'
 UNIVERSO = 'FOESP$$ALL'
-CAMPOS = 'SecId|Name|Isin|CategoryName|PriceCurrency|OngoingCharge|InceptionDate'
+CAMPOS_BASICOS = 'SecId|Name|Isin|CategoryName|PriceCurrency|OngoingCharge|InceptionDate'
+CAMPOS = CAMPOS_BASICOS + '|FundId|FundTNAV'  # FundTNAV: patrimonio del fondo, en su divisa
 
 
 def _num(x):
@@ -39,10 +40,13 @@ def ficha(fila: dict) -> dict | None:
     if len(isin) != 12:
         return None
     divisa = str(fila.get('PriceCurrency') or '').strip().upper()[:3] or None
+    patrimonio = _num(fila.get('FundTNAV'))
     return {
         'isin': isin,
         'nombre': fila.get('Name') or isin,
         'ms_id': fila.get('SecId'),
+        'fund_id': fila.get('FundId'),
+        'patrimonio_meur': round(patrimonio / 1e6, 2) if patrimonio else None,
         'categoria': fila.get('CategoryName'),
         'divisa': divisa,
         'ter': _num(fila.get('OngoingCharge')),
@@ -70,10 +74,15 @@ class Morningstar:
         self.http = requests.Session()
 
     def _buscador(self, **params) -> dict:
-        r = self.http.get(SCREENER, params={'outputType': 'json', 'universeIds': UNIVERSO,
-                                            'securityDataPoints': CAMPOS, **params}, timeout=60)
-        r.raise_for_status()
-        return r.json()
+        def pedir(campos):
+            r = self.http.get(SCREENER, params={'outputType': 'json', 'universeIds': UNIVERSO,
+                                                'securityDataPoints': campos, **params}, timeout=60)
+            r.raise_for_status()
+            return r.json()
+        try:
+            return pedir(CAMPOS)
+        except requests.HTTPError:  # si algún campo extra deja de existir, al menos los básicos
+            return pedir(CAMPOS_BASICOS)
 
     def buscar(self, isin: str) -> dict | None:
         isin = isin.strip().upper()

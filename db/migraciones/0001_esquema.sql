@@ -26,7 +26,8 @@ create table fondos.fondo (
   distribucion      boolean,
   fecha_lanzamiento date,
   patrimonio_meur   numeric(14,2),
-  ms_id             text,                    -- SecId de Morningstar
+  ms_id             text,                    -- SecId de Morningstar (la clase)
+  fund_id           text,                    -- FundId de Morningstar (el fondo: todas sus clases lo comparten)
   yahoo_ticker      text,                    -- solo si se ha verificado contra Morningstar
   indice_id         text references fondos.indice(id),
   en_universo       boolean not null default false,  -- entra en el screener (precios semanales)
@@ -125,6 +126,26 @@ create view fondos.fondo_diario as
   select isin from fondos.operacion
   union select isin from fondos.seguimiento where estado <> 'descartado'
   union select isin from fondos.asignacion_objetivo;
+
+-- Universo del screener: los n fondos con más patrimonio de cada categoría de Morningstar,
+-- una sola clase por fondo (en EUR si la hay, y la de menor TER). Devuelve cuántos quedan dentro.
+create function fondos.marcar_universo(n int default 30) returns int
+language sql set search_path = '' as $$
+  with clase as (
+    select distinct on (coalesce(fund_id, isin)) isin, categoria, patrimonio_meur
+    from fondos.fondo
+    where categoria is not null
+    order by coalesce(fund_id, isin), (divisa = 'EUR') desc nulls last, ter asc nulls last, isin),
+  top as (
+    select isin from (
+      select isin, row_number() over (partition by categoria order by patrimonio_meur desc nulls last, isin) as puesto
+      from clase) x
+    where puesto <= n)
+  update fondos.fondo f set en_universo = (f.isin in (select isin from top))
+  where f.en_universo is distinct from (f.isin in (select isin from top));
+  select count(*)::int from fondos.fondo where en_universo;
+$$;
+revoke execute on function fondos.marcar_universo(int) from public;
 
 -- ------------------------------------------------------------------ índices de referencia
 insert into fondos.indice (id, nombre, proxy_isin, componentes) values
