@@ -4,9 +4,10 @@ on:
     - cron: '23 4 * * 0'   # los domingos, 5:23 en Madrid (6:23 en verano), antes de la ingesta diaria
   workflow_dispatch:
     inputs:
-      top:
-        description: 'Fondos por categoría'
-        default: '30'
+      argumentos:
+        description: 'Criterios (por defecto --min-patrimonio 50 --min-anos 3 --tope 100)'
+        required: false
+        default: ''
 concurrency: ingesta
 jobs:
   universo:
@@ -20,5 +21,5 @@ jobs:
       - name: Fichas de Morningstar España y universo
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          TOP: ${{ inputs.top || '30' }}
-        run: python -m fondos universo --top "$TOP"
+          ARGUMENTOS: ${{ inputs.argumentos }}
+        run: python -m fondos universo $ARGUMENTOS

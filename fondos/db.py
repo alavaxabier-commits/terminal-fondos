@@ -56,8 +56,8 @@ class Repo:
               fecha_lanzamiento = coalesce(excluded.fecha_lanzamiento, fondo.fecha_lanzamiento),
               actualizado_en = now()""", f)
 
-    def marcar_universo(self, n: int) -> int:
-        return self._filas('select fondos.marcar_universo(%s)', (n,))[0][0]
+    def marcar_universo(self, min_patrimonio_meur: float, min_anos: int, tope: int) -> int:
+        return self._filas('select fondos.marcar_universo(%s, %s, %s)', (min_patrimonio_meur, min_anos, tope))[0][0]
 
     def guardar_ticker(self, isin: str, ticker: str):
         self._ejecutar('update fondos.fondo set yahoo_ticker = %s where isin = %s', (ticker, isin))
