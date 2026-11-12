@@ -1,0 +1,10 @@
+// Cloudflare (Workers con recursos estáticos): sirve la web compilada en dist/.
+// Si el proyecto se creó como Pages, este fichero no molesta.
+{
+  "name": "terminal-fondos",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
