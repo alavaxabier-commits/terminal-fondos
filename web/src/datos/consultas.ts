@@ -1,3 +1,4 @@
+import type { Composicion } from '../calculo/exposicion'
 import type { Punto } from '../calculo/series'
 import { supabase } from './supabase'
 
@@ -8,6 +9,7 @@ export type Fondo = {
   categoria: string | null
   divisa: string | null
   ter: number | null
+  duracion_efectiva?: number | null
   srri: number | null
   patrimonio_meur: number | null
   fecha_lanzamiento: string | null
@@ -134,4 +136,11 @@ export async function metricasDe(isins: string[]): Promise<(Metrica & { isin: st
   const { data, error: e } = await supabase.from('metrica').select('isin,ventana,nombre,valor,percentil').in('isin', isins)
   error(e)
   return (data ?? []) as (Metrica & { isin: string })[]
+}
+
+/** Composición (X-Ray) de varios fondos: desgloses y posiciones, como los guarda la descarga. */
+export async function composiciones(isins: string[]): Promise<{ isin: string; fecha_cartera: string | null; datos: Composicion }[]> {
+  const { data, error: e } = await supabase.from('composicion').select('isin,fecha_cartera,datos').in('isin', isins)
+  error(e)
+  return (data ?? []) as { isin: string; fecha_cartera: string | null; datos: Composicion }[]
 }
