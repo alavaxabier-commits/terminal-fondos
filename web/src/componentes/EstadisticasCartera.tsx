@@ -15,6 +15,8 @@ const CIFRAS: [string, string, (v: number | undefined) => string, boolean][] = [
   ['Caída máxima', 'max_caida', (v) => pct(v), true],
   ['Sharpe', 'sharpe', (v) => cifra(v), true],
   ['Sortino', 'sortino', (v) => cifra(v), true],
+  ['Volatilidad (mensual)', 'volatilidad_mensual', (v) => pct(v, 1, false), false],
+  ['Sharpe (mensual)', 'sharpe_mensual', (v) => cifra(v), false],
   ['Alfa', 'alfa', (v) => pct(v), false],
   ['Beta', 'beta', (v) => cifra(v), false],
   ['R²', 'r2', (v) => cifra(v, 0), false],

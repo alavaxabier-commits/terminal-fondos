@@ -59,7 +59,7 @@ describe('exposicion', () => {
   it('estilo, capitalización y estadísticas de la renta variable', () => {
     expect(x.estiloRv).toEqual({ '3': 75, '1': 25 })
     expect(x.capitalizacion).toEqual([['Gigante', 37.5], ['Grande', 37.5], ['Mediana', 25]])
-    expect(cifra(x.estadisticasRv, 'PER')).toBe(17.5) // 75 % × 20 + 25 % × 10
+    expect(cifra(x.estadisticasRv, 'PER')).toBeCloseTo(16) // armónica: 1 / (75 % / 20 + 25 % / 10)
     expect(cifra(x.estadisticasRv, 'Rentabilidad por dividendo')).toBe(1) // solo el fondo que lo da
     expect(cifra(x.estadisticasRv, 'ROE')).toBeNull()
   })

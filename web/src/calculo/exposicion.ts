@@ -55,7 +55,8 @@ const CASILLAS: Record<string, string> = Object.fromEntries(['1', '2', '3', '4',
 export const CAJA_RV = { filas: ['Grande', 'Mediana', 'Pequeña'], cols: ['Valor', 'Mixto', 'Crecim.'] }
 export const CAJA_RF = { filas: ['Alta', 'Media', 'Baja'], cols: ['Baja', 'Media', 'Alta'], fila: 'Calidad crediticia', col: 'Sensibilidad a los tipos' }
 
-// shortcut: media ponderada simple; Morningstar usa la armónica para los múltiplos (PER…), que da algo menos. Basta para comparar.
+// Los múltiplos (PER, P/VC, P/CF) con media armónica ponderada, como Morningstar; el resto, con media ponderada
+const ARMONICAS = new Set(['ProspectiveEarningsYield', 'ProspectiveBookValueYield', 'ProspectiveCashFlowYield'])
 const ESTAD_RV: [string, string, string][] = [
   ['PER', 'ProspectiveEarningsYield', ''], // pese al nombre, Morningstar da aquí el múltiplo (iShares Dev. World: 18)
   ['Precio / valor contable', 'ProspectiveBookValueYield', ''],
@@ -120,10 +121,12 @@ export function mezclar(partes: Parte[], nombres: Nombres): Fila[] {
 }
 
 /** Media ponderada de un número, con las partes que lo tienen. */
-function media(partes: { w: number; v: unknown }[]): number | null {
-  const ok = partes.filter((p) => p.v != null && p.v !== '' && isFinite(Number(p.v)) && p.w > 0)
+function media(partes: { w: number; v: unknown }[], armonica = false): number | null {
+  // en la armónica, un múltiplo negativo o cero (pérdidas) no cuenta, como en Morningstar
+  const ok = partes.filter((p) => p.v != null && p.v !== '' && isFinite(Number(p.v)) && p.w > 0 && (!armonica || Number(p.v) > 0))
   const w = ok.reduce((s, p) => s + p.w, 0)
-  return w ? ok.reduce((s, p) => s + p.w * Number(p.v), 0) / w : null
+  if (!w) return null
+  return armonica ? w / ok.reduce((s, p) => s + p.w / Number(p.v), 0) : ok.reduce((s, p) => s + p.w * Number(p.v), 0) / w
 }
 
 const caja = (filas: Fila[]) => Object.fromEntries(filas) as Record<string, number>
@@ -183,7 +186,7 @@ export function exposicion(fondos: Fondo[]): Exposicion {
     }
   const todas = [...posiciones.values()].map(({ de: _, ...p }) => p).sort((a, b) => b.peso - a.peso)
   const cifras = (lista: [string, string, string][], w: (f: Fondo) => number, est: (c: Composicion) => Record<string, number | string> | undefined): Cifra[] =>
-    lista.map(([n, k, u]) => [n, media(con.map((f) => ({ w: w(f), v: est(f.c!)?.[k] }))), u])
+    lista.map(([n, k, u]) => [n, media(con.map((f) => ({ w: w(f), v: est(f.c!)?.[k] })), ARMONICAS.has(k)), u])
 
   return {
     cobertura: (con.reduce((s, f) => s + f.peso, 0) / total) * 100,
