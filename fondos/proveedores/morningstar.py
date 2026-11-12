@@ -19,7 +19,10 @@ SCREENER = 'https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security/screener
 UNIVERSO = 'FOESP$$ALL'
 CAMPOS_BASICOS = 'SecId|Name|Isin|CategoryName|PriceCurrency|OngoingCharge|InceptionDate'
 CAMPOS_PATRIMONIO = CAMPOS_BASICOS + '|FundId|FundTNAV'  # FundTNAV: patrimonio del fondo, en su divisa
-CAMPOS = CAMPOS_PATRIMONIO + '|InitialPurchase'          # inversión mínima de la clase, en su divisa
+CAMPOS_MINIMA = CAMPOS_PATRIMONIO + '|InitialPurchase'    # inversión mínima de la clase, en su divisa
+# Estadísticas de cartera que la ficha de detalle no trae (duración, calidad media, cajas de estilo)
+CAMPOS = CAMPOS_MINIMA + '|EquityStyleBox|BondStyleBox|AverageMarketCapital|EffectiveDuration|EffectiveMaturity|AverageCreditQualityCode'
+DETALLE = SCREENER.rsplit('/security/', 1)[0] + '/security_details/'
 
 # Servicio de series de precios: se prueban en orden hasta que uno responda con datos.
 SERIES = [
@@ -61,7 +64,69 @@ def ficha(fila: dict) -> dict | None:
         'ter': _num(fila.get('OngoingCharge')),
         'fecha_lanzamiento': _fecha(fila.get('InceptionDate')),
         'inversion_minima': _num(fila.get('InitialPurchase')),
+        'estilo_rv': _entero(fila.get('EquityStyleBox')),
+        'estilo_rf': _entero(fila.get('BondStyleBox')),
+        'capitalizacion_media': _num(fila.get('AverageMarketCapital')),
+        'duracion_efectiva': _num(fila.get('EffectiveDuration')),
+        'vencimiento_efectivo': _num(fila.get('EffectiveMaturity')),
+        'calidad_media': fila.get('AverageCreditQualityCode') or None,
     }
+
+
+def _entero(x):
+    v = _num(x)
+    return int(v) if v is not None else None
+
+
+# Desgloses de la ficha de detalle que forman el X-Ray: nombre nuestro → (bloque de Morningstar, su «Type» o None)
+BLOQUES = {
+    'regiones': ('RegionalExposure', None),
+    'paises_rv': ('CountryExposure', 'Equity'),
+    'paises_rf': ('CountryExposure', 'Bond'),
+    'sectores_rv': ('GlobalStockSectorBreakdown', None),
+    'estilo_rv': ('StyleBoxBreakdown', None),
+    'capitalizacion': ('MarketCapitalBreakdown', None),
+    'sectores_rf': ('GlobalBondSectorBreakdownLevel1', None),
+    'calidad_rf': ('CreditQualityBreakdown', None),
+    'vencimientos': ('MaturityRange', None),
+    'cupones': ('CouponRange', None),
+}
+POSICION = {'nombre': 'SecurityName', 'isin': 'ISIN', 'peso': 'Weighting', 'tipo': 'DetailHoldingTypeId',
+            'sector': 'GlobalSectorId', 'pais': 'CountryId'}
+
+
+def _desglose(lista, lado: str = 'N', tipo: str | None = None) -> dict | None:
+    """Primer desglose del lado pedido (N neto, L largo, S corto) → {código: %} sin los ceros; «nc» = sin clasificar."""
+    for x in lista or []:
+        if x.get('SalePosition') == lado and x.get('Type') == tipo and x.get('BreakdownValues'):
+            out = {str(b['Type']): round(b['Value'], 4) for b in x['BreakdownValues'] if _num(b.get('Value'))}
+            if _num(x.get('NotClassified')):
+                out['nc'] = round(x['NotClassified'], 4)
+            return out
+    return None
+
+
+def leer_composicion(datos) -> tuple[dt.date | None, dict]:
+    """Ficha de detalle → (fecha de la cartera, desgloses del X-Ray). Sin desglose publicado: (None, {})."""
+    d = datos[0] if isinstance(datos, list) and datos else datos
+    carteras = [p for p in (d or {}).get('Portfolios') or [] if p.get('AssetAllocations')]
+    if not carteras:
+        return None, {}
+    p = carteras[0]
+    out: dict = {'activos': {k: v for k, lado in (('neto', 'N'), ('largo', 'L'), ('corto', 'S'))
+                             if (v := _desglose(p['AssetAllocations'], lado, 'MorningStarDefault'))}}
+    for nombre, (bloque, tipo) in BLOQUES.items():
+        if v := _desglose(p.get(bloque), 'N', tipo):
+            out[nombre] = v
+    if p.get('EquityStatistics'):
+        out['estadisticas_rv'] = p['EquityStatistics']
+    n = {(x.get('HoldingsType') or 'total'): x.get('NumberOfHolding')
+         for x in p.get('HoldingAggregates') or [] if x.get('SalePosition') == 'N'}
+    if n:
+        out['n_posiciones'] = n
+    out['posiciones'] = [{k: h.get(m) for k, m in POSICION.items() if h.get(m) is not None}
+                         for h in p.get('PortfolioHoldings') or []]
+    return _fecha(p.get('Date')), out
 
 
 def leer_serie(datos) -> Serie:
@@ -107,7 +172,7 @@ class Morningstar:
             r.raise_for_status()
             return r.json()
         # Si Morningstar deja de aceptar algún campo extra, se prueba con menos hasta los básicos
-        for campos in (CAMPOS, CAMPOS_PATRIMONIO):
+        for campos in (CAMPOS, CAMPOS_MINIMA, CAMPOS_PATRIMONIO):
             try:
                 return pedir(campos)
             except requests.HTTPError:
@@ -120,6 +185,13 @@ class Morningstar:
             if str(fila.get('Isin', '')).upper() == isin:
                 return ficha(fila)
         return None
+
+    def composicion(self, ms_id: str) -> tuple[dt.date | None, dict]:
+        """Desglose de la cartera de un fondo (una petición; la pausa la pone quien recorre los fondos)."""
+        r = self.http.get(DETALLE + ms_id, params={'viewId': 'ITsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
+                                                   'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
+        r.raise_for_status()
+        return leer_composicion(r.json())
 
     def universo(self, tam: int = 500, limite: int | None = None):
         """Todas las fichas del universo, página a página."""

@@ -2,7 +2,7 @@ import datetime as dt
 
 from fondos.proveedores.bce import leer_csv
 from fondos.proveedores.ft import leer_tabla
-from fondos.proveedores.morningstar import ficha, leer_serie
+from fondos.proveedores.morningstar import ficha, leer_composicion, leer_serie
 from fondos.proveedores.yahoo import elegir_ticker
 
 D = dt.date
@@ -12,10 +12,11 @@ def test_ficha_del_buscador():
     f = ficha({'SecId': 'F00000T4KE', 'Name': 'iShares Developed World Index Fund (IE) D Acc EUR', 'Isin': 'ie00bd0ncm55',
                'CategoryName': 'RV Global Cap. Grande Blend', 'PriceCurrency': 'EUR', 'OngoingCharge': '0.17',
                'InceptionDate': '2016-11-01T00:00:00', 'FundId': 'FS0000A1B2', 'FundTNAV': 8123456789.0,
-               'InitialPurchase': '1000'})
+               'InitialPurchase': '1000', 'EquityStyleBox': 2, 'AverageMarketCapital': 231738.98})
     assert f == {'isin': 'IE00BD0NCM55', 'nombre': 'iShares Developed World Index Fund (IE) D Acc EUR', 'ms_id': 'F00000T4KE',
                  'fund_id': 'FS0000A1B2', 'patrimonio_meur': 8123.46, 'categoria':'RV Global Cap. Grande Blend', 'divisa': 'EUR', 'ter': 0.17, 'fecha_lanzamiento': D(2016, 11, 1),
-                 'inversion_minima': 1000.0}
+                 'inversion_minima': 1000.0, 'estilo_rv': 2, 'estilo_rf': None, 'capitalizacion_media': 231738.98,
+                 'duracion_efectiva': None, 'vencimiento_efectivo': None, 'calidad_media': None}
     assert ficha({'Isin': 'corto'}) is None
     assert ficha({'Isin': 'IE00BD0NCM55'})['ter'] is None
 
@@ -47,3 +48,36 @@ def test_elegir_ticker_exige_coincidencia_y_dias():
     pocos = {d: v for d, v in list(ref.items())[:3]}           # exacto pero solo 3 días
     assert elegir_ticker({'MALA.F': otra_clase, 'BUENA.F': buena, 'POCOS.F': pocos}, ref) == 'BUENA.F'
     assert elegir_ticker({'MALA.F': otra_clase}, ref) is None
+
+
+def test_leer_composicion_netos_y_posiciones():
+    bd = lambda lado, vals, **k: {'SalePosition': lado, 'BreakdownValues': [{'Type': t, 'Value': v} for t, v in vals.items()], **k}
+    datos = [{'Portfolios': [
+        {'Date': '2026-09-30T00:00:00', 'Holdings': 'Suppressed', 'TotalMarketValues': []},  # la primera no trae desgloses
+        {'Date': '2026-09-30T00:00:00',
+         'AssetAllocations': [
+             bd('N', {'1': 44.1, '3': 23.0, '7': 32.9, '8': 0.0}, Type='MorningStarDefault'),
+             bd('L', {'1': 159.0, '3': 23.0, '7': 164.9}, Type='MorningStarDefault'),
+             bd('S', {'1': 114.9, '7': 132.0}, Type='MorningStarDefault'),
+             bd('N', {'1': 99.0}, Type='MorningstarEUR3')],
+         'RegionalExposure': [bd('L', {'1': 80.0}), bd('N', {'1': 72.7, '5': 7.97}, NotClassified=1.34)],
+         'CountryExposure': [bd('N', {'USA': 70.0}, Type='Equity'), bd('N', {'DEU': 12.0}, Type='Bond')],
+         'GlobalStockSectorBreakdown': [bd('N', {'311': 32.5, '103': 15.5})],
+         'EquityStatistics': {'StyleBox': 2},
+         'HoldingAggregates': [{'NumberOfHolding': 204, 'SalePosition': 'N'}, {'NumberOfHolding': 1, 'SalePosition': 'N', 'HoldingsType': 'Stock'},
+                               {'NumberOfHolding': 9, 'SalePosition': 'S'}],
+         'PortfolioHoldings': [{'SecurityName': 'NVIDIA Corp', 'ISIN': 'US67066G1040', 'Weighting': 5.73, 'DetailHoldingTypeId': 'E',
+                                'GlobalSectorId': '311', 'CountryId': 'USA', 'MarketValue': 1e9}]}]}]
+    fecha, x = leer_composicion(datos)
+    assert fecha == D(2026, 9, 30)
+    assert x['activos'] == {'neto': {'1': 44.1, '3': 23.0, '7': 32.9}, 'largo': {'1': 159.0, '3': 23.0, '7': 164.9},
+                            'corto': {'1': 114.9, '7': 132.0}}
+    assert x['regiones'] == {'1': 72.7, '5': 7.97, 'nc': 1.34}
+    assert x['paises_rv'] == {'USA': 70.0} and x['paises_rf'] == {'DEU': 12.0}
+    assert x['sectores_rv'] == {'311': 32.5, '103': 15.5}
+    assert x['estadisticas_rv'] == {'StyleBox': 2}
+    assert x['n_posiciones'] == {'total': 204, 'Stock': 1}
+    assert x['posiciones'] == [{'nombre': 'NVIDIA Corp', 'isin': 'US67066G1040', 'peso': 5.73, 'tipo': 'E', 'sector': '311', 'pais': 'USA'}]
+    assert 'calidad_rf' not in x
+    assert leer_composicion([{'Portfolios': [{'Date': '2026-09-30'}]}]) == (None, {})
+    assert leer_composicion({}) == (None, {})

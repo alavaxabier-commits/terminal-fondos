@@ -7,6 +7,7 @@
   python -m fondos universo             fichas de Morningstar España; universo = ≥ 50 M€, ≥ 3 años, ≤ 100 por categoría
   python -m fondos metricas             calcula las métricas y percentiles de todos los fondos
   python -m fondos estado               resumen para cerrar la fase 0: valores, huecos y errores recientes
+  python -m fondos composicion [--tanda N]   desglose de cartera (X-Ray) de los fondos que toca
   python -m fondos prueba-red ISIN      prueba cada fuente con un fondo, sin base de datos
 """
 from __future__ import annotations
@@ -52,6 +53,26 @@ def orden_precios(repo, tanda: int) -> int:
     print(texto)
     resumen_github(texto)
     return 1 if c['error'] and not (c['ok'] or c['aviso']) else 0  # en rojo solo si falla todo
+
+
+def orden_composicion(repo, tanda: int) -> int:
+    import time
+    ms, c = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}
+    for isin, ms_id in repo.fondos_para_composicion(tanda):
+        try:
+            fecha, datos = ms.composicion(ms_id)
+            repo.guardar_composicion(isin, fecha, datos)  # sin desglose también se guarda: no se reintenta hasta el mes que viene
+            estado = 'ok' if datos else 'aviso'
+            repo.registrar('morningstar', isin, estado, f'composición: cartera a {fecha}' if datos else 'composición: sin desglose publicado')
+        except Exception as e:  # noqa: BLE001
+            estado = 'error'
+            repo.registrar('morningstar', isin, estado, f'composición: {type(e).__name__}: {e}'[:500])
+        c[estado] += 1
+        time.sleep(ms.pausa)
+    texto = f"### Composición · {hoy()}\n\n{c['ok']} ok · {c['aviso']} sin desglose · {c['error']} con error"
+    print(texto)
+    resumen_github(texto)
+    return 1 if c['error'] and not (c['ok'] or c['aviso']) else 0
 
 
 def orden_metricas(repo) -> int:
@@ -147,6 +168,8 @@ def main(argv=None) -> int:
     for nombre in ('precios', 'diario'):
         s = sub.add_parser(nombre)
         s.add_argument('--tanda', type=int, default=ingesta.TANDA)
+    s = sub.add_parser('composicion')
+    s.add_argument('--tanda', type=int, default=1200, help='fondos como mucho (1200: el universo entero en un mes)')
     sub.add_parser('macro')
     sub.add_parser('metricas')
     sub.add_parser('estado')
@@ -184,6 +207,8 @@ def main(argv=None) -> int:
         return orden_universo(repo, args.limite, args.min_patrimonio, args.min_anos, args.tope, args.max_minima)
     if args.orden == 'estado':
         return orden_estado(repo)
+    if args.orden == 'composicion':
+        return orden_composicion(repo, args.tanda)
     return 2
 
 

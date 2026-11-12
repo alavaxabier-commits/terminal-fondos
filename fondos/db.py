@@ -62,9 +62,11 @@ class Repo:
 
     _SQL_FONDO = ("""
             insert into fondos.fondo (isin, nombre, ms_id, fund_id, categoria, divisa, ter, fecha_lanzamiento, patrimonio_meur,
-                                      inversion_minima)
+                                      inversion_minima, estilo_rv, estilo_rf, capitalizacion_media, duracion_efectiva,
+                                      vencimiento_efectivo, calidad_media)
             values (%(isin)s, %(nombre)s, %(ms_id)s, %(fund_id)s, %(categoria)s, %(divisa)s, %(ter)s,
-                    %(fecha_lanzamiento)s, %(patrimonio_meur)s, %(inversion_minima)s)
+                    %(fecha_lanzamiento)s, %(patrimonio_meur)s, %(inversion_minima)s, %(estilo_rv)s, %(estilo_rf)s,
+                    %(capitalizacion_media)s, %(duracion_efectiva)s, %(vencimiento_efectivo)s, %(calidad_media)s)
             on conflict (isin) do update set
               nombre = excluded.nombre,
               ms_id = coalesce(excluded.ms_id, fondo.ms_id),
@@ -75,7 +77,34 @@ class Repo:
               divisa = coalesce(excluded.divisa, fondo.divisa),
               ter = coalesce(excluded.ter, fondo.ter),
               fecha_lanzamiento = coalesce(excluded.fecha_lanzamiento, fondo.fecha_lanzamiento),
+              estilo_rv = coalesce(excluded.estilo_rv, fondo.estilo_rv),
+              estilo_rf = coalesce(excluded.estilo_rf, fondo.estilo_rf),
+              capitalizacion_media = coalesce(excluded.capitalizacion_media, fondo.capitalizacion_media),
+              duracion_efectiva = coalesce(excluded.duracion_efectiva, fondo.duracion_efectiva),
+              vencimiento_efectivo = coalesce(excluded.vencimiento_efectivo, fondo.vencimiento_efectivo),
+              calidad_media = coalesce(excluded.calidad_media, fondo.calidad_media),
               actualizado_en = now()""")
+
+    # ------------------------------------------------------------ composición (X-Ray)
+    def fondos_para_composicion(self, tanda: int) -> list[tuple[str, str]]:
+        """(isin, ms_id) que toca descargar: los míos cada semana y el resto del universo una vez al mes,
+        primero los que nunca se han descargado y luego los más antiguos."""
+        return self._filas("""
+            select f.isin, f.ms_id
+            from fondos.fondo f
+            left join fondos.fondo_diario d using (isin)
+            left join fondos.composicion c using (isin)
+            where (f.en_universo or d.isin is not null) and f.ms_id is not null
+              and (c.isin is null or c.descargada_en < now() - case when d.isin is null then interval '27 days' else interval '6 days' end)
+            order by d.isin is null, c.descargada_en nulls first, f.isin
+            limit %s""", (tanda,))
+
+    def guardar_composicion(self, isin: str, fecha: dt.date | None, datos: dict):
+        from psycopg.types.json import Jsonb
+        self._ejecutar("""
+            insert into fondos.composicion (isin, fecha_cartera, datos) values (%s, %s, %s)
+            on conflict (isin) do update set fecha_cartera = excluded.fecha_cartera, datos = excluded.datos,
+                                             descargada_en = now()""", (isin, fecha, Jsonb(datos)))
 
     def marcar_universo(self, min_patrimonio_meur: float, min_anos: int, tope: int, max_minima: float) -> int:
         return self._filas('select fondos.marcar_universo(%s, %s, %s, %s)',

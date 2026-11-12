@@ -7,7 +7,7 @@ on:
       orden:
         description: 'Orden de python -m fondos'
         type: choice
-        options: [diario, precios, macro, metricas, estado, alta, universo, prueba-red]
+        options: [diario, precios, macro, metricas, estado, alta, universo, composicion, prueba-red]
         default: diario
       argumentos:
         description: 'Argumentos (p. ej. los ISIN para «alta» o «prueba-red», o --tanda 100)'

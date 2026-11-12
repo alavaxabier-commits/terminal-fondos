@@ -14,13 +14,13 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - **Datos** en **Supabase** (`ugobxrjfxzyrcbuxgefz`, esquema `fondos`, expuesto a la Data API). SQL en `db/migraciones/NNNN_*.sql`, numeradas y aplicadas en orden (todas aplicadas hasta la última del directorio). Cambio de base = migración nueva.
 - **Python** `fondos/` (ingesta y cálculo), ejecutado por **GitHub Actions** con el secreto `DATABASE_URL` (session pooler, `psycopg` 3 con `prepare_threshold=None`):
   - `diario.yml`: cada día 06:17 UTC, `python -m fondos diario` (macro + precios + métricas + estado). A mano: orden y argumentos (`precios --tanda 5000`, `alta ISIN…`, `estado`, `prueba-red ISIN`…).
-  - `universo.yml`: domingos 04:23 UTC, fichas de Morningstar España y marca del universo.
+  - `universo.yml`: domingos 04:23 UTC, fichas de Morningstar España, marca del universo y `composicion` (X-Ray: los fondos de `fondo_diario` cada semana, el resto del universo una vez al mes, 1.200 por ejecución).
   - `tests.yml` (pytest) y `web.yml` (typecheck, tests y build de la web; deja el resultado en `registro_descarga` con fuente `web`).
 - **Web** `web/`: Vite + React 19 + TypeScript + Tailwind v4 + ECharts 5 + supabase-js. Cloudflare Worker con recursos estáticos (`web/wrangler.jsonc`): https://terminal-fondos.alava-xabier.workers.dev, publicada desde `main`. Entrada por enlace mágico (no crea usuarios); rutas con hash (`#/fondo/ISIN`).
 
 ## Dónde está cada cosa
 
-- `fondos/proveedores/`: `morningstar.py` (buscador de fichas y series `timeseries_price`), `yahoo.py` (respaldo, solo con ticker verificado ±0,1 % en ≥5 días), `ft.py` (último mes, referencia y último recurso), `bce.py` (cambios y €STR).
+- `fondos/proveedores/`: `morningstar.py` (buscador de fichas, series `timeseries_price` y ficha de detalle `security_details` vista `ITsnapshot` para la composición), `yahoo.py` (respaldo, solo con ticker verificado ±0,1 % en ≥5 días), `ft.py` (último mes, referencia y último recurso), `bce.py` (cambios y €STR).
 - `fondos/ingesta.py`: qué toca a cada fondo (`accion`, `planificar`) y cómo se descarga (`descargar_fondo`). `fondos/validacion.py`: huecos y saltos (`avisos`), fechas hábiles.
 - `fondos/db.py` (`Repo`): toda la lectura y escritura de la base; `reducir()` pasa la serie diaria a semanal + cierres de mes.
 - `fondos/nucleo/metricas.py`: **motor de métricas puro** (sin red ni base). `fondos/calculo.py`: referencias (índice, índice combinado, €STR o media de la categoría) y percentiles por categoría.
@@ -31,6 +31,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - `fondo`: fichas (también las que no están en el universo). `en_universo`: ≥ 50 M€, ≥ 3 años, como mucho 100 por categoría, una clase por fondo (EUR, particulares, acumulación, menor gasto). `historico_diario`: ya tiene la carga completa diaria.
 - **Precios en paquetes anuales**: `valor_anual (fondo_id, ano, dias[], valores[], fuentes[])`. Se lee con la vista `valor_liquidativo` (isin, fecha, valor, divisa, fuente) y se escribe **solo** con `fondos.guardar_valores(isin, fechas, valores, fuente)`, que mezcla con lo guardado (lo nuevo manda en la misma fecha). `valor_liquidativo_antigua` es la tabla vieja, pendiente de borrar.
 - Ritmo: una carga completa por fondo (10 años diarios); después, los de `fondo_diario` cada día y el resto del universo una vez a la semana.
+- `composicion (isin, fecha_cartera, datos jsonb)`: desgloses netos del X-Ray con los códigos de Morningstar (`{código: %}`) y las 10 mayores posiciones; los nombres de los códigos los pone la web. Duración, calidad media y cajas de estilo están en `fondo` (vienen del buscador).
 - `metrica`: se recalcula entera en cada ejecución (borrar + COPY en una transacción), con `percentil` dentro de la categoría.
 - Carteras: `cartera`, `cartera_fondo (peso)`, `cartera_cambio`, `nota_semanal`; `seguimiento` (con `disponible_myinvestor`, marcado a mano).
 - `registro_descarga`: una línea por descarga (ok, aviso, error); es lo que hay que mirar si algo falla.
