@@ -118,7 +118,7 @@ function haceMeses(n: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-const Titulo = ({ children }: { children: React.ReactNode }) => (
+export const Titulo = ({ children }: { children: React.ReactNode }) => (
   <h3 className="mb-1 text-[11px] uppercase tracking-widest text-suave">{children}</h3>
 )
 

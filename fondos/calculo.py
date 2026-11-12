@@ -9,6 +9,7 @@ import datetime as dt
 from collections import defaultdict
 
 from .nucleo import metricas as m
+from .validacion import hace_anos
 
 
 def serie_eur(valores: dict[dt.date, float], divisa: str | None, tipos: dict[str, dict[dt.date, float]]) -> dict:
@@ -64,8 +65,9 @@ def referencias(fondos: dict[str, dict], semanales: dict[str, m.SerieSemanal], i
     return series, usa
 
 
-def calcular(datos: dict, hoy: dt.date) -> list[tuple]:
-    """datos: fondos, valores, tipos, estr, indices, categorias → filas (isin, ventana, nombre, valor, percentil)."""
+def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[int, dict]]:
+    """datos: fondos, valores, tipos, estr, indices, categorias y carteras →
+    (filas (isin, ventana, nombre, valor, percentil), {id de cartera: cálculo de la cartera})."""
     fondos, tipos = datos['fondos'], datos['tipos']
     en_eur = {isin: serie_eur(v, fondos[isin].get('divisa'), tipos) for isin, v in datos['valores'].items() if isin in fondos}
     semanales = {isin: m.semanal(v) for isin, v in en_eur.items()}
@@ -93,4 +95,47 @@ def calcular(datos: dict, hoy: dt.date) -> list[tuple]:
     for isin, res in resultados.items():
         for (ventana, nombre), valor in res.items():
             filas.append((isin, ventana, nombre, float(valor), pct.get((isin, ventana, nombre))))
-    return filas
+    carteras = {cid: x for cid, c in datos.get('carteras', {}).items()
+                if (x := cartera(c, en_eur, resultados, series_ref, usa, estr_semanal, hoy))}
+    return filas, carteras
+
+
+def _anidar(met: dict[tuple[str, str], float]) -> dict[str, dict[str, float]]:
+    out: dict[str, dict[str, float]] = {}
+    for (ventana, nombre), v in met.items():
+        out.setdefault(ventana, {})[nombre] = float(v)
+    return out
+
+
+def cartera(c: dict, en_eur: dict, resultados: dict, series_ref: dict, usa: dict, estr_semanal: dict, hoy: dt.date) -> dict | None:
+    """Cartera modelo simulada con su rebalanceo: sus métricas (las mismas que las de un fondo) frente a la
+    combinación de las referencias de sus fondos, crisis, aportación y peso de hoy de cada fondo y correlaciones."""
+    isins = [i for i, _ in c['fondos']]
+    if not isins or any(len(en_eur.get(i, {})) < 2 for i in isins):
+        return None
+    pesos = [p for _, p in c['fondos']]
+    valor, ganancias, pesos_hoy, ultimo = m.simular([(en_eur[i], p) for i, p in c['fondos']], c['rebalanceo'])
+    if len(valor) < 2:
+        return None
+    s = m.semanal(valor)
+    refs = [series_ref.get(usa.get(i, '')) for i in isins]
+    ref = (m.serie_de_rendimientos(m.combinar([(m.rendimientos(r), p / sum(pesos)) for r, p in zip(refs, pesos)]))
+           if all(refs) else None)
+    met = m.metricas_fondo(s, ref, estr_semanal, hoy, valor)
+    ultima = max(valor)
+    aporta = {v: m.contribuciones(valor, ganancias, hace_anos(ultima, n)) for v, n in m.VENTANAS.items()}
+    vols = [resultados.get(i, {}).get(('3a', 'volatilidad')) for i in isins]
+    r = m.riesgo([m.rendimientos(m.semanal(en_eur[i])) for i in isins], pesos)
+    return {
+        'desde': min(valor).isoformat(), 'hasta': ultima.isoformat(), 'ultimo_rebalanceo': ultimo.isoformat(),
+        'metricas': _anidar(met),
+        # shortcut: los años de la referencia salen por semanas ISO (no hay fechas exactas de una serie combinada)
+        'referencia': _anidar(m.metricas_fondo(ref, None, estr_semanal, hoy)) if ref else None,
+        'crisis': {k: {'cartera': m.caida_en(s, *t), 'referencia': m.caida_en(ref, *t) if ref else None}
+                   for k, t in m.CRISIS.items()},
+        # media ponderada de las volatilidades a 3 años de los fondos: frente a la de la cartera, lo que quita diversificar
+        'volatilidad_media': sum(p * v for p, v in zip(pesos, vols)) / sum(pesos) if all(v is not None for v in vols) else None,
+        'correlacion': r and {'semanas': r['semanas'], 'matriz': r['correlacion']},
+        'fondos': [{'isin': i, 'peso_hoy': pesos_hoy[k], 'riesgo': r and r['riesgo'][k],
+                    'aporta': {v: a[k] for v, a in aporta.items() if a}} for k, i in enumerate(isins)],
+    }

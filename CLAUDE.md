@@ -23,8 +23,8 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - `fondos/proveedores/`: `morningstar.py` (buscador de fichas, series `timeseries_price` y ficha de detalle `security_details` vista `MFsnapshot` para la composición), `yahoo.py` (respaldo, solo con ticker verificado ±0,1 % en ≥5 días), `ft.py` (último mes, referencia y último recurso), `bce.py` (cambios y €STR).
 - `fondos/ingesta.py`: qué toca a cada fondo (`accion`, `planificar`) y cómo se descarga (`descargar_fondo`). `fondos/validacion.py`: huecos y saltos (`avisos`), fechas hábiles.
 - `fondos/db.py` (`Repo`): toda la lectura y escritura de la base; `reducir()` pasa la serie diaria a semanal + cierres de mes.
-- `fondos/nucleo/metricas.py`: **motor de métricas puro** (sin red ni base). `fondos/calculo.py`: referencias (índice, índice combinado, €STR o media de la categoría) y percentiles por categoría.
-- `web/src/`: `datos/` (cliente y consultas, paginadas de 1.000 en 1.000), `calculo/` (series, simulación de carteras, exposición X-Ray y formato, con test), `pantallas/` (Entrar, Inicio, Ficha, Cartera), `componentes/` (Buscador, Grafico, Exposicion).
+- `fondos/nucleo/metricas.py`: **motor de métricas puro** (sin red ni base). `fondos/calculo.py`: referencias (índice, índice combinado, €STR o media de la categoría), percentiles por categoría y cálculo de las carteras modelo.
+- `web/src/`: `datos/` (cliente y consultas, paginadas de 1.000 en 1.000), `calculo/` (series, simulación de carteras, exposición X-Ray y formato, con test), `pantallas/` (Entrar, Inicio, Ficha, Cartera), `componentes/` (Buscador, Grafico, Exposicion, EstadisticasCartera).
 
 ## Datos: lo esencial
 
@@ -33,7 +33,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - Ritmo: una carga completa por fondo (10 años diarios); después, los de `fondo_diario` cada día y el resto del universo una vez a la semana.
 - `composicion (isin, fecha_cartera, datos jsonb)`: desgloses netos del X-Ray con los códigos de Morningstar (`{código: %}`), estadísticas de renta variable y fija (TIR, cupón…) y todas las posiciones (API de la web de Morningstar con su clave pública; si falla, las 10 mayores, sin `posiciones_todas`); los nombres de los códigos los pone la web. Duración, calidad media y cajas de estilo están en `fondo` (vienen del buscador).
 - `metrica`: se recalcula entera en cada ejecución (borrar + COPY en una transacción), con `percentil` dentro de la categoría.
-- Carteras: `cartera`, `cartera_fondo (peso)`, `cartera_cambio`, `nota_semanal`; `seguimiento` (con `disponible_myinvestor`, marcado a mano).
+- Carteras: `cartera`, `cartera_fondo (peso)`, `cartera_calculo` (jsonb que escribe `metricas` con `metrica`: la cartera simulada con su rebalanceo frente a las referencias de sus fondos combinadas, años, crisis, aportación, peso de hoy y correlaciones; la web solo calcula el coste y el solapamiento), `cartera_cambio`, `nota_semanal`; `seguimiento` (con `disponible_myinvestor`, marcado a mano).
 - `registro_descarga`: una línea por descarga (ok, aviso, error); es lo que hay que mirar si algo falla.
 
 ## Reglas que no se pueden romper

@@ -81,11 +81,11 @@ def orden_metricas(repo) -> int:
     t0 = time.time()
     datos = repo.datos_metricas()
     t1 = time.time()
-    filas = calculo.calcular(datos, hoy())
+    filas, carteras = calculo.calcular(datos, hoy())
     t2 = time.time()
-    repo.guardar_metricas(filas)
+    repo.guardar_metricas(filas, carteras)
     fondos = len({f[0] for f in filas})
-    texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos · '
+    texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos y {len(carteras)} carteras · '
              f'carga {t1 - t0:.0f} s, cálculo {t2 - t1:.0f} s, guardado {time.time() - t2:.0f} s')
     print(texto)
     resumen_github(texto)

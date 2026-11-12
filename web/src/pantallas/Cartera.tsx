@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fecha, pct } from '../calculo/formato'
 import type { Composicion } from '../calculo/exposicion'
 import { simular, type Punto } from '../calculo/series'
+import EstadisticasCartera from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
@@ -11,16 +12,18 @@ type Datos = {
   cartera: q.Cartera
   fondos: (q.CarteraFondo & { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null })[]
   metricas: Map<string, number>
+  calc: q.CalculoCartera | null
 }
 
 async function cargar(id: number): Promise<Datos | null> {
   const c = await q.cartera(id)
   if (!c) return null
   const isins = c.fondos.map((f) => f.fondo.isin)
-  const [series, ms, comps] = await Promise.all([
+  const [series, ms, comps, calc] = await Promise.all([
     Promise.all(c.fondos.map((f) => serieEur(f.fondo.isin, f.fondo.divisa))),
     q.metricasDe(isins),
     q.composiciones(isins),
+    q.calculoCartera(id),
   ])
   const metricas = new Map(ms.filter((m) => m.nombre === 'rentabilidad').map((m) => [`${m.isin}|${m.ventana}`, Number(m.valor)]))
   const comp = new Map(comps.map((x) => [x.isin, x]))
@@ -28,6 +31,7 @@ async function cargar(id: number): Promise<Datos | null> {
     cartera: c.cartera,
     fondos: c.fondos.map((f, i) => ({ ...f, serie: series[i], comp: comp.get(f.fondo.isin)?.datos ?? null, fechaCartera: comp.get(f.fondo.isin)?.fecha_cartera ?? null })),
     metricas,
+    calc,
   }
 }
 
@@ -106,6 +110,11 @@ export default function Cartera({ id }: { id: number }) {
           </>
         )}
       </section>
+
+      <EstadisticasCartera
+        calc={datos.calc}
+        fondos={datos.fondos.map((f) => ({ isin: f.fondo.isin, nombre: f.fondo.nombre, peso: f.peso, ter: f.fondo.ter, c: f.comp }))}
+      />
 
       <Exposicion
         fondos={datos.fondos.map((f) => ({ peso: f.peso, nombre: f.fondo.nombre, c: f.comp, duracion: f.fondo.duracion_efectiva, fechaCartera: f.fechaCartera }))}

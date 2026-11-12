@@ -57,7 +57,7 @@ def por_clave(filas):
 
 def test_referencias_de_cada_tipo():
     d = datos_base()
-    filas = por_clave(calculo.calcular(d, HOY))
+    filas = por_clave(calculo.calcular(d, HOY)[0])
     # índice de mercado: beta cercana a 1 frente a su sustituto
     assert filas[('GLOBAL000001', '5a', 'beta')][0] == pytest.approx(1.2, abs=0.05)
     # combinado 60/40 y media de categoría: también tienen alfa
@@ -68,14 +68,14 @@ def test_referencias_de_cada_tipo():
 
 
 def test_divisa_se_pasa_a_eur():
-    filas = por_clave(calculo.calcular(datos_base(), HOY))
+    filas = por_clave(calculo.calcular(datos_base(), HOY)[0])
     eur = filas[('GLOBAL000001', '5a', 'rentabilidad')][0]
     usd = filas[('GLOBAL000002', '5a', 'rentabilidad')][0]
     assert usd == pytest.approx(eur)   # mismo fondo en USD con tipo fijo: misma rentabilidad en EUR
 
 
 def test_percentiles_por_categoria():
-    filas = por_clave(calculo.calcular(datos_base(), HOY))
+    filas = por_clave(calculo.calcular(datos_base(), HOY)[0])
     pct = {i: filas[(i, '5a', 'rentabilidad')][1] for i in (f'TECNO000000{k}' for k in range(5))}
     assert pct['TECNO0000004'] == 100 and pct['TECNO0000000'] == 0   # más crecimiento, mejor percentil
     assert filas[('TECNO0000000', '5a', 'beta')][1] is None           # la beta no lleva percentil
@@ -87,3 +87,18 @@ def test_indice_propio_manda_sobre_la_categoria():
     _, usa = calculo.referencias(d['fondos'], {i: calculo.m.semanal(v) for i, v in d['valores'].items()},
                                  d['indices'], d['categorias'], {})
     assert usa['TECNO0000000'] == 'indice:msci-world' and usa['TECNO0000001'] == 'media:Sector Equity Technology'
+
+
+def test_cartera_modelo():
+    d = datos_base()
+    d['valores']['PROXYBOND001'] = diaria(0.0003, ruido=0.002, fase=1)   # bonos que van al revés que las acciones
+    d['carteras'] = {1: {'rebalanceo': 'anual', 'fondos': [('GLOBAL000001', 60.0), ('PROXYBOND001', 40.0)]},
+                     2: {'rebalanceo': 'anual', 'fondos': [('NOEXISTE0001', 100.0)]}}
+    filas, carteras = calculo.calcular(d, HOY)
+    assert list(carteras) == [1]                     # sin precios de algún fondo, no hay cálculo
+    c = carteras[1]
+    assert c['metricas']['5a']['rentabilidad'] is not None and 'beta' in c['metricas']['5a']   # frente a 60 MSCI / 40 bonos
+    assert c['referencia']['5a']['rentabilidad'] is not None
+    assert sum(f['aporta']['5a'] for f in c['fondos']) == pytest.approx(c['metricas']['5a']['acumulada'], abs=0.02)
+    assert sum(f['riesgo'] for f in c['fondos']) == pytest.approx(1)
+    assert c['volatilidad_media'] >= c['metricas']['3a']['volatilidad'] - 1e-9   # diversificar no suma riesgo

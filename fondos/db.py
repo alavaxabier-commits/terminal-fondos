@@ -200,16 +200,25 @@ class Repo:
                    for i, p, c in self._filas('select id, proxy_isin, componentes from fondos.indice')}
         categorias = {cat: {'indice_id': iid, 'metodo': met}
                       for cat, iid, met in self._filas('select categoria, indice_id, metodo from fondos.categoria_referencia')}
+        carteras: dict[int, dict] = {}
+        for cid, reb, isin, peso in self._filas("""
+            select c.id, c.rebalanceo, cf.isin, cf.peso from fondos.cartera c
+            join fondos.cartera_fondo cf on cf.cartera_id = c.id where not c.archivada order by c.id, cf.peso desc"""):
+            carteras.setdefault(cid, {'rebalanceo': reb, 'fondos': []})['fondos'].append((isin, float(peso)))
         return {'fondos': fondos, 'valores': valores, 'tipos': tipos, 'estr': estr,
-                'indices': indices, 'categorias': categorias}
+                'indices': indices, 'categorias': categorias, 'carteras': carteras}
 
-    def guardar_metricas(self, filas: list[tuple]):
-        """Sustituye todas las métricas de una vez (en una transacción: nunca se ven a medias)."""
+    def guardar_metricas(self, filas: list[tuple], carteras: dict[int, dict]):
+        """Sustituye todas las métricas (de fondos y carteras) de una vez, en una transacción: nunca se ven a medias."""
+        from psycopg.types.json import Jsonb
         with self.cx.transaction(), self.cx.cursor() as c:
             c.execute('delete from fondos.metrica')
             with c.copy('copy fondos.metrica (isin, ventana, nombre, valor, percentil) from stdin') as cp:
                 for fila in filas:
                     cp.write_row(fila)
+            c.execute('delete from fondos.cartera_calculo')
+            for cid, datos in carteras.items():
+                c.execute('insert into fondos.cartera_calculo (cartera_id, datos) values (%s, %s)', (cid, Jsonb(datos)))
 
     # ------------------------------------------------------------ estado
     def resumen(self) -> list[tuple]:

@@ -219,3 +219,32 @@ export function exposicion(fondos: Fondo[]): Exposicion {
     cortos: con.filter((f) => ['1', '3'].some((k) => (f.c!.activos!.corto?.[k] ?? 0) >= 10)).map((f) => f.nombre),
   }
 }
+
+export type Solape = { a: string; b: string; pct: number; comunes: string[]; completo: boolean }
+
+/**
+ * Cuánto comparten dos fondos, como Morningstar: la suma, en las posiciones comunes (por ISIN o nombre, sin liquidez),
+ * del menor de sus dos pesos. 100 = la misma cartera. `completo`: los dos dan todas sus posiciones.
+ */
+export function solapamiento(fondos: { nombre: string; c: Composicion | null }[]): Solape[] {
+  const pesos = fondos
+    .filter((f) => f.c?.posiciones?.length)
+    .map((f) => {
+      const m = new Map<string, { nombre: string; peso: number }>()
+      for (const p of f.c!.posiciones!) {
+        if (p.tipo === 'C' || p.sector === 'cashAndEquivalents') continue
+        const k = p.isin || p.nombre
+        m.set(k, { nombre: p.nombre, peso: (m.get(k)?.peso ?? 0) + p.peso })
+      }
+      return { nombre: f.nombre, todas: !!f.c!.posiciones_todas, m }
+    })
+  const out: Solape[] = []
+  pesos.forEach((x, i) =>
+    pesos.slice(i + 1).forEach((y) => {
+      const comunes = [...x.m].filter(([k]) => y.m.has(k)).map(([k, p]) => ({ nombre: p.nombre, peso: Math.min(p.peso, y.m.get(k)!.peso) }))
+      comunes.sort((a, b) => b.peso - a.peso)
+      out.push({ a: x.nombre, b: y.nombre, pct: comunes.reduce((s, p) => s + p.peso, 0), comunes: comunes.slice(0, 3).map((p) => p.nombre), completo: x.todas && y.todas })
+    }),
+  )
+  return out.sort((a, b) => b.pct - a.pct)
+}

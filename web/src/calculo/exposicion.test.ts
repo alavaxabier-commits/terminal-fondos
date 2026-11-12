@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exposicion, mezclar, SECTORES } from './exposicion'
+import { exposicion, mezclar, SECTORES, solapamiento } from './exposicion'
 
 // 60 % en un fondo de acciones (todo EE. UU.) y 40 % en uno mixto (50 % acciones de Japón, 50 % bonos)
 const acciones = {
@@ -91,5 +91,12 @@ describe('exposicion', () => {
   it('mezclar descarta códigos desconocidos y lo que no llega a 0,05 %', () => {
     expect(mezclar([{ w: 1, d: { '311': 99.97, '101': 0.03, nc: 5 } }], SECTORES)).toEqual([['Tecnología', 99.97]])
     expect(mezclar([], SECTORES)).toEqual([])
+  })
+})
+
+describe('solapamiento', () => {
+  it('suma el menor peso de cada posición común, sin la liquidez', () => {
+    const [s] = solapamiento([{ nombre: 'RV', c: acciones }, { nombre: 'Mixto', c: mixto }, { nombre: 'Sin datos', c: null }])
+    expect(s).toEqual({ a: 'RV', b: 'Mixto', pct: 5, comunes: ['Apple'], completo: false }) // Apple: 10 y 5 → 5
   })
 })

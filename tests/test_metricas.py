@@ -156,3 +156,39 @@ def test_metricas_mensuales_como_morningstar():
     out = metricas_mensuales(serie, {}, hoy)
     assert out[('3a', 'volatilidad_mensual')] == pytest.approx(stdev(rs) * math.sqrt(12))
     assert ('5a', 'volatilidad_mensual') not in out
+
+
+# ------------------------------------------------------------------ carteras modelo
+from fondos.nucleo.metricas import caida_en, contribuciones, riesgo, simular  # noqa: E402
+
+
+def test_simular_rebalancea_al_cerrar_el_ano():
+    a = {D(2025, 12, 30): 100.0, D(2025, 12, 31): 200.0, D(2026, 1, 2): 400.0}   # se duplica dos veces
+    b = {D(2025, 12, 30): 100.0, D(2025, 12, 31): 100.0, D(2026, 1, 2): 100.0}   # plano
+    valor, ganancias, pesos, ultimo = simular([(a, 50), (b, 50)], 'anual')
+    # 31/12: 50·2 + 50 = 150 y vuelve al 50/50; 2/1: 75·2 + 75 = 225
+    assert list(valor.values()) == [100, pytest.approx(150), pytest.approx(225)]
+    assert ultimo == D(2025, 12, 31) and pesos == [pytest.approx(150 / 225), pytest.approx(75 / 225)]
+    # sin rebalanceo los pesos derivan: 50·4 + 50 = 250
+    assert simular([(a, 50), (b, 50)], 'ninguno')[0][D(2026, 1, 2)] == pytest.approx(250)
+    # lo que aporta cada fondo suma la rentabilidad de la cartera
+    aporta = contribuciones(valor, ganancias, D(2025, 12, 30))
+    assert aporta == [pytest.approx(1.25), 0] and sum(aporta) == pytest.approx(valor[D(2026, 1, 2)] / 100 - 1)
+    assert contribuciones(valor, ganancias, D(2025, 1, 1)) is None   # sin historia desde esa fecha
+
+
+def test_caida_en_un_tramo_y_su_recuperacion():
+    s = serie_de([100, 110, 88, 99, 111], desde=D(2020, 2, 7))
+    assert caida_en(s, D(2020, 2, 1), D(2020, 2, 29)) == (pytest.approx(-0.2), 3)   # se recupera ya fuera del tramo
+    assert caida_en(serie_de([100, 110, 88], desde=D(2020, 2, 7)), D(2020, 2, 1), D(2020, 2, 29))[1] == -1
+    assert caida_en(s, D(2019, 1, 1), D(2019, 3, 1)) is None
+
+
+def test_riesgo_correlaciones_y_reparto():
+    x = {(2020, k): 0.01 * (-1) ** k for k in range(1, 53)}
+    y = {k: 2 * v for k, v in x.items()}            # se mueve igual, el doble
+    z = {k: -v for k, v in x.items()}                # al revés
+    r = riesgo([x, y, z], [50, 25, 25])
+    assert r['correlacion'][0][1] == pytest.approx(1) and r['correlacion'][0][2] == pytest.approx(-1)
+    assert sum(r['riesgo']) == pytest.approx(1)
+    assert riesgo([dict(list(x.items())[:20])], [100]) is None   # menos de un año

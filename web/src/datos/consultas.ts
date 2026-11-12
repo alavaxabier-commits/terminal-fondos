@@ -144,3 +144,23 @@ export async function composiciones(isins: string[]): Promise<{ isin: string; fe
   error(e)
   return (data ?? []) as { isin: string; fecha_cartera: string | null; datos: Composicion }[]
 }
+
+type Metricas = Record<string, Record<string, number>> // ventana ('1a', '2024', 'ytd'…) → nombre → valor
+export type CalculoCartera = {
+  desde: string
+  hasta: string
+  ultimo_rebalanceo: string
+  metricas: Metricas
+  referencia: Metricas | null
+  crisis: Record<string, { cartera: [number, number] | null; referencia: [number, number] | null }>
+  volatilidad_media: number | null
+  correlacion: { semanas: number; matriz: (number | null)[][] } | null
+  fondos: { isin: string; peso_hoy: number; riesgo: number | null; aporta: Record<string, number> }[]
+}
+
+/** Lo que calcula `python -m fondos metricas` para una cartera (simulación, métricas, crisis, correlaciones…). */
+export async function calculoCartera(id: number): Promise<CalculoCartera | null> {
+  const { data, error: e } = await supabase.from('cartera_calculo').select('datos').eq('cartera_id', id).maybeSingle()
+  error(e)
+  return (data?.datos as CalculoCartera) ?? null
+}
