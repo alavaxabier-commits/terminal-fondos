@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from .validacion import Serie, a_semanal, avisos, hace_anos, lunes, ultimo_habil_anterior
 
 ANOS = 10
-TANDA = 300
+TANDA = 2000           # cargas iniciales por ejecución (~2 s por fondo: unos 70 minutos)
 MIN_DIARIOS_ANYO = 150   # un fondo diario con menos valores en el último año solo tiene la serie semanal: se recarga
 
 
