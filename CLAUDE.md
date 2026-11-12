@@ -29,7 +29,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 ## Datos: lo esencial
 
 - `fondo`: fichas (también las que no están en el universo). `en_universo`: ≥ 50 M€, ≥ 3 años, como mucho 100 por categoría, una clase por fondo (EUR, particulares, acumulación, menor gasto). `historico_diario`: ya tiene la carga completa diaria.
-- **Precios en paquetes anuales**: `valor_anual (fondo_id, ano, dias[], valores[], fuentes[])`. Se lee con la vista `valor_liquidativo` (isin, fecha, valor, divisa, fuente) y se escribe **solo** con `fondos.guardar_valores(isin, fechas, valores, fuente)`, que mezcla con lo guardado (lo nuevo manda en la misma fecha). `valor_liquidativo_antigua` es la tabla vieja, pendiente de borrar.
+- **Precios en paquetes anuales**: `valor_anual (fondo_id, ano, dias[], valores[], fuentes[])`. Se lee con la vista `valor_liquidativo` (isin, fecha, valor, divisa, fuente) y se escribe **solo** con `fondos.guardar_valores(isin, fechas, valores, fuente)`, que mezcla con lo guardado (lo nuevo manda en la misma fecha).
 - Ritmo: una carga completa por fondo (10 años diarios); después, los de `fondo_diario` cada día y el resto del universo una vez a la semana.
 - `composicion (isin, fecha_cartera, datos jsonb)`: desgloses netos del X-Ray con los códigos de Morningstar (`{código: %}`), estadísticas de renta variable y fija (TIR, cupón…) y todas las posiciones (API de la web de Morningstar con su clave pública; si falla, las 10 mayores, sin `posiciones_todas`); los nombres de los códigos los pone la web. Duración, calidad media y cajas de estilo están en `fondo` (vienen del buscador).
 - `metrica`: se recalcula entera en cada ejecución (borrar + COPY en una transacción), con `percentil` dentro de la categoría.
