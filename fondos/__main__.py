@@ -119,10 +119,9 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
     dentro = repo.marcar_universo(min_patrimonio, min_anos, tope, max_minima)
     borrados = repo.limpiar_valores()
     con_minima, fichas = repo.resumen_minimas()
-    mb = dentro * 52 * ingesta.ANOS * 100 / 1e6  # ~100 bytes por valor semanal, con su índice
     texto = (f'### Universo · {hoy()}\n\n{n} fichas de Morningstar España · {dentro} fondos en el universo '
              f'(patrimonio ≥ {min_patrimonio:g} M€, ≥ {min_anos} años, como mucho {tope} por categoría, una clase por fondo) · '
-             f'unos {mb:.0f} MB de valores semanales · inversión mínima conocida en {con_minima} de {fichas} fichas · '
+             f'inversión mínima conocida en {con_minima} de {fichas} fichas · '
              f'{borrados} valores borrados de fondos que salen')
     print(texto)
     resumen_github(texto)

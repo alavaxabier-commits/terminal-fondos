@@ -128,6 +128,13 @@ def _desglose(lista, lado: str = 'N', tipo: str | None = None) -> dict | None:
     return None
 
 
+def completas(posiciones: list, n: dict | None) -> bool:
+    """¿Están todas? Algunos fondos solo dejan publicar unas pocas (Jupiter: 10 de 2.428); el 80 % deja margen a las
+    líneas sin peso que se descartan."""
+    total = (n or {}).get('total')
+    return not total or len(posiciones) >= 0.8 * total
+
+
 def leer_composicion(datos) -> tuple[dt.date | None, dict]:
     """Ficha de detalle → (fecha de la cartera, desgloses del X-Ray). Sin desglose publicado: (None, {})."""
     d = datos[0] if isinstance(datos, list) and datos else datos
@@ -222,8 +229,10 @@ class Morningstar:
                 p = self.http.get(POSICIONES.format(ms_id), headers={'apikey': CLAVE_WEB}, timeout=120,
                                   params={'clientId': 'MDC', 'version': '4.71.0', 'premiumNum': 10000, 'freeNum': 10000})
                 p.raise_for_status()
-                if (todas := leer_posiciones(p.json())) is not None:
-                    datos['posiciones'], datos['posiciones_todas'] = todas, True
+                if todas := leer_posiciones(p.json()):
+                    datos['posiciones'] = todas
+                    if completas(todas, datos.get('n_posiciones')):
+                        datos['posiciones_todas'] = True
             except (requests.RequestException, ValueError):
                 pass
         return fecha, datos

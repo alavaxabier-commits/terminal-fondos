@@ -2,7 +2,7 @@ import datetime as dt
 
 from fondos.proveedores.bce import leer_csv
 from fondos.proveedores.ft import leer_tabla
-from fondos.proveedores.morningstar import ficha, leer_composicion, leer_posiciones, leer_serie
+from fondos.proveedores.morningstar import completas, ficha, leer_composicion, leer_posiciones, leer_serie
 from fondos.proveedores.yahoo import elegir_ticker
 
 D = dt.date
@@ -102,3 +102,11 @@ def test_leer_posiciones_todas_las_paginas():
         {'nombre': 'Bund future', 'peso': -1.5, 'tipo': 'FU'}]
     assert leer_posiciones({'numberOfHolding': 0}) is None
     assert leer_posiciones([]) is None
+
+
+def test_completas_si_trae_casi_todas():
+    diez = [{'peso': 1}] * 10
+    assert not completas(diez, {'total': 2428, 'Stock': 1814})  # fondo que solo publica las 10 mayores
+    assert completas(diez, {'total': 10})
+    assert completas([{'peso': 1}] * 8, {'total': 9})          # alguna línea sin peso descartada
+    assert completas(diez, None) and completas(diez, {})        # sin recuento: se da por buena
