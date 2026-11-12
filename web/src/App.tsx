@@ -22,8 +22,12 @@ export default function App() {
   const ruta = useRuta()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSesion(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSesion(s))
+    // Al volver del enlace del correo, la dirección trae la sesión en el hash (#access_token=…): se limpia.
+    const limpiar = () => {
+      if (/access_token|error_description/.test(location.hash)) history.replaceState(null, '', location.pathname + '#/')
+    }
+    supabase.auth.getSession().then(({ data }) => { setSesion(data.session); limpiar() })
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => { setSesion(s); limpiar() })
     return () => data.subscription.unsubscribe()
   }, [])
 
