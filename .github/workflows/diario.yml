@@ -28,4 +28,4 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ORDEN: ${{ inputs.orden || 'diario' }}
           ARGUMENTOS: ${{ inputs.argumentos }}
-        run: python -m fondos "$ORDEN" $ARGUMENTOS
+        run: python -m fondos "$ORDEN" ${ARGUMENTOS//—/--}  # el Mac convierte -- en raya
