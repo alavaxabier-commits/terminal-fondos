@@ -1,8 +1,9 @@
 """Descarga diaria: qué fondos tocan hoy, de dónde se trae cada serie y cómo se guarda.
 
 Reglas (especificación, secciones 3 y 4):
-- Diaria para los fondos de mis carteras modelo y los que vigilo; para el resto del universo, el último dato de cada
-  semana cerrada y el último de cada mes cerrado (años naturales exactos y métricas mensuales).
+- Se guardan todos los días de todos los fondos (en paquetes anuales, ver migración 0014).
+- Los fondos de mis carteras modelo, los que vigilo y los sustitutos de índices se actualizan cada día; el resto del
+  universo, una vez por semana (trae los días de esa semana de una vez).
 - 10 años de histórico. La carga inicial va en tandas (por defecto 300 fondos por ejecución), los diarios primero.
 - Morningstar primero; si falla, Yahoo con un ticker verificado (contra lo guardado o contra el FT);
   para actualizar, el FT como último recurso.
@@ -14,7 +15,7 @@ import datetime as dt
 import time
 from dataclasses import dataclass
 
-from .validacion import Serie, a_semanal_y_meses, avisos, hace_anos, lunes, ultimo_habil_anterior
+from .validacion import Serie, avisos, hace_anos, lunes, ultimo_habil_anterior
 
 ANOS = 10
 TANDA = 2000           # cargas iniciales por ejecución (~2 s por fondo: unos 70 minutos)
@@ -31,20 +32,20 @@ class FondoIngesta:
     diaria: bool
     ultima: dt.date | None
     n_ultimo_anyo: int = 0
-    con_cierres_mes: bool = True   # su serie semanal ya incluye el último dato de cada mes
+    historico_diario: bool = True  # ya tiene los 10 años con todos los días (si no, se recarga una vez)
 
 
 def accion(f: FondoIngesta, hoy: dt.date) -> str | None:
     """'carga' (todo el histórico), 'actualizar' (desde el último dato) o None (está al día)."""
     if f.ultima is None:
         return 'carga'
-    if not f.diaria and not f.con_cierres_mes:
-        return 'carga'   # serie semanal anterior a los cierres de mes: se recarga una vez
+    if not f.diaria and not f.historico_diario:
+        return 'carga'   # serie semanal antigua: se recarga una vez con todos los días
     if f.diaria:
         if f.n_ultimo_anyo < MIN_DIARIOS_ANYO:
             return 'carga'
         return 'actualizar' if f.ultima < ultimo_habil_anterior(hoy) else None
-    # semanal: basta con tener algún dato de la última semana cerrada
+    # resto del universo: una vez por semana (basta con tener algún dato de la última semana cerrada)
     return 'actualizar' if f.ultima < lunes(hoy) - dt.timedelta(days=7) else None
 
 
@@ -118,14 +119,10 @@ def descargar_fondo(f: FondoIngesta, que: str, hoy: dt.date, repo, ms, yh, ft) -
         repo.registrar('ingesta', f.isin, 'error', '; '.join(errores))
         return 'error'
 
-    if not f.diaria:
-        serie = a_semanal_y_meses(serie, hoy)
-        if not serie:  # solo había datos de la semana en curso
-            return 'ok'
     repo.guardar_valores(f.isin, serie, f.divisa or 'EUR', fuente)
-    if que == 'carga' and not f.diaria and not f.con_cierres_mes:
-        repo.marcar_cierres_mes(f.isin)
-    av = avisos(serie, semanal=not f.diaria)
+    if que == 'carga' and not f.historico_diario:
+        repo.marcar_historico_diario(f.isin)
+    av = avisos(serie)
     detalle = f'{que}: {len(serie)} valores {min(serie)}…{max(serie)}'
     if errores:
         detalle += ' · ' + '; '.join(errores)

@@ -103,13 +103,11 @@ def test_carga_diaria_desde_morningstar_trae_10_anos():
     assert repo.registro[-1][2] == 'ok'
 
 
-def test_semanal_guarda_un_valor_por_semana_cerrada():
+def test_universo_guarda_todos_los_dias():
     ms = MSFalso(serie_diaria(D(2026, 10, 1), D(2026, 11, 17)))
     repo = RepoFalso()
     descargar_fondo(fondo(diaria=False), 'carga', HOY, repo, ms, YahooFalso(), FTFalso())
-    fechas = sorted(repo.guardado)
-    assert all(f.weekday() == 4 for f in fechas)                   # viernes
-    assert fechas[-1] == D(2026, 11, 13)                            # la semana en curso no entra
+    assert repo.guardado == ms.serie                                # nada se reduce al guardar
 
 
 def test_si_morningstar_falla_usa_yahoo_verificado():
@@ -172,16 +170,28 @@ def test_carga_no_usa_ft_como_historico():
     assert descargar_fondo(fondo(), 'carga', HOY, repo, MSFalso(error='401'), YahooFalso(ticker=None), ft) == 'error'
 
 
-def test_serie_semanal_antigua_se_recarga_una_vez_con_cierres_de_mes():
-    f = FondoIngesta('LU0000000001', 'Fondo', 'F1', None, 'EUR', False, D(2026, 11, 13), 52, con_cierres_mes=False)
+def test_serie_semanal_antigua_se_recarga_una_vez_con_todos_los_dias():
+    f = FondoIngesta('LU0000000001', 'Fondo', 'F1', None, 'EUR', False, D(2026, 11, 13), 52, historico_diario=False)
     assert accion(f, HOY) == 'carga'
 
     class RepoMarca(RepoFalso):
         marcados = []
-        def marcar_cierres_mes(self, isin):
+        def marcar_historico_diario(self, isin):
             self.marcados.append(isin)
 
     repo = RepoMarca()
     descargar_fondo(f, 'carga', HOY, repo, MSFalso(serie_diaria(D(2026, 8, 3), D(2026, 11, 17))), YahooFalso(), FTFalso())
     assert repo.marcados == ['LU0000000001']
-    assert D(2026, 9, 30) in repo.guardado and D(2026, 10, 30) in repo.guardado   # cierres de septiembre y octubre
+    assert D(2026, 9, 30) in repo.guardado and D(2026, 11, 11) in repo.guardado   # miércoles: todos los días
+    f.historico_diario = True
+    f.ultima = D(2026, 11, 13)
+    assert accion(f, HOY) is None                                                # ya al día hasta el lunes que viene
+
+
+def test_reducir_para_metricas():
+    from fondos.db import reducir
+    serie = serie_diaria(D(2026, 9, 28), D(2026, 11, 17))
+    r = reducir(serie)
+    assert D(2026, 9, 30) in r                       # cierre de septiembre (miércoles)
+    assert D(2026, 10, 2) in r and D(2026, 10, 1) not in r   # viernes sí, jueves no
+    assert D(2026, 11, 17) in r                      # el último dato siempre

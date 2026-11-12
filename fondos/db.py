@@ -9,6 +9,16 @@ from .ingesta import FondoIngesta
 from .validacion import Serie
 
 
+def reducir(serie: Serie) -> Serie:
+    """Último dato de cada semana ISO y de cada mes: lo que usan las métricas (los días intermedios no)."""
+    semana: dict[tuple, dt.date] = {}
+    mes: dict[tuple, dt.date] = {}
+    for f in sorted(serie):
+        semana[f.isocalendar()[:2]] = f
+        mes[(f.year, f.month)] = f
+    return {f: serie[f] for f in sorted(set(semana.values()) | set(mes.values()))}
+
+
 class Repo:
     def __init__(self, url: str | None = None):
         import psycopg
@@ -31,7 +41,7 @@ class Repo:
     def fondos_para_ingesta(self) -> list[FondoIngesta]:
         filas = self._filas("""
             select f.isin, f.nombre, f.ms_id, f.yahoo_ticker, f.divisa, d.isin is not null,
-                   v.ultima, coalesce(v.n_anyo, 0), f.con_cierres_mes
+                   v.ultima, coalesce(v.n_anyo, 0), f.historico_diario
             from fondos.fondo f
             left join fondos.fondo_diario d using (isin)
             left join lateral (
@@ -79,8 +89,8 @@ class Repo:
         """(fichas con inversión mínima, fichas en total): para saber si Morningstar da el dato."""
         return self._filas('select count(inversion_minima), count(*) from fondos.fondo')[0]
 
-    def marcar_cierres_mes(self, isin: str):
-        self._ejecutar('update fondos.fondo set con_cierres_mes = true where isin = %s', (isin,))
+    def marcar_historico_diario(self, isin: str):
+        self._ejecutar('update fondos.fondo set historico_diario = true where isin = %s', (isin,))
 
     def guardar_ticker(self, isin: str, ticker: str):
         self._ejecutar('update fondos.fondo set yahoo_ticker = %s where isin = %s', (ticker, isin))
@@ -94,11 +104,10 @@ class Repo:
             'select fecha, valor from fondos.valor_liquidativo where isin = %s and fecha >= %s', (isin, desde))}
 
     def guardar_valores(self, isin: str, serie: Serie, divisa: str, fuente: str):
-        with self.cx.cursor() as c:
-            c.executemany("""
-                insert into fondos.valor_liquidativo (isin, fecha, valor, divisa, fuente) values (%s, %s, %s, %s, %s)
-                on conflict (isin, fecha) do update set valor = excluded.valor, divisa = excluded.divisa, fuente = excluded.fuente""",
-                [(isin, f, v, divisa, fuente) for f, v in sorted(serie.items())])
+        """Mezcla la serie en los paquetes anuales del fondo (la divisa es la de su ficha)."""
+        fechas = sorted(serie)
+        self._ejecutar('select fondos.guardar_valores(%s, %s::date[], %s::double precision[], %s)',
+                       (isin, fechas, [float(serie[f]) for f in fechas], fuente))
 
     def registrar(self, fuente: str, isin: str | None, estado: str, mensaje: str):
         self._ejecutar('insert into fondos.registro_descarga (fuente, isin, estado, mensaje) values (%s, %s, %s, %s)',
@@ -135,12 +144,25 @@ class Repo:
             select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo from fondos.fondo f
             where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")}
         valores: dict[str, dict] = {}
-        with self.cx.cursor() as c:
-            c.execute("""select v.isin, v.fecha, v.valor from fondos.valor_liquidativo v
-                         join fondos.fondo f using (isin)
-                         where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")
-            for isin, fecha, valor in c:
-                valores.setdefault(isin, {})[fecha] = float(valor)
+        # Paquetes anuales en streaming (cursor con nombre): cada fondo se reduce a su último dato de cada semana y de
+        # cada mes antes de pasar al siguiente, para no tener en memoria los ~11 millones de valores diarios.
+        actual, dias = None, {}
+        with self.cx.transaction(), self.cx.cursor(name='paquetes') as c:
+            c.itersize = 500
+            c.execute("""select f.isin, a.ano, a.dias, a.valores from fondos.valor_anual a
+                         join fondos.fondo f on f.id = a.fondo_id
+                         where f.en_universo or f.isin in (select isin from fondos.fondo_diario)
+                         order by f.isin, a.ano""")
+            for isin, ano, ds, vs in c:
+                if isin != actual:
+                    if actual:
+                        valores[actual] = reducir(dias)
+                    actual, dias = isin, {}
+                inicio = dt.date(ano, 1, 1)
+                for d, v in zip(ds, vs):
+                    dias[inicio + dt.timedelta(days=d)] = float(v)
+            if actual:
+                valores[actual] = reducir(dias)
         tipos: dict[str, dict] = {}
         for fecha, divisa, por_eur in self._filas('select fecha, divisa, por_eur from fondos.tipo_cambio'):
             tipos.setdefault(divisa, {})[fecha] = float(por_eur)
@@ -166,7 +188,7 @@ class Repo:
         return self._filas("""
             with v as (
               select isin, fecha, fuente, fecha - lag(fecha) over (partition by isin order by fecha) as salto
-              from fondos.valor_liquidativo)
+              from fondos.valor_liquidativo where isin in (select isin from fondos.fondo_diario))
             select f.nombre, f.isin, count(v.fecha), min(v.fecha), max(v.fecha),
                    string_agg(distinct v.fuente, '+'), coalesce(max(v.salto), 0)
             from fondos.fondo f join fondos.fondo_diario d using (isin)
