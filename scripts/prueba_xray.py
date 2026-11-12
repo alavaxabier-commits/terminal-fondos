@@ -40,8 +40,9 @@ for isin in sys.argv[1:]:
             print(f'\n--- security_details {vista}: HTTP {r.status_code}, {len(r.content)} bytes')
             if r.ok and r.content:
                 d = r.json()
-                claves(d)
-                muestra(f'security_details {vista}', d, 6000)
+                import pathlib
+                pathlib.Path('salida').mkdir(exist_ok=True)
+                pathlib.Path(f'salida/{isin}_{vista}.json').write_text(r.text, encoding='utf-8')
         except Exception as e:  # noqa: BLE001
             print(f'security_details {vista} falla: {e!r}')
 
@@ -52,23 +53,3 @@ for isin in sys.argv[1:]:
     except Exception as e:  # noqa: BLE001
         print(f'buscador extra falla: {e!r}')
 
-# 3) mstarpy, con el registro de urllib3 para ver URL y códigos
-logging.basicConfig(level=logging.DEBUG, format='%(name)s %(message)s')
-logging.getLogger('urllib3').setLevel(logging.DEBUG)
-try:
-    import mstarpy
-    print(f'\nmstarpy {getattr(mstarpy, "__version__", "?")}')
-    for isin in sys.argv[1:]:
-        try:
-            fu = mstarpy.Funds(term=isin, country='es')
-            print(f'\n--- mstarpy {isin}: {fu.name} · {fu.code}')
-        except Exception as e:  # noqa: BLE001
-            print(f'mstarpy {isin} no se encuentra: {e!r}')
-            continue
-        for metodo in ('allocationMap', 'sector', 'regionalSector', 'holdings', 'equityStyle', 'creditQuality'):
-            try:
-                muestra(f'mstarpy {isin}.{metodo}()', getattr(fu, metodo)(), 3000)
-            except Exception as e:  # noqa: BLE001
-                print(f'mstarpy {isin}.{metodo}() falla: {e!r}')
-except ImportError as e:
-    print(f'sin mstarpy: {e}')
