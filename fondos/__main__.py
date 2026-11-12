@@ -5,6 +5,7 @@
   python -m fondos macro                tipos de cambio y €STR del BCE
   python -m fondos diario               macro + precios (lo que lanza GitHub Actions cada mañana)
   python -m fondos universo             fichas de Morningstar España; universo = ≥ 50 M€, ≥ 3 años, ≤ 100 por categoría
+  python -m fondos metricas             calcula las métricas y percentiles de todos los fondos
   python -m fondos estado               resumen para cerrar la fase 0: valores, huecos y errores recientes
   python -m fondos prueba-red ISIN      prueba cada fuente con un fondo, sin base de datos
 """
@@ -51,6 +52,23 @@ def orden_precios(repo, tanda: int) -> int:
     print(texto)
     resumen_github(texto)
     return 1 if c['error'] and not (c['ok'] or c['aviso']) else 0  # en rojo solo si falla todo
+
+
+def orden_metricas(repo) -> int:
+    import time
+    from . import calculo
+    t0 = time.time()
+    datos = repo.datos_metricas()
+    t1 = time.time()
+    filas = calculo.calcular(datos, hoy())
+    t2 = time.time()
+    repo.guardar_metricas(filas)
+    fondos = len({f[0] for f in filas})
+    texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos · '
+             f'carga {t1 - t0:.0f} s, cálculo {t2 - t1:.0f} s, guardado {time.time() - t2:.0f} s')
+    print(texto)
+    resumen_github(texto)
+    return 0
 
 
 def orden_estado(repo) -> int:
@@ -127,6 +145,7 @@ def main(argv=None) -> int:
         s = sub.add_parser(nombre)
         s.add_argument('--tanda', type=int, default=ingesta.TANDA)
     sub.add_parser('macro')
+    sub.add_parser('metricas')
     sub.add_parser('estado')
     u = sub.add_parser('universo')
     u.add_argument('--limite', type=int, help='solo las primeras N fichas (pruebas)')
@@ -152,8 +171,11 @@ def main(argv=None) -> int:
     if args.orden == 'diario':
         ingesta.macro(repo, BCE(), hoy())
         codigo = orden_precios(repo, args.tanda)
+        orden_metricas(repo)
         orden_estado(repo)
         return codigo
+    if args.orden == 'metricas':
+        return orden_metricas(repo)
     if args.orden == 'universo':
         return orden_universo(repo, args.limite, args.min_patrimonio, args.min_anos, args.tope)
     if args.orden == 'estado':

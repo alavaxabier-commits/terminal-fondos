@@ -113,6 +113,39 @@ class Repo:
             c.executemany('insert into fondos.tipo_interes (fecha, estr) values (%s, %s) '
                           'on conflict (fecha) do update set estr = excluded.estr', sorted(serie.items()))
 
+    # ------------------------------------------------------------ métricas
+    def datos_metricas(self) -> dict:
+        """Todo lo que necesita calculo.calcular: fondos (universo, diarios y sustitutos), valores, tipos, €STR…"""
+        fondos = {isin: {'categoria': cat, 'divisa': div, 'indice_id': iid, 'en_universo': uni}
+                  for isin, cat, div, iid, uni in self._filas("""
+            select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo from fondos.fondo f
+            where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")}
+        valores: dict[str, dict] = {}
+        with self.cx.cursor() as c:
+            c.execute("""select v.isin, v.fecha, v.valor from fondos.valor_liquidativo v
+                         join fondos.fondo f using (isin)
+                         where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")
+            for isin, fecha, valor in c:
+                valores.setdefault(isin, {})[fecha] = float(valor)
+        tipos: dict[str, dict] = {}
+        for fecha, divisa, por_eur in self._filas('select fecha, divisa, por_eur from fondos.tipo_cambio'):
+            tipos.setdefault(divisa, {})[fecha] = float(por_eur)
+        estr = {f: float(v) for f, v in self._filas('select fecha, estr from fondos.tipo_interes')}
+        indices = {i: {'proxy_isin': p, 'componentes': c}
+                   for i, p, c in self._filas('select id, proxy_isin, componentes from fondos.indice')}
+        categorias = {cat: {'indice_id': iid, 'metodo': met}
+                      for cat, iid, met in self._filas('select categoria, indice_id, metodo from fondos.categoria_referencia')}
+        return {'fondos': fondos, 'valores': valores, 'tipos': tipos, 'estr': estr,
+                'indices': indices, 'categorias': categorias}
+
+    def guardar_metricas(self, filas: list[tuple]):
+        """Sustituye todas las métricas de una vez (en una transacción: nunca se ven a medias)."""
+        with self.cx.transaction(), self.cx.cursor() as c:
+            c.execute('delete from fondos.metrica')
+            with c.copy('copy fondos.metrica (isin, ventana, nombre, valor, percentil) from stdin') as cp:
+                for fila in filas:
+                    cp.write_row(fila)
+
     # ------------------------------------------------------------ estado
     def resumen(self) -> list[tuple]:
         """Por fondo seguido: nombre, isin, nº de valores, primero, último, fuentes, días hábiles del mayor hueco."""
