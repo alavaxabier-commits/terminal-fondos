@@ -20,9 +20,14 @@ def test_avisos_hueco_y_salto():
     assert avisos({D(2026, 10, 1): 100.0, D(2026, 10, 2): 101.0}) == []
 
 
-def test_avisos_semanal_tolera_una_semana_sin_dato():
-    assert avisos({D(2026, 10, 2): 100.0, D(2026, 10, 16): 100.0}, semanal=True) == []
-    assert avisos({D(2026, 10, 2): 100.0, D(2026, 10, 23): 100.0}, semanal=True) != []
+def test_avisos_semanal():
+    # viernes → jueves de la semana siguiente (festivo): semanas seguidas, sin aviso
+    assert avisos({D(2026, 10, 2): 100.0, D(2026, 10, 8): 100.0}, semanal=True) == []
+    # falta la semana del 5 al 9 de octubre
+    assert avisos({D(2026, 10, 2): 100.0, D(2026, 10, 16): 100.0}, semanal=True) == ['1 semana(s) sin dato entre 2026-10-02 y 2026-10-16']
+    # en semanales el umbral de salto es 20 %: 18 % no avisa, 25 % sí
+    assert avisos({D(2026, 10, 2): 100.0, D(2026, 10, 9): 118.0}, semanal=True) == []
+    assert avisos({D(2026, 10, 2): 100.0, D(2026, 10, 9): 125.0}, semanal=True) == ['salto de +25.0% el 2026-10-09']
 
 
 def test_a_semanal_toma_el_ultimo_de_cada_semana_cerrada():

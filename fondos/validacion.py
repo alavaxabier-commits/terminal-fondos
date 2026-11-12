@@ -6,8 +6,8 @@ import datetime as dt
 Serie = dict[dt.date, float]
 
 HUECO_DIAS_HABILES = 5   # más días hábiles seguidos sin dato → aviso (series diarias)
-HUECO_DIAS_SEMANAL = 14  # más días entre dos datos semanales → aviso
-SALTO_MAX = 0.15         # variación entre dos datos consecutivos por encima de esto → aviso
+SALTO_MAX = 0.15         # variación entre dos datos diarios consecutivos por encima de esto → aviso
+SALTO_MAX_SEMANAL = 0.20 # ídem entre dos datos semanales
 
 
 def dias_habiles_entre(a: dt.date, b: dt.date) -> int:
@@ -30,14 +30,15 @@ def avisos(serie: Serie, semanal: bool = False) -> list[str]:
     out = []
     for a, b in zip(fechas, fechas[1:]):
         if semanal:
-            if (b - a).days > HUECO_DIAS_SEMANAL:
-                out.append(f'hueco de {(b - a).days} días entre {a} y {b}')
+            semanas = (lunes(b) - lunes(a)).days // 7
+            if semanas > 1:  # alguna semana sin dato
+                out.append(f'{semanas - 1} semana(s) sin dato entre {a} y {b}')
         else:
             h = dias_habiles_entre(a, b)
             if h > HUECO_DIAS_HABILES:
                 out.append(f'hueco de {h} días hábiles entre {a} y {b}')
         salto = serie[b] / serie[a] - 1
-        if abs(salto) > SALTO_MAX:
+        if abs(salto) > (SALTO_MAX_SEMANAL if semanal else SALTO_MAX):
             out.append(f'salto de {salto:+.1%} el {b}')
     return out
 
