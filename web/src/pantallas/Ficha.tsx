@@ -15,7 +15,7 @@ type Datos = {
 const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
 
 /** Serie en EUR de un fondo (con tipos de cambio si cotiza en otra divisa). */
-async function serieEur(isin: string, divisa: string | null): Promise<Punto[]> {
+export async function serieEur(isin: string, divisa: string | null): Promise<Punto[]> {
   const v = await q.valores(isin)
   if (!divisa || divisa === 'EUR') return v
   return aEur(v, await q.tiposCambio(divisa))

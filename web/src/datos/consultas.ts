@@ -104,3 +104,34 @@ export async function sustitutos(): Promise<{ indice: string; isin: string; nomb
   const filas = (data ?? []) as { nombre: string; proxy_isin: string }[]
   return filas.map((r) => ({ indice: r.nombre, isin: r.proxy_isin, nombre: r.nombre }))
 }
+
+export type Rebalanceo = 'anual' | 'trimestral' | 'ninguno'
+export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo }
+export type CarteraFondo = { peso: number; fondo: Fondo }
+
+export async function carteras(): Promise<Cartera[]> {
+  const { data, error: e } = await supabase.from('cartera').select('id,nombre,objetivo,rebalanceo').eq('archivada', false).order('nombre')
+  error(e)
+  return (data ?? []) as Cartera[]
+}
+
+/** Una cartera con sus fondos (de más a menos peso). */
+export async function cartera(id: number): Promise<{ cartera: Cartera; fondos: CarteraFondo[] } | null> {
+  const { data, error: e } = await supabase
+    .from('cartera')
+    .select('id,nombre,objetivo,rebalanceo,cartera_fondo(peso,fondo(*))')
+    .eq('id', id)
+    .maybeSingle()
+  error(e)
+  if (!data) return null
+  const { cartera_fondo, ...c } = data as unknown as Cartera & { cartera_fondo: { peso: string; fondo: Fondo }[] }
+  const fondos = cartera_fondo.map((x) => ({ peso: Number(x.peso), fondo: x.fondo })).sort((a, b) => b.peso - a.peso)
+  return { cartera: c, fondos }
+}
+
+/** Métricas de varios fondos a la vez (la tabla de una cartera). */
+export async function metricasDe(isins: string[]): Promise<(Metrica & { isin: string })[]> {
+  const { data, error: e } = await supabase.from('metrica').select('isin,ventana,nombre,valor,percentil').in('isin', isins)
+  error(e)
+  return (data ?? []) as (Metrica & { isin: string })[]
+}
