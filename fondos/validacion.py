@@ -57,6 +57,18 @@ def a_semanal(serie: Serie, hoy: dt.date) -> Serie:
     return {f: serie[f] for f in sorted(ultimo.values())}
 
 
+def a_semanal_y_meses(serie: Serie, hoy: dt.date) -> Serie:
+    """Lo semanal más el último dato de cada mes ya cerrado (para años naturales exactos y métricas mensuales)."""
+    out = a_semanal(serie, hoy)
+    corte = hoy.replace(day=1)
+    ultimo_mes: dict[tuple[int, int], dt.date] = {}
+    for f in sorted(serie):
+        if f < corte:
+            ultimo_mes[(f.year, f.month)] = f
+    out.update({f: serie[f] for f in ultimo_mes.values()})
+    return dict(sorted(out.items()))
+
+
 def ultimo_habil_anterior(hoy: dt.date) -> dt.date:
     d = hoy - dt.timedelta(days=1)
     while d.weekday() >= 5:

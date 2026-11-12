@@ -41,3 +41,12 @@ def test_fechas():
     assert ultimo_habil_anterior(D(2026, 11, 16)) == D(2026, 11, 13)  # lunes → viernes
     assert ultimo_habil_anterior(D(2026, 11, 18)) == D(2026, 11, 17)
     assert hace_anos(D(2028, 2, 29), 10) == D(2018, 2, 28)
+
+
+def test_a_semanal_y_meses_anade_cierres_de_mes_cerrados():
+    from fondos.validacion import a_semanal_y_meses
+    serie = {D(2026, 9, 29): 1.0, D(2026, 9, 30): 2.0,     # miércoles 30: cierre de septiembre
+             D(2026, 10, 2): 3.0,                         # viernes de esa semana
+             D(2026, 10, 30): 4.0, D(2026, 11, 4): 5.0}   # cierre de octubre; noviembre aún abierto
+    r = a_semanal_y_meses(serie, D(2026, 11, 18))
+    assert r == {D(2026, 9, 30): 2.0, D(2026, 10, 2): 3.0, D(2026, 10, 30): 4.0, D(2026, 11, 4): 5.0}

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from statistics import fmean, pstdev
+from statistics import fmean, pstdev, stdev
 
 Semana = tuple[int, int]            # (año ISO, semana ISO)
 SerieSemanal = dict[Semana, float]  # valor por semana
@@ -193,9 +193,70 @@ def combinar(componentes: list[tuple[dict[Semana, float], float]]) -> dict[Seman
     return {k: sum(r[k] * peso for r, peso in componentes) for k in sorted(comunes)}
 
 
+def cierres_mes(serie: dict[dt.date, float]) -> dict[tuple[int, int], tuple[dt.date, float]]:
+    """Último dato de cada mes: {(año, mes): (fecha, valor)}."""
+    out: dict[tuple[int, int], tuple[dt.date, float]] = {}
+    for f in sorted(serie):
+        out[(f.year, f.month)] = (f, serie[f])
+    return out
+
+
+def es_cierre(f: dt.date) -> bool:
+    """¿La fecha está en los últimos días del mes (con margen para festivos)?"""
+    siguiente = (f.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
+    return (siguiente - f).days <= 7
+
+
+def metricas_calendario(serie: dict[dt.date, float], hoy: dt.date) -> dict[tuple[str, str], float]:
+    """Años naturales (cierre de diciembre a cierre de diciembre) y año en curso, con fechas exactas."""
+    out: dict[tuple[str, str], float] = {}
+    cierres = cierres_mes(serie)
+    dic = {a: fv for (a, mes), fv in cierres.items() if mes == 12 and es_cierre(fv[0])}
+    if not serie:
+        return out
+    ultima = max(serie)
+    if ultima.year == hoy.year and (hoy.year - 1) in dic:
+        out[('ytd', 'rentabilidad')] = serie[ultima] / dic[hoy.year - 1][1] - 1
+    for a in sorted(dic):
+        if (a - 1) in dic and a < hoy.year and a >= hoy.year - 10:
+            out[(str(a), 'rentabilidad')] = dic[a][1] / dic[a - 1][1] - 1
+    return out
+
+
+def metricas_mensuales(serie: dict[dt.date, float], rf_semanal: dict[Semana, float], hoy: dt.date) -> dict[tuple[str, str], float]:
+    """Volatilidad y Sharpe con rentabilidades mensuales, como Morningstar (36, 60 o 120 meses; desviación muestral)."""
+    out: dict[tuple[str, str], float] = {}
+    cierres = cierres_mes(serie)
+    meses = [k for k in sorted(cierres) if es_cierre(cierres[k][0]) and k < (hoy.year, hoy.month)]
+    rent: list[tuple[tuple[int, int], float]] = []
+    for a, b in zip(meses, meses[1:]):
+        consecutivos = (b[0] * 12 + b[1]) - (a[0] * 12 + a[1]) == 1
+        if consecutivos:
+            rent.append((b, cierres[b][1] / cierres[a][1] - 1))
+    rf_anual = (1 + fmean(rf_semanal.values())) ** SEMANAS_ANO - 1 if rf_semanal else 0.0
+    for nombre_v, n in (('3a', 3), ('5a', 5), ('10a', 10)):
+        tramo = rent[-12 * n:]
+        if len(tramo) < 12 * n:
+            continue
+        (a0, m0), (a1, m1) = tramo[0][0], tramo[-1][0]
+        if (a1 * 12 + m1) - (a0 * 12 + m0) != 12 * n - 1:  # algún mes sin dato en medio
+            continue
+        rs = [r for _, r in tramo]
+        vol = stdev(rs) * math.sqrt(12)
+        anual = math.prod(1 + r for r in rs) ** (1 / n) - 1
+        out[(nombre_v, 'volatilidad_mensual')] = vol
+        if vol:
+            out[(nombre_v, 'sharpe_mensual')] = (anual - rf_anual) / vol
+    return out
+
+
 def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[Semana, float],
-                   hoy: dt.date) -> dict[tuple[str, str], float]:
-    """Todas las métricas de un fondo: {(ventana, nombre): valor}. Lo que no se puede calcular, no aparece."""
+                   hoy: dt.date, fechas: dict[dt.date, float] | None = None) -> dict[tuple[str, str], float]:
+    """Todas las métricas de un fondo: {(ventana, nombre): valor}. Lo que no se puede calcular, no aparece.
+
+    `fechas` es la serie con sus fechas reales (semanal + cierres de mes, o diaria): si se da, los años naturales,
+    el año en curso y las métricas mensuales salen de ella con fechas exactas.
+    """
     out: dict[tuple[str, str], float] = {}
     if len(s) < 2:
         return out
@@ -205,19 +266,23 @@ def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[S
         if valor is not None and not (isinstance(valor, float) and (math.isnan(valor) or math.isinf(valor))):
             out[(ventana, nombre)] = valor
 
-    # año en curso: desde el último dato del año anterior
-    previos = [k for k in s if k[0] < ultima[0]]
-    if previos and ultima[0] == hoy.isocalendar()[0]:
-        poner('ytd', 'rentabilidad', s[ultima] / s[previos[-1]] - 1)
-
-    # años naturales (de último dato de un año a último del siguiente), los 10 últimos
-    ultimos_por_ano: dict[int, Semana] = {}
-    for k in s:
-        ultimos_por_ano[k[0]] = k
-    anos = sorted(ultimos_por_ano)
-    for a, b in zip(anos, anos[1:]):
-        if b < ultima[0] and b >= ultima[0] - 10:
-            poner(str(b), 'rentabilidad', s[ultimos_por_ano[b]] / s[ultimos_por_ano[a]] - 1)
+    if fechas:
+        for k, v in metricas_calendario(fechas, hoy).items():
+            poner(*k, v)
+        for k, v in metricas_mensuales(fechas, rf_semanal, hoy).items():
+            poner(*k, v)
+    else:
+        # sin fechas reales: aproximación por semanas ISO (año en curso y años naturales)
+        previos = [k for k in s if k[0] < ultima[0]]
+        if previos and ultima[0] == hoy.isocalendar()[0]:
+            poner('ytd', 'rentabilidad', s[ultima] / s[previos[-1]] - 1)
+        ultimos_por_ano: dict[int, Semana] = {}
+        for k in s:
+            ultimos_por_ano[k[0]] = k
+        anos = sorted(ultimos_por_ano)
+        for a, b in zip(anos, anos[1:]):
+            if b < ultima[0] and b >= ultima[0] - 10:
+                poner(str(b), 'rentabilidad', s[ultimos_por_ano[b]] / s[ultimos_por_ano[a]] - 1)
 
     for nombre_v, n in VENTANAS.items():
         w = ventana_completa(s, ultima, n)
@@ -268,7 +333,7 @@ def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[S
 
 # ------------------------------------------------------------------ percentiles
 # Dónde menos es mejor: el percentil se invierte. La beta no lleva percentil (ni mejor ni peor).
-MENOS_ES_MEJOR = {'volatilidad', 'tracking_error', 'captura_bajista', 'recuperacion_semanas'}
+MENOS_ES_MEJOR = {'volatilidad', 'volatilidad_mensual', 'tracking_error', 'captura_bajista', 'recuperacion_semanas'}
 SIN_PERCENTIL = {'beta', 'acumulada'}
 
 

@@ -170,3 +170,18 @@ def test_carga_no_usa_ft_como_historico():
     repo = RepoFalso()
     ft = FTFalso(serie_diaria(D(2026, 10, 19), D(2026, 11, 17)))
     assert descargar_fondo(fondo(), 'carga', HOY, repo, MSFalso(error='401'), YahooFalso(ticker=None), ft) == 'error'
+
+
+def test_serie_semanal_antigua_se_recarga_una_vez_con_cierres_de_mes():
+    f = FondoIngesta('LU0000000001', 'Fondo', 'F1', None, 'EUR', False, D(2026, 11, 13), 52, con_cierres_mes=False)
+    assert accion(f, HOY) == 'carga'
+
+    class RepoMarca(RepoFalso):
+        marcados = []
+        def marcar_cierres_mes(self, isin):
+            self.marcados.append(isin)
+
+    repo = RepoMarca()
+    descargar_fondo(f, 'carga', HOY, repo, MSFalso(serie_diaria(D(2026, 8, 3), D(2026, 11, 17))), YahooFalso(), FTFalso())
+    assert repo.marcados == ['LU0000000001']
+    assert D(2026, 9, 30) in repo.guardado and D(2026, 10, 30) in repo.guardado   # cierres de septiembre y octubre

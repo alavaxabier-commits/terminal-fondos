@@ -1,8 +1,8 @@
 """Descarga diaria: qué fondos tocan hoy, de dónde se trae cada serie y cómo se guarda.
 
 Reglas (especificación, secciones 3 y 4):
-- Diaria para los fondos de mis carteras modelo y los que vigilo; semanal (último dato de cada semana cerrada)
-  para el resto del universo.
+- Diaria para los fondos de mis carteras modelo y los que vigilo; para el resto del universo, el último dato de cada
+  semana cerrada y el último de cada mes cerrado (años naturales exactos y métricas mensuales).
 - 10 años de histórico. La carga inicial va en tandas (por defecto 300 fondos por ejecución), los diarios primero.
 - Morningstar primero; si falla, Yahoo con un ticker verificado (contra lo guardado o contra el FT);
   para actualizar, el FT como último recurso.
@@ -14,7 +14,7 @@ import datetime as dt
 import time
 from dataclasses import dataclass
 
-from .validacion import Serie, a_semanal, avisos, hace_anos, lunes, ultimo_habil_anterior
+from .validacion import Serie, a_semanal_y_meses, avisos, hace_anos, lunes, ultimo_habil_anterior
 
 ANOS = 10
 TANDA = 2000           # cargas iniciales por ejecución (~2 s por fondo: unos 70 minutos)
@@ -31,12 +31,15 @@ class FondoIngesta:
     diaria: bool
     ultima: dt.date | None
     n_ultimo_anyo: int = 0
+    con_cierres_mes: bool = True   # su serie semanal ya incluye el último dato de cada mes
 
 
 def accion(f: FondoIngesta, hoy: dt.date) -> str | None:
     """'carga' (todo el histórico), 'actualizar' (desde el último dato) o None (está al día)."""
     if f.ultima is None:
         return 'carga'
+    if not f.diaria and not f.con_cierres_mes:
+        return 'carga'   # serie semanal anterior a los cierres de mes: se recarga una vez
     if f.diaria:
         if f.n_ultimo_anyo < MIN_DIARIOS_ANYO:
             return 'carga'
@@ -116,10 +119,12 @@ def descargar_fondo(f: FondoIngesta, que: str, hoy: dt.date, repo, ms, yh, ft) -
         return 'error'
 
     if not f.diaria:
-        serie = a_semanal(serie, hoy)
+        serie = a_semanal_y_meses(serie, hoy)
         if not serie:  # solo había datos de la semana en curso
             return 'ok'
     repo.guardar_valores(f.isin, serie, f.divisa or 'EUR', fuente)
+    if que == 'carga' and not f.diaria and not f.con_cierres_mes:
+        repo.marcar_cierres_mes(f.isin)
     av = avisos(serie, semanal=not f.diaria)
     detalle = f'{que}: {len(serie)} valores {min(serie)}…{max(serie)}'
     if errores:

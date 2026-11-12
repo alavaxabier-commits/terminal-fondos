@@ -31,7 +31,7 @@ class Repo:
     def fondos_para_ingesta(self) -> list[FondoIngesta]:
         filas = self._filas("""
             select f.isin, f.nombre, f.ms_id, f.yahoo_ticker, f.divisa, d.isin is not null,
-                   v.ultima, coalesce(v.n_anyo, 0)
+                   v.ultima, coalesce(v.n_anyo, 0), f.con_cierres_mes
             from fondos.fondo f
             left join fondos.fondo_diario d using (isin)
             left join lateral (
@@ -78,6 +78,9 @@ class Repo:
     def resumen_minimas(self) -> tuple:
         """(fichas con inversión mínima, fichas en total): para saber si Morningstar da el dato."""
         return self._filas('select count(inversion_minima), count(*) from fondos.fondo')[0]
+
+    def marcar_cierres_mes(self, isin: str):
+        self._ejecutar('update fondos.fondo set con_cierres_mes = true where isin = %s', (isin,))
 
     def guardar_ticker(self, isin: str, ticker: str):
         self._ejecutar('update fondos.fondo set yahoo_ticker = %s where isin = %s', (ticker, isin))

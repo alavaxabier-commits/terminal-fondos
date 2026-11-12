@@ -67,8 +67,8 @@ def referencias(fondos: dict[str, dict], semanales: dict[str, m.SerieSemanal], i
 def calcular(datos: dict, hoy: dt.date) -> list[tuple]:
     """datos: fondos, valores, tipos, estr, indices, categorias → filas (isin, ventana, nombre, valor, percentil)."""
     fondos, tipos = datos['fondos'], datos['tipos']
-    semanales = {isin: m.semanal(serie_eur(v, fondos[isin].get('divisa'), tipos))
-                 for isin, v in datos['valores'].items() if isin in fondos}
+    en_eur = {isin: serie_eur(v, fondos[isin].get('divisa'), tipos) for isin, v in datos['valores'].items() if isin in fondos}
+    semanales = {isin: m.semanal(v) for isin, v in en_eur.items()}
     semanales = {i: s for i, s in semanales.items() if len(s) >= 2}
     estr_semanal = m.tasa_semanal(datos['estr'])
     series_ref, usa = referencias(fondos, semanales, datos['indices'], datos['categorias'], estr_semanal)
@@ -76,7 +76,7 @@ def calcular(datos: dict, hoy: dt.date) -> list[tuple]:
     resultados: dict[str, dict] = {}
     for isin, s in semanales.items():
         ref = series_ref.get(usa.get(isin, ''))
-        resultados[isin] = m.metricas_fondo(s, ref, estr_semanal, hoy)
+        resultados[isin] = m.metricas_fondo(s, ref, estr_semanal, hoy, en_eur[isin])
 
     # percentiles dentro de la categoría, solo entre fondos del universo
     filas = []

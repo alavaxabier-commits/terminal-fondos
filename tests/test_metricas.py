@@ -127,3 +127,32 @@ def test_metricas_fondo_joven_sin_ventanas_largas():
 
 def test_beta_sin_sentido_con_indice_plano():
     assert regresion([0.01, -0.01] * 6, [0.0005] * 12) == (None, None)
+
+
+def test_calendario_exacto_con_cierres_de_diciembre():
+    from fondos.nucleo.metricas import metricas_calendario
+    serie = {D(2024, 12, 31): 100.0, D(2025, 1, 3): 101.0, D(2025, 12, 31): 110.0, D(2026, 1, 2): 111.0, D(2026, 11, 13): 121.0}
+    r = metricas_calendario(serie, D(2026, 11, 18))
+    assert r[('2025', 'rentabilidad')] == pytest.approx(0.10)
+    assert r[('ytd', 'rentabilidad')] == pytest.approx(0.10)
+    assert ('2024', 'rentabilidad') not in r            # sin cierre de 2023
+
+
+def test_metricas_mensuales_como_morningstar():
+    from statistics import stdev
+    from fondos.nucleo.metricas import metricas_mensuales
+    fines = []
+    a, m = 2023, 10
+    for _ in range(37):                                  # 37 cierres → 36 rentabilidades mensuales
+        siguiente = D(a + (m // 12), m % 12 + 1, 1)
+        fines.append(siguiente - dt.timedelta(days=1))
+        a, m = siguiente.year, siguiente.month
+    rs = [0.02 if i % 2 else -0.01 for i in range(36)]
+    v, serie = 100.0, {fines[0]: 100.0}
+    for f, r in zip(fines[1:], rs):
+        v *= 1 + r
+        serie[f] = v
+    hoy = fines[-1] + dt.timedelta(days=5)
+    out = metricas_mensuales(serie, {}, hoy)
+    assert out[('3a', 'volatilidad_mensual')] == pytest.approx(stdev(rs) * math.sqrt(12))
+    assert ('5a', 'volatilidad_mensual') not in out

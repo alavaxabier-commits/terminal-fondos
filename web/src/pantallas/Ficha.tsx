@@ -53,6 +53,8 @@ const FILAS: [string, string, (v: number) => string][] = [
   ['beta', 'Beta', (v) => cifra(v)],
   ['tracking_error', 'Tracking error', (v) => pct(v, 1, false)],
   ['ratio_informacion', 'Ratio de información', (v) => cifra(v)],
+  ['volatilidad_mensual', 'Volatilidad (mensual)', (v) => pct(v, 1, false)],
+  ['sharpe_mensual', 'Sharpe (mensual)', (v) => cifra(v)],
 ]
 
 export default function Ficha({ isin }: { isin: string }) {
