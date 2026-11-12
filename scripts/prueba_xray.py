@@ -34,7 +34,7 @@ for isin in sys.argv[1:]:
     sec = f['ms_id']
 
     # 1) security_details del mismo servicio que el buscador
-    for vista in ('ITsnapshot', 'snapshot'):
+    for vista in ():
         try:
             r = ms.http.get(f'{BASE}/security_details/{sec}', params={'viewId': vista, 'idtype': 'msid', 'responseViewFormat': 'json', 'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=30)
             print(f'\n--- security_details {vista}: HTTP {r.status_code}, {len(r.content)} bytes')
@@ -48,7 +48,7 @@ for isin in sys.argv[1:]:
 
     # 2) campos extra en el buscador
     try:
-        r = ms.http.get(SCREENER, params={'outputType': 'json', 'universeIds': UNIVERSO, 'term': isin, 'securityDataPoints': 'SecId|Isin|EquityStyleBox|BondStyleBox|AverageMarketCapital|EffectiveDuration|AverageCreditQualityCode|PortfolioDate', 'pageSize': 1}, timeout=30)
+        r = ms.http.get(SCREENER, params={'outputType': 'json', 'universeIds': UNIVERSO, 'term': isin, 'securityDataPoints': 'SecId|Isin|BondStyleBox|EffectiveDuration|ModifiedDuration|EffectiveMaturity|AverageMaturity|AverageCreditQualityCode|AverageCreditQuality|YieldToMaturity|AverageCoupon|AveragePrice|PortfolioDate|EquityStyleBox|AverageMarketCapital', 'pageSize': 1}, timeout=30)
         muestra(f'buscador con campos extra: HTTP {r.status_code}', r.text, 2000)
     except Exception as e:  # noqa: BLE001
         print(f'buscador extra falla: {e!r}')
