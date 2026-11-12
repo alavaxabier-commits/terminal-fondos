@@ -11,9 +11,11 @@ D = dt.date
 def test_ficha_del_buscador():
     f = ficha({'SecId': 'F00000T4KE', 'Name': 'iShares Developed World Index Fund (IE) D Acc EUR', 'Isin': 'ie00bd0ncm55',
                'CategoryName': 'RV Global Cap. Grande Blend', 'PriceCurrency': 'EUR', 'OngoingCharge': '0.17',
-               'InceptionDate': '2016-11-01T00:00:00', 'FundId': 'FS0000A1B2', 'FundTNAV': 8123456789.0})
+               'InceptionDate': '2016-11-01T00:00:00', 'FundId': 'FS0000A1B2', 'FundTNAV': 8123456789.0,
+               'InitialPurchase': '1000'})
     assert f == {'isin': 'IE00BD0NCM55', 'nombre': 'iShares Developed World Index Fund (IE) D Acc EUR', 'ms_id': 'F00000T4KE',
-                 'fund_id': 'FS0000A1B2', 'patrimonio_meur': 8123.46, 'categoria':'RV Global Cap. Grande Blend', 'divisa': 'EUR', 'ter': 0.17, 'fecha_lanzamiento': D(2016, 11, 1)}
+                 'fund_id': 'FS0000A1B2', 'patrimonio_meur': 8123.46, 'categoria':'RV Global Cap. Grande Blend', 'divisa': 'EUR', 'ter': 0.17, 'fecha_lanzamiento': D(2016, 11, 1),
+                 'inversion_minima': 1000.0}
     assert ficha({'Isin': 'corto'}) is None
     assert ficha({'Isin': 'IE00BD0NCM55'})['ter'] is None
 

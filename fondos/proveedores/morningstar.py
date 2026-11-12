@@ -18,7 +18,8 @@ from ..validacion import Serie
 SCREENER = 'https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security/screener'
 UNIVERSO = 'FOESP$$ALL'
 CAMPOS_BASICOS = 'SecId|Name|Isin|CategoryName|PriceCurrency|OngoingCharge|InceptionDate'
-CAMPOS = CAMPOS_BASICOS + '|FundId|FundTNAV'  # FundTNAV: patrimonio del fondo, en su divisa
+CAMPOS_PATRIMONIO = CAMPOS_BASICOS + '|FundId|FundTNAV'  # FundTNAV: patrimonio del fondo, en su divisa
+CAMPOS = CAMPOS_PATRIMONIO + '|InitialPurchase'          # inversión mínima de la clase, en su divisa
 
 # Servicio de series de precios: se prueban en orden hasta que uno responda con datos.
 SERIES = [
@@ -59,6 +60,7 @@ def ficha(fila: dict) -> dict | None:
         'divisa': divisa,
         'ter': _num(fila.get('OngoingCharge')),
         'fecha_lanzamiento': _fecha(fila.get('InceptionDate')),
+        'inversion_minima': _num(fila.get('InitialPurchase')),
     }
 
 
@@ -104,10 +106,13 @@ class Morningstar:
                                                 'securityDataPoints': campos, **params}, timeout=60)
             r.raise_for_status()
             return r.json()
-        try:
-            return pedir(CAMPOS)
-        except requests.HTTPError:  # si algún campo extra deja de existir, al menos los básicos
-            return pedir(CAMPOS_BASICOS)
+        # Si Morningstar deja de aceptar algún campo extra, se prueba con menos hasta los básicos
+        for campos in (CAMPOS, CAMPOS_PATRIMONIO):
+            try:
+                return pedir(campos)
+            except requests.HTTPError:
+                continue
+        return pedir(CAMPOS_BASICOS)
 
     def buscar(self, isin: str) -> dict | None:
         isin = isin.strip().upper()

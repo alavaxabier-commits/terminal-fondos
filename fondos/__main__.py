@@ -85,7 +85,7 @@ def orden_estado(repo) -> int:
     return 0
 
 
-def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: int, tope: int) -> int:
+def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: int, tope: int, max_minima: float) -> int:
     n, lote = 0, []
     for f in Morningstar().universo(limite=limite):
         lote.append(f)
@@ -95,11 +95,14 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
             lote = []
             print(f'{n} fichas…', flush=True)
     repo.guardar_fondos(lote)
-    dentro = repo.marcar_universo(min_patrimonio, min_anos, tope)
+    dentro = repo.marcar_universo(min_patrimonio, min_anos, tope, max_minima)
+    borrados = repo.limpiar_valores()
+    con_minima, fichas = repo.resumen_minimas()
     mb = dentro * 52 * ingesta.ANOS * 100 / 1e6  # ~100 bytes por valor semanal, con su índice
     texto = (f'### Universo · {hoy()}\n\n{n} fichas de Morningstar España · {dentro} fondos en el universo '
              f'(patrimonio ≥ {min_patrimonio:g} M€, ≥ {min_anos} años, como mucho {tope} por categoría, una clase por fondo) · '
-             f'unos {mb:.0f} MB de valores semanales')
+             f'unos {mb:.0f} MB de valores semanales · inversión mínima conocida en {con_minima} de {fichas} fichas · '
+             f'{borrados} valores borrados de fondos que salen')
     print(texto)
     resumen_github(texto)
     return 0
@@ -152,6 +155,7 @@ def main(argv=None) -> int:
     u.add_argument('--min-patrimonio', type=float, default=50, help='patrimonio mínimo, millones (50)')
     u.add_argument('--min-anos', type=int, default=3, help='años mínimos de historia (3)')
     u.add_argument('--tope', type=int, default=100, help='máximo de fondos por categoría (100)')
+    u.add_argument('--max-minima', type=float, default=10000, help='inversión mínima máxima de la clase elegida (10000)')
     r = sub.add_parser('prueba-red')
     r.add_argument('isin')
     args = p.parse_args(argv)
@@ -177,7 +181,7 @@ def main(argv=None) -> int:
     if args.orden == 'metricas':
         return orden_metricas(repo)
     if args.orden == 'universo':
-        return orden_universo(repo, args.limite, args.min_patrimonio, args.min_anos, args.tope)
+        return orden_universo(repo, args.limite, args.min_patrimonio, args.min_anos, args.tope, args.max_minima)
     if args.orden == 'estado':
         return orden_estado(repo)
     return 2

@@ -51,22 +51,33 @@ class Repo:
             c.executemany(self._SQL_FONDO, fichas)
 
     _SQL_FONDO = ("""
-            insert into fondos.fondo (isin, nombre, ms_id, fund_id, categoria, divisa, ter, fecha_lanzamiento, patrimonio_meur)
+            insert into fondos.fondo (isin, nombre, ms_id, fund_id, categoria, divisa, ter, fecha_lanzamiento, patrimonio_meur,
+                                      inversion_minima)
             values (%(isin)s, %(nombre)s, %(ms_id)s, %(fund_id)s, %(categoria)s, %(divisa)s, %(ter)s,
-                    %(fecha_lanzamiento)s, %(patrimonio_meur)s)
+                    %(fecha_lanzamiento)s, %(patrimonio_meur)s, %(inversion_minima)s)
             on conflict (isin) do update set
               nombre = excluded.nombre,
               ms_id = coalesce(excluded.ms_id, fondo.ms_id),
               fund_id = coalesce(excluded.fund_id, fondo.fund_id),
               patrimonio_meur = coalesce(excluded.patrimonio_meur, fondo.patrimonio_meur),
+              inversion_minima = coalesce(excluded.inversion_minima, fondo.inversion_minima),
               categoria = coalesce(excluded.categoria, fondo.categoria),
               divisa = coalesce(excluded.divisa, fondo.divisa),
               ter = coalesce(excluded.ter, fondo.ter),
               fecha_lanzamiento = coalesce(excluded.fecha_lanzamiento, fondo.fecha_lanzamiento),
               actualizado_en = now()""")
 
-    def marcar_universo(self, min_patrimonio_meur: float, min_anos: int, tope: int) -> int:
-        return self._filas('select fondos.marcar_universo(%s, %s, %s)', (min_patrimonio_meur, min_anos, tope))[0][0]
+    def marcar_universo(self, min_patrimonio_meur: float, min_anos: int, tope: int, max_minima: float) -> int:
+        return self._filas('select fondos.marcar_universo(%s, %s, %s, %s)',
+                           (min_patrimonio_meur, min_anos, tope, max_minima))[0][0]
+
+    def limpiar_valores(self) -> int:
+        """Borra los valores de los fondos que ya no están en el universo ni se siguen a diario."""
+        return self._filas('select fondos.limpiar_valores()')[0][0]
+
+    def resumen_minimas(self) -> tuple:
+        """(fichas con inversión mínima, fichas en total): para saber si Morningstar da el dato."""
+        return self._filas('select count(inversion_minima), count(*) from fondos.fondo')[0]
 
     def guardar_ticker(self, isin: str, ticker: str):
         self._ejecutar('update fondos.fondo set yahoo_ticker = %s where isin = %s', (ticker, isin))
