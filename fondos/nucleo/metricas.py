@@ -213,6 +213,32 @@ def es_cierre(f: dt.date) -> bool:
     return (siguiente - f).days <= 7
 
 
+def mensuales(serie: dict[dt.date, float]) -> dict[tuple[int, int], float]:
+    """Rentabilidad de cada mes, de cierre a cierre (solo meses seguidos y cierres de verdad)."""
+    cierres = cierres_mes(serie)
+    meses = [k for k in sorted(cierres) if es_cierre(cierres[k][0])]
+    return {b: cierres[b][1] / cierres[a][1] - 1 for a, b in zip(meses, meses[1:])
+            if (b[0] * 12 + b[1]) - (a[0] * 12 + a[1]) == 1}
+
+
+def tasa_mensual(estr: dict[dt.date, float]) -> dict[tuple[int, int], float]:
+    """€STR diario (% anual) → rentabilidad de cada mes."""
+    por_mes: dict[tuple[int, int], list[float]] = {}
+    for f, v in estr.items():
+        por_mes.setdefault((f.year, f.month), []).append(v)
+    return {k: (1 + fmean(vs) / 100) ** (1 / 12) - 1 for k, vs in sorted(por_mes.items())}
+
+
+def anos_de_meses(r: dict[tuple[int, int], float], hoy: dt.date) -> dict[tuple[str, str], float]:
+    """Años naturales cerrados (los 12 meses con dato) a partir de rentabilidades mensuales, como `metricas_calendario`."""
+    out: dict[tuple[str, str], float] = {}
+    for a in range(hoy.year - 10, hoy.year):
+        meses = [r.get((a, mes)) for mes in range(1, 13)]
+        if all(x is not None for x in meses):
+            out[(str(a), 'rentabilidad')] = math.prod(1 + x for x in meses) - 1
+    return out
+
+
 def metricas_calendario(serie: dict[dt.date, float], hoy: dt.date) -> dict[tuple[str, str], float]:
     """Años naturales (cierre de diciembre a cierre de diciembre) y año en curso, con fechas exactas."""
     out: dict[tuple[str, str], float] = {}

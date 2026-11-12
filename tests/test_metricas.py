@@ -192,3 +192,12 @@ def test_riesgo_correlaciones_y_reparto():
     assert r['correlacion'][0][1] == pytest.approx(1) and r['correlacion'][0][2] == pytest.approx(-1)
     assert sum(r['riesgo']) == pytest.approx(1)
     assert riesgo([dict(list(x.items())[:20])], [100]) is None   # menos de un año
+
+
+def test_mensuales_y_anos_de_meses():
+    from fondos.nucleo.metricas import anos_de_meses, mensuales
+    serie = {D(2024, 12, 31): 100.0, D(2025, 1, 15): 999.0, D(2025, 1, 31): 110.0, D(2025, 3, 31): 121.0}
+    assert mensuales(serie) == {(2025, 1): pytest.approx(0.1)}            # de enero a marzo falta febrero
+    r = {(2025, k): 0.01 for k in range(1, 13)}
+    assert anos_de_meses(r, D(2026, 5, 1)) == {('2025', 'rentabilidad'): pytest.approx(1.01 ** 12 - 1)}
+    assert anos_de_meses({**r, (2025, 7): None} | {}, D(2026, 5, 1)) == {}  # un mes sin dato: no hay año

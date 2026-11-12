@@ -84,7 +84,7 @@ def test_percentiles_por_categoria():
 def test_indice_propio_manda_sobre_la_categoria():
     d = datos_base()
     d['fondos']['TECNO0000000']['indice_id'] = 'msci-world'
-    _, usa = calculo.referencias(d['fondos'], {i: calculo.m.semanal(v) for i, v in d['valores'].items()},
+    _, usa = calculo.referencias(d['fondos'], {i: calculo.m.rendimientos(calculo.m.semanal(v)) for i, v in d['valores'].items()},
                                  d['indices'], d['categorias'], {})
     assert usa['TECNO0000000'] == 'indice:msci-world' and usa['TECNO0000001'] == 'media:Sector Equity Technology'
 
@@ -99,6 +99,13 @@ def test_cartera_modelo():
     c = carteras[1]
     assert c['metricas']['5a']['rentabilidad'] is not None and 'beta' in c['metricas']['5a']   # frente a 60 MSCI / 40 bonos
     assert c['referencia']['5a']['rentabilidad'] is not None
+    # años naturales de la referencia de cierre a cierre de diciembre: 60 % fondo sustituto del MSCI + 40 % del de bonos
+    def ano(isin, a):
+        v = d['valores'][isin]
+        cierre = lambda y: v[max(f for f in v if f.year == y)]
+        return cierre(a) / cierre(a - 1) - 1
+    assert c['referencia']['2023']['rentabilidad'] == pytest.approx(0.6 * ano('PROXYWORLD01', 2023) + 0.4 * ano('PROXYBOND001', 2023), abs=0.003)
+    assert 'ytd' not in c['referencia']
     assert sum(f['aporta']['5a'] for f in c['fondos']) == pytest.approx(c['metricas']['5a']['acumulada'], abs=0.02)
     assert sum(f['riesgo'] for f in c['fondos']) == pytest.approx(1)
     assert c['volatilidad_media'] >= c['metricas']['3a']['volatilidad'] - 1e-9   # diversificar no suma riesgo

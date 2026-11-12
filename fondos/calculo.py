@@ -18,13 +18,13 @@ def serie_eur(valores: dict[dt.date, float], divisa: str | None, tipos: dict[str
     return m.a_eur(valores, tipos.get(divisa, {}))
 
 
-def referencias(fondos: dict[str, dict], semanales: dict[str, m.SerieSemanal], indices: dict[str, dict],
-                categorias: dict[str, dict], estr_semanal: dict) -> tuple[dict[str, m.SerieSemanal], dict[str, str]]:
-    """Serie de referencia de cada índice y de cada categoría con media, y qué clave usa cada fondo.
+def referencias(fondos: dict[str, dict], rend: dict[str, dict], indices: dict[str, dict],
+                categorias: dict[str, dict], estr_semanal: dict) -> tuple[dict[str, dict], dict[str, str]]:
+    """Serie de referencia de cada índice y de cada categoría con media, y qué clave usa cada fondo, a partir de las
+    rentabilidades de cada fondo y del €STR (semanales, o mensuales para los años naturales de una cartera).
 
     Devuelve ({clave: serie}, {isin: clave}). Claves: 'indice:<id>' o 'media:<categoría>'.
     """
-    rend = {i: m.rendimientos(s) for i, s in semanales.items()}
     series: dict[str, m.SerieSemanal] = {}
 
     def rend_indice(iid, profundidad=0) -> dict:
@@ -73,7 +73,8 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[int, dict]]:
     semanales = {isin: m.semanal(v) for isin, v in en_eur.items()}
     semanales = {i: s for i, s in semanales.items() if len(s) >= 2}
     estr_semanal = m.tasa_semanal(datos['estr'])
-    series_ref, usa = referencias(fondos, semanales, datos['indices'], datos['categorias'], estr_semanal)
+    series_ref, usa = referencias(fondos, {i: m.rendimientos(s) for i, s in semanales.items()},
+                                  datos['indices'], datos['categorias'], estr_semanal)
 
     resultados: dict[str, dict] = {}
     for isin, s in semanales.items():
@@ -95,9 +96,21 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[int, dict]]:
     for isin, res in resultados.items():
         for (ventana, nombre), valor in res.items():
             filas.append((isin, ventana, nombre, float(valor), pct.get((isin, ventana, nombre))))
-    carteras = {cid: x for cid, c in datos.get('carteras', {}).items()
-                if (x := cartera(c, en_eur, resultados, series_ref, usa, estr_semanal, hoy))}
+    carteras = {}
+    if datos.get('carteras'):
+        # referencias mensuales (de cierre a cierre de mes) para los años naturales de las carteras
+        ref_mes, _ = referencias(fondos, {i: m.mensuales(v) for i, v in en_eur.items()},
+                                 datos['indices'], datos['categorias'], m.tasa_mensual(datos['estr']))
+        for cid, c in datos['carteras'].items():
+            if x := cartera(c, en_eur, resultados, series_ref, ref_mes, usa, estr_semanal, hoy):
+                carteras[cid] = x
     return filas, carteras
+
+
+def _rend_mes(s: dict[tuple[int, int], float]) -> dict[tuple[int, int], float]:
+    """Serie mensual encadenada → rentabilidad de cada mes (solo meses seguidos)."""
+    ks = list(s)
+    return {b: s[b] / s[a] - 1 for a, b in zip(ks, ks[1:]) if (b[0] * 12 + b[1]) - (a[0] * 12 + a[1]) == 1}
 
 
 def _anidar(met: dict[tuple[str, str], float]) -> dict[str, dict[str, float]]:
@@ -107,7 +120,8 @@ def _anidar(met: dict[tuple[str, str], float]) -> dict[str, dict[str, float]]:
     return out
 
 
-def cartera(c: dict, en_eur: dict, resultados: dict, series_ref: dict, usa: dict, estr_semanal: dict, hoy: dt.date) -> dict | None:
+def cartera(c: dict, en_eur: dict, resultados: dict, series_ref: dict, ref_mes: dict, usa: dict, estr_semanal: dict,
+            hoy: dt.date) -> dict | None:
     """Cartera modelo simulada con su rebalanceo: sus métricas (las mismas que las de un fondo) frente a la
     combinación de las referencias de sus fondos, crisis, aportación y peso de hoy de cada fondo y correlaciones."""
     isins = [i for i, _ in c['fondos']]
@@ -122,6 +136,14 @@ def cartera(c: dict, en_eur: dict, resultados: dict, series_ref: dict, usa: dict
     ref = (m.serie_de_rendimientos(m.combinar([(m.rendimientos(r), p / sum(pesos)) for r, p in zip(refs, pesos)]))
            if all(refs) else None)
     met = m.metricas_fondo(s, ref, estr_semanal, hoy, valor)
+    met_ref = {}
+    if ref:
+        # periodos (1a, 3a…) con la serie semanal, como los fondos; años naturales de cierre a cierre de mes
+        met_ref = {k: v for k, v in m.metricas_fondo(ref, None, estr_semanal, hoy).items() if k[0] in m.VENTANAS}
+        refs_mes = [ref_mes.get(usa.get(i, '')) for i in isins]
+        if all(refs_mes):
+            r_mes = m.combinar([(_rend_mes(r), p / sum(pesos)) for r, p in zip(refs_mes, pesos)])
+            met_ref.update(m.anos_de_meses(r_mes, hoy))
     ultima = max(valor)
     aporta = {v: m.contribuciones(valor, ganancias, hace_anos(ultima, n)) for v, n in m.VENTANAS.items()}
     vols = [resultados.get(i, {}).get(('3a', 'volatilidad')) for i in isins]
@@ -129,8 +151,7 @@ def cartera(c: dict, en_eur: dict, resultados: dict, series_ref: dict, usa: dict
     return {
         'desde': min(valor).isoformat(), 'hasta': ultima.isoformat(), 'ultimo_rebalanceo': ultimo.isoformat(),
         'metricas': _anidar(met),
-        # shortcut: los años de la referencia salen por semanas ISO (no hay fechas exactas de una serie combinada)
-        'referencia': _anidar(m.metricas_fondo(ref, None, estr_semanal, hoy)) if ref else None,
+        'referencia': _anidar(met_ref) if ref else None,
         'crisis': {k: {'cartera': m.caida_en(s, *t), 'referencia': m.caida_en(ref, *t) if ref else None}
                    for k, t in m.CRISIS.items()},
         # media ponderada de las volatilidades a 3 años de los fondos: frente a la de la cartera, lo que quita diversificar
