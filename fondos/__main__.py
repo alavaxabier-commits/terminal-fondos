@@ -68,12 +68,15 @@ def orden_estado(repo) -> int:
 
 
 def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: int, tope: int) -> int:
-    n = 0
+    n, lote = 0, []
     for f in Morningstar().universo(limite=limite):
-        repo.guardar_fondo(f)
+        lote.append(f)
         n += 1
-        if n % 500 == 0:
+        if len(lote) == 500:
+            repo.guardar_fondos(lote)
+            lote = []
             print(f'{n} fichas…', flush=True)
+    repo.guardar_fondos(lote)
     dentro = repo.marcar_universo(min_patrimonio, min_anos, tope)
     mb = dentro * 52 * ingesta.ANOS * 100 / 1e6  # ~100 bytes por valor semanal, con su índice
     texto = (f'### Universo · {hoy()}\n\n{n} fichas de Morningstar España · {dentro} fondos en el universo '

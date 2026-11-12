@@ -41,7 +41,16 @@ class Repo:
         return [FondoIngesta(*f) for f in filas]
 
     def guardar_fondo(self, f: dict):
-        self._ejecutar("""
+        self.guardar_fondos([f])
+
+    def guardar_fondos(self, fichas: list[dict]):
+        """Muchas fichas en un solo viaje a la base (fila a fila, el universo tarda horas)."""
+        if not fichas:
+            return
+        with self.cx.cursor() as c:
+            c.executemany(self._SQL_FONDO, fichas)
+
+    _SQL_FONDO = ("""
             insert into fondos.fondo (isin, nombre, ms_id, fund_id, categoria, divisa, ter, fecha_lanzamiento, patrimonio_meur)
             values (%(isin)s, %(nombre)s, %(ms_id)s, %(fund_id)s, %(categoria)s, %(divisa)s, %(ter)s,
                     %(fecha_lanzamiento)s, %(patrimonio_meur)s)
@@ -54,7 +63,7 @@ class Repo:
               divisa = coalesce(excluded.divisa, fondo.divisa),
               ter = coalesce(excluded.ter, fondo.ter),
               fecha_lanzamiento = coalesce(excluded.fecha_lanzamiento, fondo.fecha_lanzamiento),
-              actualizado_en = now()""", f)
+              actualizado_en = now()""")
 
     def marcar_universo(self, min_patrimonio_meur: float, min_anos: int, tope: int) -> int:
         return self._filas('select fondos.marcar_universo(%s, %s, %s)', (min_patrimonio_meur, min_anos, tope))[0][0]
