@@ -23,6 +23,9 @@ CAMPOS_MINIMA = CAMPOS_PATRIMONIO + '|InitialPurchase'    # inversión mínima d
 # Estadísticas de cartera que la ficha de detalle no trae (duración, calidad media, cajas de estilo)
 CAMPOS = CAMPOS_MINIMA + '|EquityStyleBox|BondStyleBox|AverageMarketCapital|EffectiveDuration|EffectiveMaturity|AverageCreditQualityCode'
 DETALLE = SCREENER.rsplit('/security/', 1)[0] + '/security_details/'
+# Posiciones completas: API de la web de Morningstar, con su clave pública (la misma que publica mstarpy 10)
+POSICIONES = 'https://api-global.morningstar.com/sal-service/v1/fund/portfolio/holding/v2/{}/data'
+CLAVE_WEB = "lstzFDEOhfFNMLikKa0am9mgEKLBl49T"
 
 # Servicio de series de precios: se prueban en orden hasta que uno responda con datos.
 SERIES = [
@@ -94,6 +97,24 @@ BLOQUES = {
 }
 POSICION = {'nombre': 'SecurityName', 'isin': 'ISIN', 'peso': 'Weighting', 'tipo': 'DetailHoldingTypeId',
             'sector': 'GlobalSectorId', 'pais': 'CountryId'}
+PAGINAS = ('equityHoldingPage', 'boldHoldingPage', 'otherHoldingPage')  # acciones, bonos, otros
+
+
+def leer_posiciones(datos) -> list[dict] | None:
+    """Respuesta de posiciones → [{nombre, isin, peso, tipo, sector, pais}] de mayor a menor peso; None si no trae páginas.
+    Sector y país vienen con nombre (no con código, como en la ficha de detalle); las cortas, con peso negativo."""
+    if not isinstance(datos, dict) or not any(isinstance(datos.get(p), dict) for p in PAGINAS):
+        return None
+    out = []
+    for pag in PAGINAS:
+        for h in (datos.get(pag) or {}).get('holdingList') or []:
+            peso = _num(h.get('weighting'))
+            if not peso or not h.get('securityName'):
+                continue
+            x = {'nombre': h['securityName'].strip(), 'isin': h.get('isin'), 'peso': round(peso, 4), 'tipo': h.get('holdingTypeId'),
+                 'sector': h.get('sector') or h.get('primarySectorName'), 'pais': h.get('country')}
+            out.append({k: v for k, v in x.items() if v is not None})
+    return sorted(out, key=lambda x: -x['peso'])
 
 
 def _desglose(lista, lado: str = 'N', tipo: str | None = None) -> dict | None:
@@ -190,11 +211,22 @@ class Morningstar:
         return None
 
     def composicion(self, ms_id: str) -> tuple[dt.date | None, dict]:
-        """Desglose de la cartera de un fondo (una petición; la pausa la pone quien recorre los fondos)."""
+        """Desglose de la cartera de un fondo: ficha de detalle y posiciones completas (dos peticiones con pausa)."""
         r = self.http.get(DETALLE + ms_id, params={'viewId': 'MFsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
                                                    'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
         r.raise_for_status()
-        return leer_composicion(r.json())
+        fecha, datos = leer_composicion(r.json())
+        if datos:  # todas las posiciones, en lugar de las 10 mayores; si falla, se quedan las 10
+            time.sleep(self.pausa)
+            try:
+                p = self.http.get(POSICIONES.format(ms_id), headers={'apikey': CLAVE_WEB}, timeout=120,
+                                  params={'clientId': 'MDC', 'version': '4.71.0', 'premiumNum': 10000, 'freeNum': 10000})
+                p.raise_for_status()
+                if (todas := leer_posiciones(p.json())) is not None:
+                    datos['posiciones'], datos['posiciones_todas'] = todas, True
+            except (requests.RequestException, ValueError):
+                pass
+        return fecha, datos
 
     def universo(self, tam: int = 500, limite: int | None = None):
         """Todas las fichas del universo, página a página."""

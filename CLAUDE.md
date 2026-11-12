@@ -31,7 +31,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - `fondo`: fichas (también las que no están en el universo). `en_universo`: ≥ 50 M€, ≥ 3 años, como mucho 100 por categoría, una clase por fondo (EUR, particulares, acumulación, menor gasto). `historico_diario`: ya tiene la carga completa diaria.
 - **Precios en paquetes anuales**: `valor_anual (fondo_id, ano, dias[], valores[], fuentes[])`. Se lee con la vista `valor_liquidativo` (isin, fecha, valor, divisa, fuente) y se escribe **solo** con `fondos.guardar_valores(isin, fechas, valores, fuente)`, que mezcla con lo guardado (lo nuevo manda en la misma fecha). `valor_liquidativo_antigua` es la tabla vieja, pendiente de borrar.
 - Ritmo: una carga completa por fondo (10 años diarios); después, los de `fondo_diario` cada día y el resto del universo una vez a la semana.
-- `composicion (isin, fecha_cartera, datos jsonb)`: desgloses netos del X-Ray con los códigos de Morningstar (`{código: %}`) y las 10 mayores posiciones; los nombres de los códigos los pone la web. Duración, calidad media y cajas de estilo están en `fondo` (vienen del buscador).
+- `composicion (isin, fecha_cartera, datos jsonb)`: desgloses netos del X-Ray con los códigos de Morningstar (`{código: %}`), estadísticas de renta variable y fija (TIR, cupón…) y todas las posiciones (API de la web de Morningstar con su clave pública; si falla, las 10 mayores, sin `posiciones_todas`); los nombres de los códigos los pone la web. Duración, calidad media y cajas de estilo están en `fondo` (vienen del buscador).
 - `metrica`: se recalcula entera en cada ejecución (borrar + COPY en una transacción), con `percentil` dentro de la categoría.
 - Carteras: `cartera`, `cartera_fondo (peso)`, `cartera_cambio`, `nota_semanal`; `seguimiento` (con `disponible_myinvestor`, marcado a mano).
 - `registro_descarga`: una línea por descarga (ok, aviso, error); es lo que hay que mirar si algo falla.
@@ -41,7 +41,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - **Seguridad**: RLS en todas las tablas; la web solo lee, y solo el propietario (`fondos.es_propietario()`, que mira el correo en `fondos.propietario`). Escriben únicamente los scripts. Las funciones que escriben se revocan para `anon` y `authenticated`. Revisa los avisos de seguridad de Supabase tras cada migración.
 - **Métricas como Morningstar**: series en EUR; años naturales y YTD con cierres de mes exactos; volatilidad y Sharpe mensuales con desviación muestral × √12; percentiles invertidos donde menos es mejor; beta sin percentil. Todo cálculo nuevo va en `nucleo/metricas.py` con su test.
 - Las mismas cifras en todas partes: si la web muestra una métrica, sale de la tabla `metrica`, no se recalcula de otra forma.
-- **Límites**: Supabase gratis (500 MB de base, unos 2 correos por hora), 2.000 min/mes de Actions (repositorio privado). Morningstar: una petición por fondo y pausa entre fondos; nada de descargas diarias de todo el universo.
+- **Límites**: Supabase gratis (500 MB de base, unos 2 correos por hora), 2.000 min/mes de Actions (repositorio privado). Morningstar: una petición por fondo (dos para la composición, una vez al mes) y pausa entre peticiones; nada de descargas diarias de todo el universo.
 - La contraseña de la base y las claves secretas nunca van al chat ni al código: solo en los secretos de GitHub. La clave `sb_publishable_…` está en `web/src/datos/supabase.ts` a propósito.
 
 ## Tests y cómo trabajar

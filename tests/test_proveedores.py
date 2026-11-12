@@ -2,7 +2,7 @@ import datetime as dt
 
 from fondos.proveedores.bce import leer_csv
 from fondos.proveedores.ft import leer_tabla
-from fondos.proveedores.morningstar import ficha, leer_composicion, leer_serie
+from fondos.proveedores.morningstar import ficha, leer_composicion, leer_posiciones, leer_serie
 from fondos.proveedores.yahoo import elegir_ticker
 
 D = dt.date
@@ -85,3 +85,20 @@ def test_leer_composicion_netos_y_posiciones():
     assert 'calidad_rf' not in x
     assert leer_composicion([{'Portfolios': [{'Date': '2026-09-30'}]}]) == (None, {})
     assert leer_composicion({}) == (None, {})
+
+
+def test_leer_posiciones_todas_las_paginas():
+    datos = {'numberOfHolding': 3,
+             'equityHoldingPage': {'holdingList': [{'securityName': 'NVIDIA Corp ', 'isin': 'US67066G1040', 'weighting': 5.72767, 'holdingTypeId': 'E',
+                                                    'sector': 'Technology', 'country': 'United States'},
+                                                   {'securityName': 'Intesa San', 'weighting': -0.0, 'holdingTypeId': 'E'}]},
+             'boldHoldingPage': {'holdingList': [{'securityName': 'Korea 2.625%', 'isin': 'KR103502GF62', 'weighting': '4.73955', 'holdingTypeId': 'BT',
+                                                  'sector': None, 'primarySectorName': 'government', 'country': 'South Korea'},
+                                                 {'securityName': 'Bund future', 'weighting': -1.5, 'holdingTypeId': 'FU'}]},
+             'otherHoldingPage': {'holdingList': []}}
+    assert leer_posiciones(datos) == [
+        {'nombre': 'NVIDIA Corp', 'isin': 'US67066G1040', 'peso': 5.7277, 'tipo': 'E', 'sector': 'Technology', 'pais': 'United States'},
+        {'nombre': 'Korea 2.625%', 'isin': 'KR103502GF62', 'peso': 4.7396, 'tipo': 'BT', 'sector': 'government', 'pais': 'South Korea'},
+        {'nombre': 'Bund future', 'peso': -1.5, 'tipo': 'FU'}]
+    assert leer_posiciones({'numberOfHolding': 0}) is None
+    assert leer_posiciones([]) is None

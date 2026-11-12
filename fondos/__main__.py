@@ -63,7 +63,7 @@ def orden_composicion(repo, tanda: int) -> int:
             fecha, datos = ms.composicion(ms_id)
             repo.guardar_composicion(isin, fecha, datos)  # sin desglose también se guarda: no se reintenta hasta el mes que viene
             estado = 'ok' if datos else 'aviso'
-            repo.registrar('morningstar', isin, estado, f'composición: cartera a {fecha}' if datos else 'composición: sin desglose publicado')
+            repo.registrar('morningstar', isin, estado, f"composición: cartera a {fecha}, {len(datos.get('posiciones', []))} posiciones" if datos else 'composición: sin desglose publicado')
         except Exception as e:  # noqa: BLE001
             estado = 'error'
             repo.registrar('morningstar', isin, estado, f'composición: {type(e).__name__}: {e}'[:500])
