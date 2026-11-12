@@ -1,7 +1,7 @@
 """Descarga diaria: qué fondos tocan hoy, de dónde se trae cada serie y cómo se guarda.
 
 Reglas (especificación, secciones 3 y 4):
-- Diaria para los fondos que tengo, vigilo o están en mis asignaciones; semanal (último dato de cada semana cerrada)
+- Diaria para los fondos de mis carteras modelo y los que vigilo; semanal (último dato de cada semana cerrada)
   para el resto del universo.
 - 10 años de histórico. La carga inicial va en tandas (por defecto 300 fondos por ejecución), los diarios primero.
 - Morningstar primero; si falla o no da datos, Yahoo con un ticker verificado contra lo ya guardado de Morningstar.
