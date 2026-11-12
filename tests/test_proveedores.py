@@ -64,6 +64,8 @@ def test_leer_composicion_netos_y_posiciones():
          'CountryExposure': [bd('N', {'USA': 70.0}, Type='Equity'), bd('N', {'DEU': 12.0}, Type='Bond')],
          'GlobalStockSectorBreakdown': [bd('N', {'311': 32.5, '103': 15.5})],
          'EquityStatistics': {'StyleBox': 2},
+         'BondStatistics': {'YieldToMaturity': 2.73107, 'AverageCoupon': 3.43967, 'ModifiedDuration': 0.01},
+         'BondStyleBoxBreakdown': [bd('N', {'4': 100.0, '1': 0.0})],
          'HoldingAggregates': [{'NumberOfHolding': 204, 'SalePosition': 'N'}, {'NumberOfHolding': 1, 'SalePosition': 'N', 'HoldingsType': 'Stock'},
                                {'NumberOfHolding': 9, 'SalePosition': 'S'}],
          'PortfolioHoldings': [{'SecurityName': 'NVIDIA Corp', 'ISIN': 'US67066G1040', 'Weighting': 5.73, 'DetailHoldingTypeId': 'E',
@@ -76,6 +78,8 @@ def test_leer_composicion_netos_y_posiciones():
     assert x['paises_rv'] == {'USA': 70.0} and x['paises_rf'] == {'DEU': 12.0}
     assert x['sectores_rv'] == {'311': 32.5, '103': 15.5}
     assert x['estadisticas_rv'] == {'StyleBox': 2}
+    assert x['estadisticas_rf'] == {'YieldToMaturity': 2.73107, 'AverageCoupon': 3.43967, 'ModifiedDuration': 0.01}
+    assert x['estilo_rf'] == {'4': 100.0}
     assert x['n_posiciones'] == {'total': 204, 'Stock': 1}
     assert x['posiciones'] == [{'nombre': 'NVIDIA Corp', 'isin': 'US67066G1040', 'peso': 5.73, 'tipo': 'E', 'sector': '311', 'pais': 'USA'}]
     assert 'calidad_rf' not in x

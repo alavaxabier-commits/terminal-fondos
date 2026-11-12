@@ -85,6 +85,7 @@ BLOQUES = {
     'paises_rf': ('CountryExposure', 'Bond'),
     'sectores_rv': ('GlobalStockSectorBreakdown', None),
     'estilo_rv': ('StyleBoxBreakdown', None),
+    'estilo_rf': ('BondStyleBoxBreakdown', None),
     'capitalizacion': ('MarketCapitalBreakdown', None),
     'sectores_rf': ('GlobalBondSectorBreakdownLevel1', None),
     'calidad_rf': ('CreditQualityBreakdown', None),
@@ -120,6 +121,8 @@ def leer_composicion(datos) -> tuple[dt.date | None, dict]:
             out[nombre] = v
     if p.get('EquityStatistics'):
         out['estadisticas_rv'] = p['EquityStatistics']
+    if p.get('BondStatistics'):  # TIR, cupón y precio medios, duración modificada, vencimiento efectivo…
+        out['estadisticas_rf'] = p['BondStatistics']
     n = {(x.get('HoldingsType') or 'total'): x.get('NumberOfHolding')
          for x in p.get('HoldingAggregates') or [] if x.get('SalePosition') == 'N'}
     if n:
@@ -188,7 +191,7 @@ class Morningstar:
 
     def composicion(self, ms_id: str) -> tuple[dt.date | None, dict]:
         """Desglose de la cartera de un fondo (una petición; la pausa la pone quien recorre los fondos)."""
-        r = self.http.get(DETALLE + ms_id, params={'viewId': 'ITsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
+        r = self.http.get(DETALLE + ms_id, params={'viewId': 'MFsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
                                                    'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
         r.raise_for_status()
         return leer_composicion(r.json())
