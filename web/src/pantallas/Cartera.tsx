@@ -1,76 +1,195 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fecha, pct } from '../calculo/formato'
+import { calcularCartera, type RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
+import { fecha, pct } from '../calculo/formato'
+import { rendimientos } from '../calculo/metricas'
 import { simular, type Punto } from '../calculo/series'
+import Buscador from '../componentes/Buscador'
 import EstadisticasCartera from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
 import { serieEur } from './Ficha'
 
-type Datos = {
-  cartera: q.Cartera
-  fondos: (q.CarteraFondo & { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null })[]
-  metricas: Map<string, number>
-  calc: q.CalculoCartera | null
-}
+/** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
+type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
+type Linea = { fondo: q.Fondo; peso: number }
+type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
 
-async function cargar(id: number): Promise<Datos | null> {
-  const c = await q.cartera(id)
-  if (!c) return null
-  const isins = c.fondos.map((f) => f.fondo.isin)
-  const [series, ms, comps, calc] = await Promise.all([
-    Promise.all(c.fondos.map((f) => serieEur(f.fondo.isin, f.fondo.divisa))),
-    q.metricasDe(isins),
-    q.composiciones(isins),
-    q.calculoCartera(id),
+const hoy = () => new Date().toISOString().slice(0, 10)
+
+async function cargarFondo(f: q.Fondo, cats: Awaited<ReturnType<typeof q.categoriasReferencia>>): Promise<DatosFondo> {
+  const clave = q.claveReferencia(f, cats)
+  const [serie, ms, comps, refs] = await Promise.all([
+    serieEur(f.isin, f.divisa),
+    q.metricasDe([f.isin]),
+    q.composiciones([f.isin]),
+    q.referenciaSeries(clave ? [clave] : []),
   ])
-  const metricas = new Map(ms.filter((m) => m.nombre === 'rentabilidad').map((m) => [`${m.isin}|${m.ventana}`, Number(m.valor)]))
-  const comp = new Map(comps.map((x) => [x.isin, x]))
   return {
-    cartera: c.cartera,
-    fondos: c.fondos.map((f, i) => ({ ...f, serie: series[i], comp: comp.get(f.fondo.isin)?.datos ?? null, fechaCartera: comp.get(f.fondo.isin)?.fecha_cartera ?? null })),
-    metricas,
-    calc,
+    serie,
+    comp: comps[0]?.datos ?? null,
+    fechaCartera: comps[0]?.fecha_cartera ?? null,
+    metricas: new Map(ms.map((m) => [`${m.ventana}|${m.nombre}`, Number(m.valor)])),
+    ref: (clave && refs.get(clave)) || null,
   }
 }
 
-/** Fondos y pesos de una cartera modelo y su valor simulado en base 100. */
+/** Una cartera modelo: fondos y pesos, valor simulado, estadísticas y X-Ray. Se edita aquí y todo se recalcula al momento. */
 export default function Cartera({ id }: { id: number }) {
-  const [datos, setDatos] = useState<Datos | null | undefined>(undefined)
+  const [guardada, setGuardada] = useState<{ cartera: q.Cartera; fondos: Linea[] } | null | undefined>(undefined)
+  const [cats, setCats] = useState<Awaited<ReturnType<typeof q.categoriasReferencia>> | null>(null)
+  const [rf, setRf] = useState<Map<string, number>>(new Map())
+  const [datos, setDatos] = useState<Map<string, DatosFondo>>(new Map())
+  const [historial, setHistorial] = useState<q.Cambio[]>([])
+  const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [error, setError] = useState('')
+  const [ocupado, setOcupado] = useState(false)
 
+  async function leer() {
+    const [c, cs, estr, h] = await Promise.all([q.cartera(id), q.categoriasReferencia(), q.referenciaSeries(['indice:estr']), q.cambios(id)])
+    setCats(cs)
+    setRf(rendimientos(estr.get('indice:estr')?.semanal ?? new Map()))
+    setHistorial(h)
+    setGuardada(c)
+    if (c && !c.fondos.length) setBorrador({ ...c.cartera, fondos: [], motivo: '' }) // cartera nueva: directa a editar
+  }
   useEffect(() => {
-    cargar(id).then(setDatos).catch((e: Error) => setError(e.message))
-  }, [id])
+    leer().catch((e: Error) => setError(e.message))
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sim = useMemo(() => (datos ? simular(datos.fondos, datos.cartera.rebalanceo) : []), [datos])
-  // El fondo con el histórico más corto marca el inicio de la simulación.
-  const limita = useMemo(
-    () => datos?.fondos.filter((f) => f.serie.length).sort((a, b) => b.serie[0].fecha.localeCompare(a.serie[0].fecha))[0],
-    [datos],
+  const cartera = borrador ?? (guardada ? { ...guardada.cartera, fondos: guardada.fondos } : null)
+  const lineas = cartera?.fondos ?? []
+
+  // Carga lo que falte de cada fondo (también los que se añaden al editar)
+  const faltan = lineas.filter((l) => !datos.has(l.fondo.isin)).map((l) => l.fondo)
+  useEffect(() => {
+    if (!cats || !faltan.length) return
+    let vigente = true
+    Promise.all(faltan.map(async (f) => [f.isin, await cargarFondo(f, cats)] as const))
+      .then((nuevos) => vigente && setDatos((d) => new Map([...d, ...nuevos])))
+      .catch((e: Error) => setError(e.message))
+    return () => { vigente = false }
+  }, [cats, faltan.map((f) => f.isin).join()]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const listos = lineas.length > 0 && lineas.every((l) => datos.has(l.fondo.isin))
+  const conPeso = lineas.filter((l) => l.peso > 0)
+  const fondosCalc = useMemo(
+    () => (listos ? conPeso.map((l) => ({ isin: l.fondo.isin, peso: l.peso, ...datos.get(l.fondo.isin)!, vol3: datos.get(l.fondo.isin)!.metricas.get('3a|volatilidad') ?? null })) : []),
+    [listos, datos, JSON.stringify(conPeso.map((l) => [l.fondo.isin, l.peso]))], // eslint-disable-line react-hooks/exhaustive-deps
   )
+  const reb = cartera?.rebalanceo ?? 'anual'
+  const sim = useMemo(() => simular(fondosCalc, reb), [fondosCalc, reb])
+  const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy()) : null), [fondosCalc, reb, rf])
 
-  if (error) return <p className="text-baja">No se ha podido leer la cartera: {error}</p>
-  if (datos === undefined) return <p className="text-suave">Cargando…</p>
-  if (!datos) return <p className="text-suave">No existe esa cartera.</p>
+  if (error) return <p className="text-baja">No se ha podido leer o guardar la cartera: {error}</p>
+  if (guardada === undefined) return <p className="text-suave">Cargando…</p>
+  if (!guardada || !cartera) return <p className="text-suave">No existe esa cartera.</p>
 
-  const sinDatos = datos.fondos.filter((f) => !f.serie.length)
-  const suma = datos.fondos.reduce((s, f) => s + f.peso, 0)
+  const suma = lineas.reduce((s, l) => s + l.peso, 0)
+  const sinDatos = conPeso.filter((l) => datos.get(l.fondo.isin)?.serie.length === 0)
+  const limita = [...fondosCalc].filter((f) => f.serie.length).sort((a, b) => b.serie[0].fecha.localeCompare(a.serie[0].fecha))[0]
+  const nombreDe = (isin: string) => lineas.find((l) => l.fondo.isin === isin)?.fondo.nombre ?? guardada.fondos.find((l) => l.fondo.isin === isin)?.fondo.nombre ?? isin
+  const editar = (cambio: Partial<Borrador>) => setBorrador((b) => (b ? { ...b, ...cambio } : b))
+  const puedeGuardar = borrador && borrador.nombre.trim() && lineas.length > 0 && Math.abs(suma - 100) < 0.01 && lineas.every((l) => l.peso > 0)
+
+  async function hacer(accion: () => Promise<void>) {
+    setOcupado(true)
+    try { await accion() } catch (e) { setError((e as Error).message) } finally { setOcupado(false) }
+  }
+
+  async function guardar() {
+    if (!borrador) return
+    const antes = new Map(guardada!.fondos.map((l) => [l.fondo.isin, l.peso]))
+    const ahora = new Map(borrador.fondos.map((l) => [l.fondo.isin, l.peso]))
+    const motivo = borrador.motivo.trim() || null
+    const sale = [...antes.keys()].filter((i) => !ahora.has(i))
+    const entra = [...ahora.keys()].filter((i) => !antes.has(i))
+    const pesos = [...ahora].filter(([i, p]) => antes.has(i) && antes.get(i) !== p).map(([i, p]) => `${nombreDe(i)} ${antes.get(i)} → ${p} %`)
+    const cambios: Omit<q.Cambio, 'fecha'>[] = [
+      ...sale.map((i) => ({ sale: i, entra: null, motivo })),
+      ...entra.map((i) => ({ sale: null, entra: i, motivo: [motivo, `peso ${ahora.get(i)} %`].filter(Boolean).join(' · ') })),
+      ...(pesos.length ? [{ sale: null, entra: null, motivo: [motivo, `Pesos: ${pesos.join(', ')}`].filter(Boolean).join(' · ') }] : []),
+    ]
+    await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo },
+      borrador.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })), cambios)
+    setBorrador(null)
+    await leer()
+  }
+
+  async function duplicar() {
+    const { nombre, objetivo, rebalanceo } = guardada!.cartera
+    const nuevo = await q.crearCartera({ nombre: `${nombre} (copia)`, objetivo, rebalanceo },
+      guardada!.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })))
+    location.hash = `#/cartera/${nuevo}`
+  }
+
+  async function archivar() {
+    if (!confirm(`¿Archivar «${guardada!.cartera.nombre}»? Deja de verse y de actualizarse a diario.`)) return
+    await q.archivarCartera(id)
+    location.hash = '#/'
+  }
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-lg font-bold text-acento">{datos.cartera.nombre}</h1>
-        <p className="text-suave">
-          {datos.fondos.length} fondos · rebalanceo {datos.cartera.rebalanceo}
-          {datos.cartera.objetivo && ` · ${datos.cartera.objetivo}`}
-        </p>
-        {Math.abs(suma - 100) > 0.01 && <p className="text-baja">Los pesos suman {suma} %, no 100 %.</p>}
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        {borrador ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <input value={borrador.nombre} onChange={(e) => editar({ nombre: e.target.value })} aria-label="Nombre de la cartera"
+              className="border border-borde bg-panel px-2 py-1 text-lg font-bold text-acento outline-none focus:border-acento" />
+            <div className="flex flex-wrap gap-2">
+              <label className="flex items-center gap-2 text-suave">
+                rebalanceo
+                <select value={borrador.rebalanceo} onChange={(e) => editar({ rebalanceo: e.target.value as q.Rebalanceo })}
+                  className="border border-borde bg-panel px-2 py-1 text-texto">
+                  <option value="anual">anual</option>
+                  <option value="trimestral">trimestral</option>
+                  <option value="ninguno">ninguno</option>
+                </select>
+              </label>
+              <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="objetivo (opcional)"
+                aria-label="Objetivo" className="min-w-0 flex-1 border border-borde bg-panel px-2 py-1 outline-none focus:border-acento" />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h1 className="text-lg font-bold text-acento">{cartera.nombre}</h1>
+            <p className="text-suave">
+              {lineas.length} fondos · rebalanceo {cartera.rebalanceo}
+              {cartera.objetivo && ` · ${cartera.objetivo}`}
+            </p>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {borrador ? (
+            <>
+              <button onClick={() => hacer(guardar)} disabled={!puedeGuardar || ocupado}
+                className="min-h-9 border border-acento px-3 text-acento disabled:border-borde disabled:text-suave">guardar</button>
+              {guardada.fondos.length > 0 && (
+                <button onClick={() => setBorrador(null)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-texto">cancelar</button>
+              )}
+            </>
+          ) : (
+            <>
+              <button onClick={() => setBorrador({ ...guardada.cartera, fondos: guardada.fondos, motivo: '' })}
+                className="min-h-9 border border-borde px-3 text-suave hover:text-texto">editar</button>
+              <button onClick={() => hacer(duplicar)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-texto">duplicar</button>
+              <button onClick={() => hacer(archivar)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-baja">archivar</button>
+            </>
+          )}
+        </div>
       </header>
 
+      {borrador && (
+        <p className="text-aviso">
+          Editando: las cifras de abajo ya reflejan los cambios, pero no se guardan hasta pulsar «guardar».
+          {Math.abs(suma - 100) >= 0.01 && <> Los pesos suman {suma} %; tienen que sumar 100 %.</>}
+        </p>
+      )}
+      {!borrador && Math.abs(suma - 100) > 0.01 && <p className="text-baja">Los pesos suman {suma} %, no 100 %.</p>}
+
       <div className="overflow-x-auto">
-        <table className="w-full text-right">
+        <table className="w-full min-w-[34rem] whitespace-nowrap text-right [&_tr>*+*]:pl-3">
           <thead className="text-[11px] uppercase tracking-widest text-suave">
             <tr className="border-b border-borde">
               <th className="py-1 text-left font-normal">Fondo</th>
@@ -78,47 +197,96 @@ export default function Cartera({ id }: { id: number }) {
               <th className="font-normal">TER</th>
               <th className="font-normal">3A anual</th>
               <th className="font-normal">5A anual</th>
+              {borrador && <th />}
             </tr>
           </thead>
           <tbody>
-            {datos.fondos.map(({ fondo: f, peso }) => (
-              <tr key={f.isin} className="border-b border-borde/50">
-                <td className="py-1 text-left">
-                  <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a>
-                  <span className="text-suave"> · {f.isin}</span>
-                </td>
-                <td>{pct(peso / 100, 0, false)}</td>
-                <td>{pct((f.ter ?? NaN) / 100, 2, false)}</td>
-                <td>{pct(datos.metricas.get(`${f.isin}|3a`))}</td>
-                <td>{pct(datos.metricas.get(`${f.isin}|5a`))}</td>
-              </tr>
-            ))}
+            {lineas.map(({ fondo: f, peso }, k) => {
+              const m = datos.get(f.isin)?.metricas
+              return (
+                <tr key={f.isin} className="border-b border-borde/50">
+                  <td className="whitespace-normal py-1 text-left">
+                    <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a>
+                    <span className="text-suave"> · {f.isin}</span>
+                  </td>
+                  <td>
+                    {borrador ? (
+                      <input type="number" min={0} max={100} step={0.5} value={peso} aria-label={`Peso de ${f.nombre}`}
+                        onChange={(e) => editar({ fondos: lineas.map((l, j) => (j === k ? { ...l, peso: Number(e.target.value) } : l)) })}
+                        className="w-16 border border-borde bg-panel px-1 py-0.5 text-right outline-none focus:border-acento" />
+                    ) : pct(peso / 100, 0, false)}
+                  </td>
+                  <td>{pct((f.ter ?? NaN) / 100, 2, false)}</td>
+                  <td>{pct(m?.get('3a|rentabilidad'))}</td>
+                  <td>{pct(m?.get('5a|rentabilidad'))}</td>
+                  {borrador && (
+                    <td>
+                      <button onClick={() => editar({ fondos: lineas.filter((_, j) => j !== k) })} aria-label={`Quitar ${f.nombre}`}
+                        className="min-h-8 px-2 text-suave hover:text-baja">quitar</button>
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
 
-      <section>
-        <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Valor simulado (base 100)</h2>
-        {sinDatos.length ? (
-          <p className="text-suave">Sin precios todavía: {sinDatos.map((f) => f.fondo.nombre).join(', ')}. Se cargan en la próxima descarga.</p>
-        ) : (
-          <>
-            <p className="mb-2 text-suave">
-              Desde {fecha(sim[0]?.fecha)}, limitada por {limita?.fondo.nombre}.
-            </p>
-            <Grafico lineas={[{ nombre: datos.cartera.nombre, serie: sim, color: '#4fd18b' }]} />
-          </>
-        )}
-      </section>
+      {borrador && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Buscador texto="añadir fondo: nombre o ISIN" onElegir={(f) => !lineas.some((l) => l.fondo.isin === f.isin) && editar({ fondos: [...lineas, { fondo: f, peso: 0 }] })} />
+          <input value={borrador.motivo} onChange={(e) => editar({ motivo: e.target.value })} placeholder="motivo del cambio (opcional, va al historial)"
+            aria-label="Motivo del cambio" className="flex-1 border border-borde bg-panel px-2 py-1 outline-none focus:border-acento" />
+        </div>
+      )}
 
-      <EstadisticasCartera
-        calc={datos.calc}
-        fondos={datos.fondos.map((f) => ({ isin: f.fondo.isin, nombre: f.fondo.nombre, peso: f.peso, ter: f.fondo.ter, c: f.comp }))}
-      />
+      {lineas.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Valor simulado (base 100)</h2>
+          {!listos ? (
+            <p className="text-suave">Cargando precios…</p>
+          ) : sinDatos.length ? (
+            <p className="text-suave">Sin precios todavía: {sinDatos.map((l) => l.fondo.nombre).join(', ')}. Se cargan en la próxima descarga (los fondos de una cartera se descargan cada día).</p>
+          ) : (
+            <>
+              <p className="mb-2 text-suave">Desde {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)}.</p>
+              <Grafico lineas={[{ nombre: cartera.nombre, serie: sim, color: '#4fd18b' }]} />
+            </>
+          )}
+        </section>
+      )}
 
-      <Exposicion
-        fondos={datos.fondos.map((f) => ({ peso: f.peso, nombre: f.fondo.nombre, c: f.comp, duracion: f.fondo.duracion_efectiva, fechaCartera: f.fechaCartera }))}
-      />
+      {listos && !sinDatos.length && (
+        <EstadisticasCartera
+          calc={calc}
+          fondos={conPeso.map((l) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, peso: l.peso, ter: l.fondo.ter, c: datos.get(l.fondo.isin)!.comp }))}
+        />
+      )}
+
+      {listos && (
+        <Exposicion
+          fondos={conPeso.map((l) => {
+            const d = datos.get(l.fondo.isin)!
+            return { peso: l.peso, nombre: l.fondo.nombre, c: d.comp, duracion: l.fondo.duracion_efectiva, fechaCartera: d.fechaCartera }
+          })}
+        />
+      )}
+
+      {historial.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Cambios</h2>
+          <ul className="space-y-1">
+            {historial.map((c, i) => (
+              <li key={i}>
+                <span className="text-suave">{fecha(c.fecha)} · </span>
+                {c.sale && <span className="text-baja">sale {nombreDe(c.sale)} </span>}
+                {c.entra && <span className="text-sube">entra {nombreDe(c.entra)} </span>}
+                {c.motivo && <span className="text-suave">{c.sale || c.entra ? '· ' : ''}{c.motivo}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }

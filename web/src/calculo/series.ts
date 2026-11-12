@@ -1,4 +1,5 @@
 // Series de precios para los gráficos (sin red). Fechas en ISO 'AAAA-MM-DD', que se ordenan como texto.
+import { simularCartera } from './metricas'
 
 export type Punto = { fecha: string; valor: number }
 
@@ -52,21 +53,7 @@ export function inicioComun(series: Punto[][], desde: string): string {
   return firsts.length ? firsts.sort().at(-1)! : desde
 }
 
-/**
- * Cartera modelo en base 100 sobre las fechas comunes a todos sus fondos, partiendo de los pesos y
- * volviendo a ellos el último día con dato de cada año o trimestre ('ninguno': los pesos derivan).
- */
+/** Cartera modelo en base 100 (simularCartera en metricas.ts, que da también ganancias y pesos de hoy). */
 export function simular(fondos: { serie: Punto[]; peso: number }[], rebalanceo: 'anual' | 'trimestral' | 'ninguno'): Punto[] {
-  if (!fondos.length || fondos.some((f) => !f.serie.length)) return []
-  const mapas = fondos.map((f) => new Map(f.serie.map((p) => [p.fecha, p.valor])))
-  const comunes = [...mapas[0].keys()].filter((d) => mapas.every((m) => m.has(d))).sort()
-  const total = fondos.reduce((s, f) => s + f.peso, 0)
-  const periodo = (d: string) => (rebalanceo === 'anual' ? d.slice(0, 4) : `${d.slice(0, 4)}T${Math.ceil(+d.slice(5, 7) / 3)}`)
-  const reparte = (d: string, v: number) => fondos.map((f, k) => (v * f.peso) / total / mapas[k].get(d)!)
-  let partes: number[] = []
-  return comunes.map((d, i) => {
-    const v = i === 0 ? 100 : partes.reduce((s, u, k) => s + u * mapas[k].get(d)!, 0)
-    if (i === 0 || (rebalanceo !== 'ninguno' && periodo(d) !== periodo(comunes[i + 1] ?? d))) partes = reparte(d, v)
-    return { fecha: d, valor: v }
-  })
+  return simularCartera(fondos, rebalanceo).valor
 }

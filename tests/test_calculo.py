@@ -89,23 +89,16 @@ def test_indice_propio_manda_sobre_la_categoria():
     assert usa['TECNO0000000'] == 'indice:msci-world' and usa['TECNO0000001'] == 'media:Sector Equity Technology'
 
 
-def test_cartera_modelo():
+
+def test_series_de_referencia_para_la_web():
     d = datos_base()
-    d['valores']['PROXYBOND001'] = diaria(0.0003, ruido=0.002, fase=1)   # bonos que van al revés que las acciones
-    d['carteras'] = {1: {'rebalanceo': 'anual', 'fondos': [('GLOBAL000001', 60.0), ('PROXYBOND001', 40.0)]},
-                     2: {'rebalanceo': 'anual', 'fondos': [('NOEXISTE0001', 100.0)]}}
-    filas, carteras = calculo.calcular(d, HOY)
-    assert list(carteras) == [1]                     # sin precios de algún fondo, no hay cálculo
-    c = carteras[1]
-    assert c['metricas']['5a']['rentabilidad'] is not None and 'beta' in c['metricas']['5a']   # frente a 60 MSCI / 40 bonos
-    assert c['referencia']['5a']['rentabilidad'] is not None
-    # años naturales de la referencia de cierre a cierre de diciembre: 60 % fondo sustituto del MSCI + 40 % del de bonos
-    def ano(isin, a):
-        v = d['valores'][isin]
-        cierre = lambda y: v[max(f for f in v if f.year == y)]
-        return cierre(a) / cierre(a - 1) - 1
-    assert c['referencia']['2023']['rentabilidad'] == pytest.approx(0.6 * ano('PROXYWORLD01', 2023) + 0.4 * ano('PROXYBOND001', 2023), abs=0.003)
-    assert 'ytd' not in c['referencia']
-    assert sum(f['aporta']['5a'] for f in c['fondos']) == pytest.approx(c['metricas']['5a']['acumulada'], abs=0.02)
-    assert sum(f['riesgo'] for f in c['fondos']) == pytest.approx(1)
-    assert c['volatilidad_media'] >= c['metricas']['3a']['volatilidad'] - 1e-9   # diversificar no suma riesgo
+    _, refs = calculo.calcular(d, HOY)
+    lunes, sem, meses, mes = refs['indice:msci-world']
+    assert all(f.weekday() == 0 for f in lunes) and len(lunes) == len(sem)
+    assert all(f.day == 1 for f in meses) and len(meses) == len(mes)
+    # de cierre a cierre de diciembre, como el fondo sustituto
+    v = d['valores']['PROXYWORLD01']
+    cierre = lambda y: v[max(f for f in v if f.year == y)]
+    m = dict(zip(meses, mes))
+    assert m[D(2023, 12, 1)] / m[D(2022, 12, 1)] == pytest.approx(cierre(2023) / cierre(2022))
+    assert {'indice:mixto-60-40', 'indice:estr', 'media:Sector Equity Technology'} <= set(refs)

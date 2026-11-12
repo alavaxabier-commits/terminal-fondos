@@ -1,13 +1,13 @@
 import type { Composicion } from '../calculo/exposicion'
 import { solapamiento } from '../calculo/exposicion'
 import { cifra, fecha, pct } from '../calculo/formato'
-import type { CalculoCartera } from '../datos/consultas'
+import type { CalculoCartera } from '../calculo/cartera'
+import { CRISIS } from '../calculo/metricas'
 import { Titulo } from './Exposicion'
 
 type FondoE = { isin: string; nombre: string; peso: number; ter: number | null; c: Composicion | null }
 
 const VENTANAS = [['1a', '1A'], ['3a', '3A'], ['5a', '5A']] as const
-const CRISIS = [['2018', 'Final de 2018'], ['covid', 'Covid (feb–abr 2020)'], ['2022', 'Subida de tipos (2022)']] as const
 // [nombre, clave, formato, ¿de la referencia también?]
 const CIFRAS: [string, string, (v: number | undefined) => string, boolean][] = [
   ['Rentabilidad anual', 'rentabilidad', (v) => pct(v), true],
@@ -38,7 +38,7 @@ export default function EstadisticasCartera({ calc, fondos }: { calc: CalculoCar
     return (
       <section>
         <Titulo>Estadísticas de la cartera</Titulo>
-        <p className="text-suave">Se calculan con las métricas de cada mañana: aparecerán tras la próxima descarga.</p>
+        <p className="text-suave">Sin historia común suficiente entre los fondos para calcularlas.</p>
       </section>
     )
 
@@ -161,13 +161,13 @@ export default function EstadisticasCartera({ calc, fondos }: { calc: CalculoCar
           <tbody>
             {fondos.map((f) => {
               const x = porIsin.get(f.isin)
-              const deriva = x ? x.peso_hoy * 100 - (f.peso / total) * 100 : null
+              const deriva = x ? x.pesoHoy * 100 - (f.peso / total) * 100 : null
               return (
                 <tr key={f.isin} className="border-b border-borde/50">
                   <td className="whitespace-normal py-1 text-left">{f.nombre}</td>
                   <td>{pct(f.peso / total, 0, false)}</td>
                   <td>
-                    {pct(x?.peso_hoy, 1, false)}
+                    {pct(x?.pesoHoy, 1, false)}
                     {deriva != null && Math.abs(deriva) >= 0.5 && <span className={`block text-[11px] ${Math.abs(deriva) >= 5 ? 'text-aviso' : 'text-suave'}`}>{pct(deriva / 100)}</span>}
                   </td>
                   {aportaVentanas.map(([v]) => <td key={v} className={color(x?.aporta[v])}>{pct(x?.aporta[v])}</td>)}
@@ -187,7 +187,7 @@ export default function EstadisticasCartera({ calc, fondos }: { calc: CalculoCar
           </tbody>
         </table>
         <p className="mt-1 text-suave">
-          Hoy: peso tras moverse los precios desde el último rebalanceo ({fecha(calc.ultimo_rebalanceo)}). Aporta: puntos de rentabilidad acumulada
+          Hoy: peso tras moverse los precios desde el último rebalanceo ({fecha(calc.ultimoRebalanceo)}). Aporta: puntos de rentabilidad acumulada
           que pone cada fondo (suman la de la cartera). Riesgo: parte de la volatilidad de la cartera que pone cada fondo, con 3 años.
           Coste: parte del gasto anual.
         </p>
@@ -196,11 +196,11 @@ export default function EstadisticasCartera({ calc, fondos }: { calc: CalculoCar
       {calc.correlacion && (
         <div>
           <Titulo>Cómo se mueven juntos</Titulo>
-          {calc.volatilidad_media != null && vol3 != null && (
+          {calc.volatilidadMedia != null && vol3 != null && (
             <p className="mb-2">
-              Volatilidad a 3 años: media de los fondos {pct(calc.volatilidad_media, 1, false)}, cartera {pct(vol3, 1, false)}
+              Volatilidad a 3 años: media de los fondos {pct(calc.volatilidadMedia, 1, false)}, cartera {pct(vol3, 1, false)}
               <span className="text-suave"> · diversificar quita </span>
-              <span className={calc.volatilidad_media - vol3 >= 0.005 ? 'text-sube' : ''}>{cifra(Math.max(0, calc.volatilidad_media - vol3) * 100, 1)} puntos</span>
+              <span className={calc.volatilidadMedia - vol3 >= 0.005 ? 'text-sube' : ''}>{cifra(Math.max(0, calc.volatilidadMedia - vol3) * 100, 1)} puntos</span>
             </p>
           )}
           <div className="overflow-x-auto">

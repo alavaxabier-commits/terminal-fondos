@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { carteras as leerCarteras, sustitutos, type Cartera } from '../datos/consultas'
+import { crearCartera, carteras as leerCarteras, sustitutos, type Cartera } from '../datos/consultas'
 
 /** Inicio: mis carteras modelo y atajos a los índices. Los avisos llegan en las fases 3 y 4. */
 export default function Inicio() {
@@ -15,9 +15,17 @@ export default function Inicio() {
     <div className="space-y-6">
       <p className="text-suave">Busca un fondo por nombre o ISIN (tecla «/»), o abre uno de los índices de referencia.</p>
       {error && <p className="text-baja">No se han podido leer los datos: {error}</p>}
-      {carteras.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Carteras modelo</h2>
+      <section>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-[11px] uppercase tracking-widest text-suave">Carteras modelo</h2>
+          <button
+            onClick={() => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual' }).then((id) => (location.hash = `#/cartera/${id}`)).catch((e: Error) => setError(e.message))}
+            className="min-h-8 border border-borde px-3 text-suave hover:text-texto"
+          >
+            nueva cartera
+          </button>
+        </div>
+        {carteras.length > 0 && (
           <ul className="grid gap-px border border-borde bg-borde sm:grid-cols-2">
             {carteras.map((c) => (
               <li key={c.id} className="bg-fondo">
@@ -27,8 +35,8 @@ export default function Inicio() {
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+      </section>
       <section>
         <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Índices de referencia</h2>
         <ul className="grid gap-px border border-borde bg-borde sm:grid-cols-2">

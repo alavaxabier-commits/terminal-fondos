@@ -1,3 +1,4 @@
+import type { RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
 import type { Punto } from '../calculo/series'
 import { supabase } from './supabase'
@@ -145,22 +146,69 @@ export async function composiciones(isins: string[]): Promise<{ isin: string; fe
   return (data ?? []) as { isin: string; fecha_cartera: string | null; datos: Composicion }[]
 }
 
-type Metricas = Record<string, Record<string, number>> // ventana ('1a', '2024', 'ytd'…) → nombre → valor
-export type CalculoCartera = {
-  desde: string
-  hasta: string
-  ultimo_rebalanceo: string
-  metricas: Metricas
-  referencia: Metricas | null
-  crisis: Record<string, { cartera: [number, number] | null; referencia: [number, number] | null }>
-  volatilidad_media: number | null
-  correlacion: { semanas: number; matriz: (number | null)[][] } | null
-  fondos: { isin: string; peso_hoy: number; riesgo: number | null; aporta: Record<string, number> }[]
+/** Qué referencia usa cada categoría (para saber la de cada fondo de una cartera). */
+export async function categoriasReferencia(): Promise<Map<string, { metodo: Referencia['metodo']; indice_id: string | null }>> {
+  const { data, error: e } = await supabase.from('categoria_referencia').select('categoria,metodo,indice_id')
+  error(e)
+  return new Map(((data ?? []) as { categoria: string; metodo: Referencia['metodo']; indice_id: string | null }[]).map((r) => [r.categoria, r]))
 }
 
-/** Lo que calcula `python -m fondos metricas` para una cartera (simulación, métricas, crisis, correlaciones…). */
-export async function calculoCartera(id: number): Promise<CalculoCartera | null> {
-  const { data, error: e } = await supabase.from('cartera_calculo').select('datos').eq('cartera_id', id).maybeSingle()
+/** Clave de la serie de referencia de un fondo, como en fondos/calculo.py ('indice:<id>' o 'media:<categoría>'). */
+export function claveReferencia(f: Fondo, cats: Awaited<ReturnType<typeof categoriasReferencia>>): string | null {
+  if (f.indice_id) return `indice:${f.indice_id}`
+  const c = f.categoria ? cats.get(f.categoria) : undefined
+  if (c?.metodo === 'indice' && c.indice_id) return `indice:${c.indice_id}`
+  if (c?.metodo === 'media_categoria') return `media:${f.categoria}`
+  return null
+}
+
+/** Series de referencia ya hechas por Python (semanal y de cierre de mes). */
+export async function referenciaSeries(claves: string[]): Promise<Map<string, RefSerie>> {
+  if (!claves.length) return new Map()
+  const { data, error: e } = await supabase.from('referencia_serie').select('clave,semanas,valores_semana,meses,valores_mes').in('clave', claves)
   error(e)
-  return (data?.datos as CalculoCartera) ?? null
+  type Fila = { clave: string; semanas: string[]; valores_semana: number[]; meses: string[]; valores_mes: number[] }
+  return new Map(((data ?? []) as Fila[]).map((r) => [r.clave, {
+    semanal: new Map(r.semanas.map((f, i) => [f, Number(r.valores_semana[i])])),
+    meses: new Map(r.meses.map((f, i) => [f, Number(r.valores_mes[i])])),
+  }]))
+}
+
+// ------------------------------------------------------------------ edición de carteras (solo el propietario, por RLS)
+export type CarteraEditable = { nombre: string; objetivo: string | null; rebalanceo: Rebalanceo }
+export type Cambio = { fecha: string; sale: string | null; entra: string | null; motivo: string | null }
+
+/** Crea una cartera (con un número al final si el nombre ya existe) y devuelve su id. */
+export async function crearCartera(c: CarteraEditable, fondos: { isin: string; peso: number }[] = []): Promise<number> {
+  for (let n = 1; n <= 20; n++) {
+    const nombre = n === 1 ? c.nombre : `${c.nombre} ${n}`
+    const { data, error: e } = await supabase.from('cartera').insert({ ...c, nombre }).select('id').single()
+    if (e?.code === '23505') continue // nombre repetido
+    error(e)
+    const id = (data as { id: number }).id
+    if (fondos.length) error((await supabase.from('cartera_fondo').insert(fondos.map((f) => ({ cartera_id: id, ...f })))).error)
+    return id
+  }
+  throw new Error('Ya hay muchas carteras con ese nombre')
+}
+
+/** Guarda nombre, rebalanceo y fondos de una cartera y anota en el historial lo que cambia. */
+export async function guardarCartera(id: number, c: CarteraEditable, fondos: { isin: string; peso: number }[], cambios: Omit<Cambio, 'fecha'>[]) {
+  error((await supabase.from('cartera').update(c).eq('id', id)).error)
+  if (fondos.length) error((await supabase.from('cartera_fondo').upsert(fondos.map((f) => ({ cartera_id: id, ...f })))).error)
+  const quedan = fondos.map((f) => f.isin)
+  let borrar = supabase.from('cartera_fondo').delete().eq('cartera_id', id)
+  if (quedan.length) borrar = borrar.not('isin', 'in', `(${quedan.join(',')})`)
+  error((await borrar).error)
+  if (cambios.length) error((await supabase.from('cartera_cambio').insert(cambios.map((x) => ({ cartera_id: id, ...x })))).error)
+}
+
+export async function archivarCartera(id: number) {
+  error((await supabase.from('cartera').update({ archivada: true }).eq('id', id)).error)
+}
+
+export async function cambios(id: number): Promise<Cambio[]> {
+  const { data, error: e } = await supabase.from('cartera_cambio').select('fecha,sale,entra,motivo').eq('cartera_id', id).order('id', { ascending: false }).limit(20)
+  error(e)
+  return (data ?? []) as Cambio[]
 }

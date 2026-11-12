@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { millones } from '../calculo/formato'
 import { buscar, type Fondo } from '../datos/consultas'
 
-/** Búsqueda por nombre o ISIN. Atajo: «/» para escribir, Intro abre el primero, Esc cierra. */
-export default function Buscador() {
+/** Búsqueda por nombre o ISIN. Atajo: «/» para escribir, Intro abre el primero, Esc cierra.
+ *  Con `onElegir`, en vez de abrir la ficha da el fondo elegido (y no usa el atajo). */
+export default function Buscador({ onElegir, texto: indicacion = '/ buscar fondo o ISIN' }: { onElegir?: (f: Fondo) => void; texto?: string } = {}) {
   const [texto, setTexto] = useState('')
   const [resultados, setResultados] = useState<Fondo[]>([])
   const [abierto, setAbierto] = useState(false)
   const campo = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (onElegir) return
     const atajo = (e: KeyboardEvent) => {
       if (e.key === '/' && document.activeElement?.tagName !== 'INPUT') {
         e.preventDefault()
@@ -18,7 +20,7 @@ export default function Buscador() {
     }
     addEventListener('keydown', atajo)
     return () => removeEventListener('keydown', atajo)
-  }, [])
+  }, [onElegir])
 
   useEffect(() => {
     let vigente = true
@@ -29,7 +31,9 @@ export default function Buscador() {
   }, [texto])
 
   function abrir(isin: string) {
-    location.hash = `#/fondo/${isin}`
+    const f = resultados.find((x) => x.isin === isin)
+    if (onElegir && f) onElegir(f)
+    else location.hash = `#/fondo/${isin}`
     setAbierto(false)
     setTexto('')
     campo.current?.blur()
@@ -47,7 +51,8 @@ export default function Buscador() {
           if (e.key === 'Enter' && resultados[0]) abrir(resultados[0].isin)
           if (e.key === 'Escape') campo.current?.blur()
         }}
-        placeholder="/ buscar fondo o ISIN"
+        placeholder={indicacion}
+        aria-label={indicacion}
         className="w-full border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento"
       />
       {abierto && resultados.length > 0 && (

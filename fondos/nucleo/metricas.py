@@ -229,16 +229,6 @@ def tasa_mensual(estr: dict[dt.date, float]) -> dict[tuple[int, int], float]:
     return {k: (1 + fmean(vs) / 100) ** (1 / 12) - 1 for k, vs in sorted(por_mes.items())}
 
 
-def anos_de_meses(r: dict[tuple[int, int], float], hoy: dt.date) -> dict[tuple[str, str], float]:
-    """Años naturales cerrados (los 12 meses con dato) a partir de rentabilidades mensuales, como `metricas_calendario`."""
-    out: dict[tuple[str, str], float] = {}
-    for a in range(hoy.year - 10, hoy.year):
-        meses = [r.get((a, mes)) for mes in range(1, 13)]
-        if all(x is not None for x in meses):
-            out[(str(a), 'rentabilidad')] = math.prod(1 + x for x in meses) - 1
-    return out
-
-
 def metricas_calendario(serie: dict[dt.date, float], hoy: dt.date) -> dict[tuple[str, str], float]:
     """Años naturales (cierre de diciembre a cierre de diciembre) y año en curso, con fechas exactas."""
     out: dict[tuple[str, str], float] = {}
@@ -396,85 +386,3 @@ def percentiles(valores: dict[str, float], nombre: str) -> dict[str, float]:
         i = j + 1
     return out
 
-
-# ------------------------------------------------------------------ carteras modelo
-# Tramos de crisis para ver cómo se portó la cartera (caída desde el máximo dentro del tramo).
-CRISIS = {
-    '2018': (dt.date(2018, 10, 1), dt.date(2018, 12, 31)),  # final de 2018: subidas de tipos de la Fed y guerra comercial
-    'covid': (dt.date(2020, 2, 1), dt.date(2020, 4, 30)),
-    '2022': (dt.date(2022, 1, 1), dt.date(2022, 12, 31)),    # subida de tipos: bajan a la vez acciones y bonos
-}
-
-
-def simular(series: list[tuple[dict[dt.date, float], float]], rebalanceo: str):
-    """Cartera modelo en base 100 sobre las fechas comunes a todos sus fondos, como `simular` de la web: parte de los
-    pesos y vuelve a ellos el último día con dato de cada año o trimestre ('ninguno': los pesos derivan).
-
-    Devuelve (valor por fecha, ganancia de cada fondo por fecha, peso de cada fondo el último día, último rebalanceo).
-    """
-    if not series or any(not s for s, _ in series):
-        return {}, [], [], None
-    comunes = sorted(set.intersection(*(set(s) for s, _ in series)))
-    total = sum(p for _, p in series)
-
-    def periodo(d):
-        return d.year if rebalanceo == 'anual' else (d.year, (d.month - 1) // 3)
-
-    valor: dict[dt.date, float] = {}
-    ganancias: list[dict[dt.date, float]] = [{} for _ in series]
-    partes: list[float] = []
-    ultimo = comunes[0]
-    for i, d in enumerate(comunes):
-        v = 100.0
-        if i:
-            prev = comunes[i - 1]
-            for k, (s, _) in enumerate(series):
-                ganancias[k][d] = partes[k] * (s[d] - s[prev])
-            v = sum(partes[k] * s[d] for k, (s, _) in enumerate(series))
-        valor[d] = v
-        siguiente = comunes[i + 1] if i + 1 < len(comunes) else d
-        if i == 0 or (rebalanceo != 'ninguno' and periodo(d) != periodo(siguiente)):
-            partes = [v * p / total / s[d] for s, p in series]
-            ultimo = d
-    fin = comunes[-1]
-    return valor, ganancias, [partes[k] * s[fin] / valor[fin] for k, (s, _) in enumerate(series)], ultimo
-
-
-def contribuciones(valor: dict[dt.date, float], ganancias: list[dict[dt.date, float]], desde: dt.date) -> list[float] | None:
-    """Puntos de rentabilidad acumulada que aporta cada fondo desde `desde` (suman la de la cartera). None si no hay historia."""
-    fechas = [d for d in valor if d >= desde]
-    if len(fechas) < 2 or (fechas[0] - desde).days > 14:
-        return None
-    return [sum(g[d] for d in fechas[1:]) / valor[fechas[0]] for g in ganancias]
-
-
-def caida_en(s: SerieSemanal, desde: dt.date, hasta: dt.date) -> tuple[float, int] | None:
-    """(peor caída desde un máximo dentro del tramo, semanas hasta recuperar ese máximo; -1 = sin recuperar)."""
-    ks = [k for k in s if desde <= lunes_de(k) <= hasta]
-    if len(ks) < 2 or (lunes_de(ks[0]) - desde).days > 14:
-        return None
-    peor, pico, fondo = _peor_caida(s, ks)
-    if peor == 0:
-        return 0.0, 0
-    rec = _recuperacion(s, pico, fondo)
-    return peor, -1 if rec is None else rec
-
-
-def riesgo(rends: list[dict[Semana, float]], pesos: list[float], anos: int = 3) -> dict | None:
-    """Correlación de cada par de fondos y parte del riesgo de la cartera que pone cada uno (con los pesos dados),
-    con las rentabilidades semanales comunes de los últimos `anos` años. None con menos de un año común."""
-    comunes = sorted(set.intersection(*(set(r) for r in rends)))[-anos * SEMANAS_ANO:]
-    if len(comunes) < SEMANAS_ANO:
-        return None
-    x = [[r[k] for k in comunes] for r in rends]
-    medias = [fmean(xs) for xs in x]
-    n = len(comunes)
-    cov = [[sum((a - mi) * (b - mj) for a, b in zip(xi, xj)) / n for xj, mj in zip(x, medias)] for xi, mi in zip(x, medias)]
-    total = sum(pesos)
-    w = [p / total for p in pesos]
-    marginal = [sum(wj * c for wj, c in zip(w, fila)) for fila in cov]
-    var_p = sum(wi * mi for wi, mi in zip(w, marginal))
-    corr = [[c / math.sqrt(cov[i][i] * cov[j][j]) if cov[i][i] and cov[j][j] else None for j, c in enumerate(fila)]
-            for i, fila in enumerate(cov)]
-    return {'semanas': n, 'correlacion': corr,
-            'riesgo': [wi * mi / var_p if var_p else None for wi, mi in zip(w, marginal)]}

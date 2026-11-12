@@ -23,8 +23,8 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - `fondos/proveedores/`: `morningstar.py` (buscador de fichas, series `timeseries_price` y ficha de detalle `security_details` vista `MFsnapshot` para la composición), `yahoo.py` (respaldo, solo con ticker verificado ±0,1 % en ≥5 días), `ft.py` (último mes, referencia y último recurso), `bce.py` (cambios y €STR).
 - `fondos/ingesta.py`: qué toca a cada fondo (`accion`, `planificar`) y cómo se descarga (`descargar_fondo`). `fondos/validacion.py`: huecos y saltos (`avisos`), fechas hábiles.
 - `fondos/db.py` (`Repo`): toda la lectura y escritura de la base; `reducir()` pasa la serie diaria a semanal + cierres de mes.
-- `fondos/nucleo/metricas.py`: **motor de métricas puro** (sin red ni base). `fondos/calculo.py`: referencias (índice, índice combinado, €STR o media de la categoría), percentiles por categoría y cálculo de las carteras modelo.
-- `web/src/`: `datos/` (cliente y consultas, paginadas de 1.000 en 1.000), `calculo/` (series, simulación de carteras, exposición X-Ray y formato, con test), `pantallas/` (Entrar, Inicio, Ficha, Cartera), `componentes/` (Buscador, Grafico, Exposicion, EstadisticasCartera).
+- `fondos/nucleo/metricas.py`: **motor de métricas puro** (sin red ni base). `fondos/calculo.py`: referencias (índice, índice combinado, €STR o media de la categoría) y percentiles por categoría.
+- `web/src/`: `datos/` (cliente y consultas, paginadas de 1.000 en 1.000), `calculo/` (series, port del motor de métricas `metricas.ts`, cálculo de carteras `cartera.ts`, exposición X-Ray y formato, con test), `pantallas/` (Entrar, Inicio, Ficha, Cartera), `componentes/` (Buscador, Grafico, Exposicion, EstadisticasCartera).
 
 ## Datos: lo esencial
 
@@ -33,14 +33,14 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - Ritmo: una carga completa por fondo (10 años diarios); después, los de `fondo_diario` cada día y el resto del universo una vez a la semana.
 - `composicion (isin, fecha_cartera, datos jsonb)`: desgloses netos del X-Ray con los códigos de Morningstar (`{código: %}`), estadísticas de renta variable y fija (TIR, cupón…) y todas las posiciones (API de la web de Morningstar con su clave pública; si falla, las 10 mayores, sin `posiciones_todas`); los nombres de los códigos los pone la web. Duración, calidad media y cajas de estilo están en `fondo` (vienen del buscador).
 - `metrica`: se recalcula entera en cada ejecución (borrar + COPY en una transacción), con `percentil` dentro de la categoría.
-- Carteras: `cartera`, `cartera_fondo (peso)`, `cartera_calculo` (jsonb que escribe `metricas` con `metrica`: la cartera simulada con su rebalanceo frente a las referencias de sus fondos combinadas, años, crisis, aportación, peso de hoy y correlaciones; la web solo calcula el coste y el solapamiento), `cartera_cambio`, `nota_semanal`; `seguimiento` (con `disponible_myinvestor`, marcado a mano).
+- Carteras: `cartera`, `cartera_fondo (peso)`, `cartera_cambio` (historial), `nota_semanal`; `seguimiento` (con `disponible_myinvestor`, marcado a mano). Se editan en la web y se calculan en la web (al momento); para la referencia de cada fondo, la web lee `referencia_serie` (semanal y de cierre de mes), que escribe `metricas` con `metrica`.
 - `registro_descarga`: una línea por descarga (ok, aviso, error); es lo que hay que mirar si algo falla.
 
 ## Reglas que no se pueden romper
 
-- **Seguridad**: RLS en todas las tablas; la web solo lee, y solo el propietario (`fondos.es_propietario()`, que mira el correo en `fondos.propietario`). Escriben únicamente los scripts. Las funciones que escriben se revocan para `anon` y `authenticated`. Revisa los avisos de seguridad de Supabase tras cada migración.
+- **Seguridad**: RLS en todas las tablas; solo el propietario (`fondos.es_propietario()`, que mira el correo en `fondos.propietario`). La web solo lee, salvo las carteras (`cartera`, `cartera_fondo`, `cartera_cambio`) y `seguimiento`; el resto lo escriben únicamente los scripts. Las funciones que escriben se revocan para `anon` y `authenticated`. Revisa los avisos de seguridad de Supabase tras cada migración.
 - **Métricas como Morningstar**: series en EUR; años naturales y YTD con cierres de mes exactos; volatilidad y Sharpe mensuales con desviación muestral × √12; percentiles invertidos donde menos es mejor; beta sin percentil. Todo cálculo nuevo va en `nucleo/metricas.py` con su test.
-- Las mismas cifras en todas partes: si la web muestra una métrica, sale de la tabla `metrica`, no se recalcula de otra forma.
+- Las mismas cifras en todas partes: si la web muestra una métrica de un fondo, sale de la tabla `metrica`. Única excepción, las carteras: se calculan en la web con `web/src/calculo/metricas.ts`, port de `nucleo/metricas.py`; los dos pasan el caso común `caso_metricas.json` (`python -m tests.caso_metricas` lo regenera), así que una fórmula se cambia en los dos lados a la vez.
 - **Límites**: Supabase gratis (500 MB de base, unos 2 correos por hora), 2.000 min/mes de Actions (repositorio privado). Morningstar: una petición por fondo (dos para la composición, una vez al mes) y pausa entre peticiones; nada de descargas diarias de todo el universo.
 - La contraseña de la base y las claves secretas nunca van al chat ni al código: solo en los secretos de GitHub. La clave `sb_publishable_…` está en `web/src/datos/supabase.ts` a propósito.
 

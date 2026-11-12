@@ -158,46 +158,20 @@ def test_metricas_mensuales_como_morningstar():
     assert ('5a', 'volatilidad_mensual') not in out
 
 
-# ------------------------------------------------------------------ carteras modelo
-from fondos.nucleo.metricas import caida_en, contribuciones, riesgo, simular  # noqa: E402
 
-
-def test_simular_rebalancea_al_cerrar_el_ano():
-    a = {D(2025, 12, 30): 100.0, D(2025, 12, 31): 200.0, D(2026, 1, 2): 400.0}   # se duplica dos veces
-    b = {D(2025, 12, 30): 100.0, D(2025, 12, 31): 100.0, D(2026, 1, 2): 100.0}   # plano
-    valor, ganancias, pesos, ultimo = simular([(a, 50), (b, 50)], 'anual')
-    # 31/12: 50·2 + 50 = 150 y vuelve al 50/50; 2/1: 75·2 + 75 = 225
-    assert list(valor.values()) == [100, pytest.approx(150), pytest.approx(225)]
-    assert ultimo == D(2025, 12, 31) and pesos == [pytest.approx(150 / 225), pytest.approx(75 / 225)]
-    # sin rebalanceo los pesos derivan: 50·4 + 50 = 250
-    assert simular([(a, 50), (b, 50)], 'ninguno')[0][D(2026, 1, 2)] == pytest.approx(250)
-    # lo que aporta cada fondo suma la rentabilidad de la cartera
-    aporta = contribuciones(valor, ganancias, D(2025, 12, 30))
-    assert aporta == [pytest.approx(1.25), 0] and sum(aporta) == pytest.approx(valor[D(2026, 1, 2)] / 100 - 1)
-    assert contribuciones(valor, ganancias, D(2025, 1, 1)) is None   # sin historia desde esa fecha
-
-
-def test_caida_en_un_tramo_y_su_recuperacion():
-    s = serie_de([100, 110, 88, 99, 111], desde=D(2020, 2, 7))
-    assert caida_en(s, D(2020, 2, 1), D(2020, 2, 29)) == (pytest.approx(-0.2), 3)   # se recupera ya fuera del tramo
-    assert caida_en(serie_de([100, 110, 88], desde=D(2020, 2, 7)), D(2020, 2, 1), D(2020, 2, 29))[1] == -1
-    assert caida_en(s, D(2019, 1, 1), D(2019, 3, 1)) is None
-
-
-def test_riesgo_correlaciones_y_reparto():
-    x = {(2020, k): 0.01 * (-1) ** k for k in range(1, 53)}
-    y = {k: 2 * v for k, v in x.items()}            # se mueve igual, el doble
-    z = {k: -v for k, v in x.items()}                # al revés
-    r = riesgo([x, y, z], [50, 25, 25])
-    assert r['correlacion'][0][1] == pytest.approx(1) and r['correlacion'][0][2] == pytest.approx(-1)
-    assert sum(r['riesgo']) == pytest.approx(1)
-    assert riesgo([dict(list(x.items())[:20])], [100]) is None   # menos de un año
-
-
-def test_mensuales_y_anos_de_meses():
-    from fondos.nucleo.metricas import anos_de_meses, mensuales
+def test_mensuales_y_tasa_mensual():
+    from fondos.nucleo.metricas import mensuales, tasa_mensual
     serie = {D(2024, 12, 31): 100.0, D(2025, 1, 15): 999.0, D(2025, 1, 31): 110.0, D(2025, 3, 31): 121.0}
     assert mensuales(serie) == {(2025, 1): pytest.approx(0.1)}            # de enero a marzo falta febrero
-    r = {(2025, k): 0.01 for k in range(1, 13)}
-    assert anos_de_meses(r, D(2026, 5, 1)) == {('2025', 'rentabilidad'): pytest.approx(1.01 ** 12 - 1)}
-    assert anos_de_meses({**r, (2025, 7): None} | {}, D(2026, 5, 1)) == {}  # un mes sin dato: no hay año
+    assert tasa_mensual({D(2025, 1, 1): 12.0, D(2025, 1, 2): 12.0}) == {(2025, 1): pytest.approx(1.12 ** (1 / 12) - 1)}
+
+
+def test_caso_comun_con_la_web():
+    import json
+    from tests.caso_metricas import RUTA, calcular
+    caso = json.loads(RUTA.read_text())
+    rf = {D.fromisoformat(f).isocalendar()[:2]: x for f, x in caso['rf']}
+    obtenido = calcular(D.fromisoformat(caso['hoy']), caso['serie'], caso['referencia'], rf)
+    assert obtenido.keys() == caso['esperado'].keys()
+    for k, x in caso['esperado'].items():
+        assert obtenido[k] == pytest.approx(x, rel=1e-9), k
