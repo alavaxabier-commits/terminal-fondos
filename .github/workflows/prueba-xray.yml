@@ -1,0 +1,20 @@
+name: Prueba X-Ray (temporal)
+on:
+  workflow_dispatch:
+    inputs:
+      isins:
+        description: 'ISIN separados por espacios'
+        default: 'IE00B6VXJV34 LU0034353002 IE000ZYRH0Q7'
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip }
+      - run: pip install --quiet . 'mstarpy<11'
+      - run: python scripts/prueba_xray.py ${{ inputs.isins }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: xray, path: salida/, retention-days: 1 }
