@@ -1,0 +1,37 @@
+name: Web
+on:
+  push:
+    paths: ['web/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Comprobar (dependencias, tipos, tests, compilación)
+        run: |
+          set -o pipefail
+          { npm install --no-audit --no-fund && npm run typecheck && npm test && npm run build; } 2>&1 | tee ../web.log
+      # El resultado queda en fondos.registro_descarga (fuente «web») para poder revisarlo sin abrir GitHub
+      - name: Anotar resultado
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ESTADO: ${{ job.status == 'success' && 'ok' || 'error' }}
+          COMMIT: ${{ github.sha }}
+        working-directory: .
+        run: |
+          pip install --quiet 'psycopg[binary]'
+          python - <<'PY'
+          import os, psycopg
+          log = open('web.log', encoding='utf-8', errors='replace').read() if os.path.exists('web.log') else ''
+          msg = f"{os.environ['COMMIT'][:7]}: " + (log[-1800:] if os.environ['ESTADO'] == 'error' else 'compilación correcta')
+          with psycopg.connect(os.environ['DATABASE_URL'], autocommit=True) as cx:
+              cx.execute("insert into fondos.registro_descarga (fuente, estado, mensaje) values ('web', %s, %s)",
+                         (os.environ['ESTADO'], msg))
+          PY
