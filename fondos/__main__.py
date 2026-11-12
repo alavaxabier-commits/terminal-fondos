@@ -17,7 +17,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 from . import ingesta
-from .proveedores import BCE, Morningstar, Yahoo
+from .proveedores import BCE, FT, Morningstar, Yahoo
 
 
 def hoy() -> dt.date:
@@ -46,7 +46,7 @@ def orden_alta(repo, isins: list[str]) -> int:
 
 
 def orden_precios(repo, tanda: int) -> int:
-    c = ingesta.precios(repo, Morningstar(), Yahoo(), hoy(), tanda)
+    c = ingesta.precios(repo, Morningstar(), Yahoo(), FT(), hoy(), tanda)
     texto = f"### Precios · {hoy()}\n\n{c['ok']} ok · {c['aviso']} con aviso · {c['error']} con error"
     print(texto)
     resumen_github(texto)
@@ -94,18 +94,24 @@ def orden_prueba_red(isin: str) -> int:
     f = ms.buscar(isin)
     print(f'Buscador Morningstar: {f}')
     try:
-        s = ms.historico(isin, f and f['ms_id'], d - dt.timedelta(days=30), d)
-        print(f'Morningstar (mstarpy): {len(s)} valores; últimos {sorted(s.items())[-3:]}')
+        s = ms.historico(isin, f and f['ms_id'], d - dt.timedelta(days=30), d, f and f['divisa'])
+        print(f'Morningstar (series): {len(s)} valores; últimos {sorted(s.items())[-3:]}')
         ok &= bool(s)
     except Exception as e:  # noqa: BLE001
-        print(f'Morningstar (mstarpy) falla: {e}')
+        print(f'Morningstar (series) falla: {e}')
         ok = False
         s = {}
+    try:
+        ref = FT().historico(isin, f and f['divisa'])
+        print(f'FT: {len(ref)} valores; últimos {sorted(ref.items())[-3:]}')
+    except Exception as e:  # noqa: BLE001
+        print(f'FT falla: {e}')
+        ref = {}
     yh = Yahoo()
     cands = yh.candidatos(isin, f and f['nombre'])
     print(f'Yahoo, candidatos: {cands}')
-    if s:
-        print(f"Yahoo, ticker verificado: {yh.buscar_verificado(isin, f and f['nombre'], s, d)}")
+    if s or ref:
+        print(f"Yahoo, ticker verificado: {yh.buscar_verificado(isin, f and f['nombre'], s or ref, d)}")
     bce = BCE()
     print(f"BCE USD: {sorted(bce.tipo_cambio('USD', d - dt.timedelta(days=10)).items())[-1:]}")
     print(f'BCE €STR: {sorted(bce.estr(d - dt.timedelta(days=10)).items())[-1:]}')

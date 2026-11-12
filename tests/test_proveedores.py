@@ -1,7 +1,8 @@
 import datetime as dt
 
 from fondos.proveedores.bce import leer_csv
-from fondos.proveedores.morningstar import ficha, leer_nav
+from fondos.proveedores.ft import leer_tabla
+from fondos.proveedores.morningstar import ficha, leer_serie
 from fondos.proveedores.yahoo import elegir_ticker
 
 D = dt.date
@@ -17,11 +18,19 @@ def test_ficha_del_buscador():
     assert ficha({'Isin': 'IE00BD0NCM55'})['ter'] is None
 
 
-def test_leer_nav_ignora_filas_malas():
-    filas = [{'date': '2026-11-02', 'nav': 12.3456789}, {'date': '2026-11-03', 'nav': None},
-             {'date': None, 'nav': 1}, {'date': '2026-11-04', 'nav': '0'}, 'basura']
-    assert leer_nav(filas) == {D(2026, 11, 2): 12.345679}
-    assert leer_nav(None) == {}
+def test_leer_serie_morningstar_compactjson_y_json():
+    ms = int(dt.datetime(2026, 11, 2, tzinfo=dt.timezone.utc).timestamp() * 1000)
+    assert leer_serie([[ms, 12.3456789], [ms + 86400000, None], ['x', 1], 'basura']) == {D(2026, 11, 2): 12.345679}
+    js = {'TimeSeries': {'Security': [{'HistoryDetail': [{'EndDate': '2026-11-02', 'Value': '10.5'},
+                                                         {'EndDate': '2026-11-03', 'Value': '0'}]}]}}
+    assert leer_serie(js) == {D(2026, 11, 2): 10.5}
+    assert leer_serie(None) == {} and leer_serie({}) == {}
+
+
+def test_leer_tabla_ft():
+    t = ('Date Open High Low Close Volume Thursday, November 12, 2026 Thu, Nov 12, 2026 '
+         '1,234.56 1,234.56 1,234.56 1,234.56 -- Wednesday, November 11, 2026 Wed, Nov 11, 2026 12.30 12.30 12.30 12.31 --')
+    assert leer_tabla(t) == {D(2026, 11, 12): 1234.56, D(2026, 11, 11): 12.31}
 
 
 def test_leer_csv_bce():

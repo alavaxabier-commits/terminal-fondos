@@ -23,11 +23,9 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12', cache: pip }
       - run: pip install --quiet .
-      # mstarpy abre Chrome con Selenium: xvfb le da una pantalla virtual
-      - run: command -v xvfb-run || sudo apt-get install -y xvfb
       - name: Ejecutar
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ORDEN: ${{ inputs.orden || 'diario' }}
           ARGUMENTOS: ${{ inputs.argumentos }}
-        run: xvfb-run -a python -m fondos "$ORDEN" $ARGUMENTOS
+        run: python -m fondos "$ORDEN" $ARGUMENTOS

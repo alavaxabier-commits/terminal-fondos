@@ -1,9 +1,10 @@
 """Morningstar (no oficial).
 
 - Fichas y búsqueda: el buscador público de Morningstar España (universo FOESP$$ALL, fondos registrados en España).
-- Histórico de valor liquidativo: mstarpy (abre Chrome con Selenium; en GitHub Actions va con xvfb-run).
+- Histórico de valor liquidativo: su servicio público de series (sin navegador). mstarpy 10 da 401 en su API de
+  gráficos, así que ya no se usa.
 
-Ambos son endpoints no oficiales: si Morningstar cambia algo, falla aquí y la ingesta prueba con Yahoo.
+Son endpoints no oficiales: si Morningstar cambia algo, falla aquí y la ingesta prueba con Yahoo.
 """
 from __future__ import annotations
 
@@ -18,6 +19,13 @@ SCREENER = 'https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security/screener
 UNIVERSO = 'FOESP$$ALL'
 CAMPOS_BASICOS = 'SecId|Name|Isin|CategoryName|PriceCurrency|OngoingCharge|InceptionDate'
 CAMPOS = CAMPOS_BASICOS + '|FundId|FundTNAV'  # FundTNAV: patrimonio del fondo, en su divisa
+
+# Servicio de series de precios: se prueban en orden hasta que uno responda con datos.
+SERIES = [
+    'https://lt.morningstar.com/api/rest.svc/timeseries_price/klr5zyak8x',
+    'https://tools.morningstar.es/api/rest.svc/timeseries_price/2nhcdckzon',
+]
+UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 
 
 def _num(x):
@@ -54,15 +62,31 @@ def ficha(fila: dict) -> dict | None:
     }
 
 
-def leer_nav(filas) -> Serie:
-    """Respuesta de mstarpy Funds.nav() → {fecha: valor}. Ignora filas sin fecha o sin valor."""
+def leer_serie(datos) -> Serie:
+    """Respuesta del servicio de series → {fecha: valor}.
+
+    Acepta los dos formatos que usa: COMPACTJSON ([[milisegundos, valor], …]) y JSON
+    ({"TimeSeries": {"Security": [{"HistoryDetail": [{"EndDate": …, "Value": …}, …]}]}}).
+    """
     out: Serie = {}
-    for x in filas or []:
-        if not isinstance(x, dict):
-            continue
-        f, v = _fecha(x.get('date')), _num(x.get('nav'))
-        if f and v and v > 0:
-            out[f] = round(v, 6)
+    if isinstance(datos, list):
+        for x in datos:
+            if isinstance(x, (list, tuple)) and len(x) >= 2:
+                v = _num(x[1])
+                try:
+                    f = dt.datetime.fromtimestamp(float(x[0]) / 1000, dt.timezone.utc).date()
+                except (TypeError, ValueError, OverflowError):
+                    continue
+                if v and v > 0:
+                    out[f] = round(v, 6)
+        return out
+    if isinstance(datos, dict):
+        seguridades = ((datos.get('TimeSeries') or {}).get('Security')) or []
+        for s in seguridades:
+            for x in s.get('HistoryDetail') or []:
+                f, v = _fecha(x.get('EndDate')), _num(x.get('Value'))
+                if f and v and v > 0:
+                    out[f] = round(v, 6)
     return out
 
 
@@ -72,6 +96,7 @@ class Morningstar:
     def __init__(self, pausa: float = 1.0):
         self.pausa = pausa
         self.http = requests.Session()
+        self.http.headers['User-Agent'] = UA
 
     def _buscador(self, **params) -> dict:
         def pedir(campos):
@@ -108,23 +133,26 @@ class Morningstar:
             pagina += 1
             time.sleep(self.pausa)
 
-    def _fondo(self, isin: str, ms_id: str | None):
-        import mstarpy as ms  # solo aquí: los tests y el resto no lo necesitan
-        import mstarpy.security as sec
-        try:
-            return ms.Funds(isin)
-        except Exception:  # noqa: BLE001 — su buscador no tiene todos los fondos
-            if not ms_id:
-                encontrado = self.buscar(isin)
-                ms_id = encontrado and encontrado['ms_id']
-            if not ms_id:
-                raise
-            # Mismo atajo que en el repo Finanzas (mstarpy 10): el objeto sin pasar por su buscador.
-            f = object.__new__(ms.Funds)
-            f.code, f.name, f.language, f.proxies, f.asset_type = ms_id, isin, 'en-gb', None, 'fund'
-            f.session = sec.MorningstarSession()
-            return f
-
-    def historico(self, isin: str, ms_id: str | None, desde: dt.date, hasta: dt.date) -> Serie:
-        f = self._fondo(isin, ms_id)
-        return leer_nav(f.nav(start_date=desde, end_date=hasta, frequency='daily'))
+    def historico(self, isin: str, ms_id: str | None, desde: dt.date, hasta: dt.date, divisa: str | None = None) -> Serie:
+        if not ms_id:
+            encontrado = self.buscar(isin)
+            ms_id = encontrado and encontrado['ms_id']
+        if not ms_id:
+            raise LookupError('sin SecId de Morningstar')
+        errores = []
+        for url in SERIES:
+            try:
+                r = self.http.get(url, params={'id': f'{ms_id}]2]0]{UNIVERSO}', 'idtype': 'Morningstar',
+                                               'currencyId': divisa or 'EUR', 'frequency': 'daily',
+                                               'startDate': desde.isoformat(), 'endDate': hasta.isoformat(),
+                                               'outputType': 'COMPACTJSON'}, timeout=30)
+                if r.status_code != 200:
+                    errores.append(f'{r.status_code} en {url.split("/")[2]}')
+                    continue
+                serie = leer_serie(r.json())
+                if serie:
+                    return serie
+                errores.append(f'vacío en {url.split("/")[2]}')
+            except (requests.RequestException, ValueError) as e:
+                errores.append(f'{type(e).__name__} en {url.split("/")[2]}')
+        raise RuntimeError('; '.join(errores))

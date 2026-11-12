@@ -4,7 +4,7 @@ Seguimiento de fondos de inversión y selección de candidatos para mis carteras
 
 ```
 fondos/              paquete Python
-  proveedores/       morningstar (buscador + mstarpy), yahoo (respaldo verificado), bce (cambios y €STR)
+  proveedores/       morningstar (buscador y series), yahoo (respaldo verificado), ft (referencia), bce (cambios y €STR)
   validacion.py      huecos, saltos y paso a semanal (sin red)
   ingesta.py         qué fondos tocan hoy, de dónde y cómo se guardan
   db.py              Postgres (Supabase), esquema «fondos»

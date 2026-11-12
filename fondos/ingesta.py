@@ -4,7 +4,8 @@ Reglas (especificación, secciones 3 y 4):
 - Diaria para los fondos de mis carteras modelo y los que vigilo; semanal (último dato de cada semana cerrada)
   para el resto del universo.
 - 10 años de histórico. La carga inicial va en tandas (por defecto 300 fondos por ejecución), los diarios primero.
-- Morningstar primero; si falla o no da datos, Yahoo con un ticker verificado contra lo ya guardado de Morningstar.
+- Morningstar primero; si falla, Yahoo con un ticker verificado (contra lo guardado o contra el FT);
+  para actualizar, el FT como último recurso.
 - Cada fondo deja una línea en registro_descarga: ok, aviso (huecos o saltos) o error.
 """
 from __future__ import annotations
@@ -58,28 +59,45 @@ def planificar(fondos: list[FondoIngesta], hoy: dt.date, tanda: int = TANDA) -> 
     return out
 
 
-def descargar_fondo(f: FondoIngesta, que: str, hoy: dt.date, repo, ms, yh) -> str:
-    """Trae, valida y guarda la serie de un fondo. Devuelve 'ok', 'aviso' o 'error'."""
+def descargar_fondo(f: FondoIngesta, que: str, hoy: dt.date, repo, ms, yh, ft) -> str:
+    """Trae, valida y guarda la serie de un fondo. Devuelve 'ok', 'aviso' o 'error'.
+
+    Orden: Morningstar → Yahoo (ticker verificado contra lo guardado o, si aún no hay nada, contra el FT)
+    → FT (solo para actualizar: da unas semanas, no 10 años).
+    """
     desde = hace_anos(hoy, ANOS) if que == 'carga' else f.ultima - dt.timedelta(days=7)
     serie: Serie = {}
     fuente, errores = None, []
 
     try:
-        serie = ms.historico(f.isin, f.ms_id, desde, hoy)
+        serie = ms.historico(f.isin, f.ms_id, desde, hoy, f.divisa)
         fuente = 'morningstar'
-        if not serie:
-            errores.append('Morningstar: sin datos')
     except Exception as e:  # noqa: BLE001 — endpoint no oficial
         errores.append(f'Morningstar: {str(e)[:200]}')
+
+    referencia_ft: Serie | None = None
+
+    def ref_ft() -> Serie:
+        nonlocal referencia_ft
+        if referencia_ft is None:
+            try:
+                referencia_ft = ft.historico(f.isin, f.divisa)
+            except Exception as e:  # noqa: BLE001
+                referencia_ft = {}
+                errores.append(f'FT: {str(e)[:120]}')
+        return referencia_ft
 
     if not serie:
         ticker = f.yahoo_ticker
         if not ticker:
-            ticker = yh.buscar_verificado(f.isin, f.nombre, repo.valores(f.isin, hoy - dt.timedelta(days=120)), hoy)
+            referencia = repo.valores(f.isin, hoy - dt.timedelta(days=120))
+            if len(referencia) < 5:
+                referencia = ref_ft()
+            ticker = yh.buscar_verificado(f.isin, f.nombre, referencia, hoy)
             if ticker:
                 repo.guardar_ticker(f.isin, ticker)
             else:
-                errores.append('Yahoo: sin ticker verificado')
+                errores.append('Yahoo: sin ticker verificado' + ('' if referencia else ' (sin referencia)'))
         if ticker:
             try:
                 serie = yh.historico(ticker, desde, hoy)
@@ -88,6 +106,10 @@ def descargar_fondo(f: FondoIngesta, que: str, hoy: dt.date, repo, ms, yh) -> st
                     errores.append(f'Yahoo {ticker}: sin datos')
             except Exception as e:  # noqa: BLE001
                 errores.append(f'Yahoo {ticker}: {str(e)[:200]}')
+
+    if not serie and que == 'actualizar':
+        serie = {d: v for d, v in ref_ft().items() if d >= desde}
+        fuente = 'ft'
 
     if not serie:
         repo.registrar('ingesta', f.isin, 'error', '; '.join(errores))
@@ -109,12 +131,12 @@ def descargar_fondo(f: FondoIngesta, que: str, hoy: dt.date, repo, ms, yh) -> st
     return estado
 
 
-def precios(repo, ms, yh, hoy: dt.date, tanda: int = TANDA, pausa: float = 1.0, log=print) -> dict[str, int]:
+def precios(repo, ms, yh, ft, hoy: dt.date, tanda: int = TANDA, pausa: float = 1.0, log=print) -> dict[str, int]:
     plan = planificar(repo.fondos_para_ingesta(), hoy, tanda)
     log(f'{len(plan)} fondos que actualizar hoy')
     cuenta = {'ok': 0, 'aviso': 0, 'error': 0}
     for i, (f, que) in enumerate(plan, 1):
-        estado = descargar_fondo(f, que, hoy, repo, ms, yh)
+        estado = descargar_fondo(f, que, hoy, repo, ms, yh, ft)
         cuenta[estado] += 1
         log(f'[{i}/{len(plan)}] {f.isin} {f.nombre[:50]} · {que} · {estado}')
         if pausa:

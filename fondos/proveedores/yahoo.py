@@ -54,7 +54,7 @@ class Yahoo:
                 continue
             try:
                 for x in yf.Search(q, max_results=15).quotes:
-                    if x.get('quoteType') == 'MUTUALFUND' and x.get('symbol') not in out:
+                    if x.get('quoteType') in ('MUTUALFUND', 'ETF') and x.get('symbol') not in out:
                         out.append(x['symbol'])
             except Exception:  # noqa: BLE001
                 pass

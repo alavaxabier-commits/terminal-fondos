@@ -6,7 +6,6 @@ requires-python = ">=3.12"
 dependencies = [
   "requests>=2.31",
   "psycopg[binary]>=3.2",
-  "mstarpy<11",       # 10.x: el mismo que funciona en el repo Finanzas (abre Chrome con Selenium)
   "yfinance>=0.2.54",
 ]
 
