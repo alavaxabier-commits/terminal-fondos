@@ -24,7 +24,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - `fondos/ingesta.py`: qué toca a cada fondo (`accion`, `planificar`) y cómo se descarga (`descargar_fondo`). `fondos/validacion.py`: huecos y saltos (`avisos`), fechas hábiles.
 - `fondos/db.py` (`Repo`): toda la lectura y escritura de la base; `reducir()` pasa la serie diaria a semanal + cierres de mes.
 - `fondos/nucleo/metricas.py`: **motor de métricas puro** (sin red ni base). `fondos/calculo.py`: referencias (índice, índice combinado, €STR o media de la categoría) y percentiles por categoría.
-- `web/src/`: `datos/` (cliente y consultas, paginadas de 1.000 en 1.000), `calculo/` (series, simulación de carteras, exposición X-Ray y formato, con test), `pantallas/` (Entrar, Inicio, Ficha, Cartera), `componentes/` (Buscador, Grafico).
+- `web/src/`: `datos/` (cliente y consultas, paginadas de 1.000 en 1.000), `calculo/` (series, simulación de carteras, exposición X-Ray y formato, con test), `pantallas/` (Entrar, Inicio, Ficha, Cartera), `componentes/` (Buscador, Grafico, Exposicion).
 
 ## Datos: lo esencial
 
