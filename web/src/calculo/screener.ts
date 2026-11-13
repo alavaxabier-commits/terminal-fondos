@@ -75,11 +75,11 @@ export function pasa(f: FilaScreener, x: Filtros, hoy: string, excluir: Set<stri
 /** Con menos fondos en la categoría, su percentil (y la nota) dice poco: «el mejor de 3» saca 100. */
 export const MIN_CATEGORIA = 5
 
-export type Orden = 'nota' | 'ter' | 'r5'
-/** Orden de la tabla: por nota (como sale de puntuar), por TER (menor primero) o por rentabilidad a 5 años (a 3 si no hay). */
+export type Orden = 'nota' | 'ter' | 'r3' | 'r5'
+/** Orden de la tabla: por nota (como sale de puntuar), por TER (menor primero) o por rentabilidad anual a 3 o 5 años (mayor primero). */
 export function ordenar(filas: Puntuado[], orden: Orden): Puntuado[] {
   if (orden === 'nota') return filas
-  const v = (f: Puntuado) => (orden === 'ter' ? f.ter : f.r5 ?? f.r3)
+  const v = (f: Puntuado) => (orden === 'ter' ? f.ter : orden === 'r3' ? f.r3 : f.r5)
   const signo = orden === 'ter' ? 1 : -1
   return [...filas].sort((a, b) => (v(a) == null ? 1 : 0) - (v(b) == null ? 1 : 0) || signo * ((v(a) ?? 0) - (v(b) ?? 0)))
 }

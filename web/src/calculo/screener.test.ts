@@ -57,7 +57,8 @@ describe('región o estilo', () => {
   it('ordena por TER o rentabilidad, sin dato al final', () => {
     const fs = puntuar([fila({ isin: 'A', ter: 1, r5: 0.02 }), fila({ isin: 'B', ter: null, r5: null, r3: 0.05 }), fila({ isin: 'C', ter: 0.5, r5: null })], PESOS_DEFECTO)
     expect(ordenar(fs, 'ter').map((f) => f.isin)).toEqual(['C', 'A', 'B'])
-    expect(ordenar(fs, 'r5').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
+    expect(ordenar(fs, 'r5').map((f) => f.isin)).toEqual(['A', 'B', 'C'])
+    expect(ordenar(fs, 'r3').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
   })
 
   it('la diversificación entra en la nota si hay cartera', () => {

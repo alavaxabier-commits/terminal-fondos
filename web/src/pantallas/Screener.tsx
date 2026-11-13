@@ -240,13 +240,14 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
   )
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] text-right [&_tr>*+*]:pl-3">
+      <table className="w-full min-w-[44rem] text-right [&_tr>*+*]:pl-3">
         <thead className="text-[11px] uppercase tracking-widest text-suave">
           <tr className="border-b border-borde">
             <th className="w-8 py-1 font-normal">#</th>
             <th className="text-left font-normal">Fondo</th>
             {cabecera('nota', 'Nota', 'w-36 text-left')}
             {cabecera('ter', 'TER')}
+            {cabecera('r3', '3A anual')}
             {cabecera('r5', '5A anual')}
             <th className="font-normal">Patrim.</th>
             <th className="w-8 font-normal"><span className="sr-only">Seguir</span></th>
@@ -272,7 +273,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
                 )}
               </td>
               <td>{f.ter == null ? '—' : `${cifra(f.ter)} %`}</td>
-              <td className={(f.r5 ?? f.r3 ?? 0) >= 0 ? 'text-sube' : 'text-baja'}>{f.r5 != null ? pct(f.r5) : f.r3 != null ? <>{pct(f.r3)} <span className="text-suave">3A</span></> : '—'}</td>
+              {[f.r3, f.r5].map((r, j) => <td key={j} className={r == null ? 'text-suave' : r >= 0 ? 'text-sube' : 'text-baja'}>{r == null ? '—' : pct(r)}</td>)}
               <td className="text-suave">{millones(f.patrimonio_meur)}</td>
               <td>
                 <button onClick={(e) => { e.stopPropagation(); if (!seguidos.has(f.isin)) seguir(f.isin) }} aria-label={seguidos.has(f.isin) ? 'En seguimiento' : 'Añadir a seguimiento'}
