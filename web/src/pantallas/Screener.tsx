@@ -8,23 +8,30 @@ const POR_PAGINA = 100
 const hoy = () => new Date().toISOString().slice(0, 10)
 const control = 'border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento'
 
+// Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
+const CLAVE = 'screener'
+type Guardado = { pesos: Pesos; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; y: number }
+const leer = (): Partial<Guardado> => { try { return JSON.parse(sessionStorage.getItem(CLAVE) ?? '{}') } catch { return {} } }
+const escribir = (g: Partial<Guardado>) => { try { sessionStorage.setItem(CLAVE, JSON.stringify({ ...leer(), ...g })) } catch { /* sin almacenamiento: se pierde al salir */ } }
+
 /** Screener: el universo ordenado por la nota (percentiles de su categoría, pesos ajustables), con filtros y perfiles. */
 export default function Screener() {
+  const [g] = useState(leer)
   const [datos, setDatos] = useState<q.FilaScreener[] | null>(null)
   const [perfiles, setPerfiles] = useState<q.Perfil[]>([])
   const [carteras, setCarteras] = useState<q.Cartera[]>([])
   const [seguidos, setSeguidos] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
-  const [pesos, setPesos] = useState<Pesos>(PESOS_DEFECTO)
-  const [filtros, setFiltros] = useState<Filtros>({})
-  const [modo, setModo] = useState<Modo>('juntos')
-  const [carteraId, setCarteraId] = useState<number | ''>('')
+  const [pesos, setPesos] = useState<Pesos>(g.pesos ?? PESOS_DEFECTO)
+  const [filtros, setFiltros] = useState<Filtros>(g.filtros ?? {})
+  const [modo, setModo] = useState<Modo>(g.modo ?? 'juntos')
+  const [carteraId, setCarteraId] = useState<number | ''>(g.carteraId ?? '')
   const [enCartera, setEnCartera] = useState<Set<string>>(new Set())
-  const [excluirSuyos, setExcluirSuyos] = useState(false)
+  const [excluirSuyos, setExcluirSuyos] = useState(g.excluirSuyos ?? false)
   const [div, setDiv] = useState<Map<string, number> | undefined>(undefined)
   const [avisoDiv, setAvisoDiv] = useState<string | null>(null)
-  const [sel, setSel] = useState<string | null>(null)
-  const [mostrar, setMostrar] = useState(POR_PAGINA)
+  const [sel, setSel] = useState<string | null>(g.sel ?? null)
+  const [mostrar, setMostrar] = useState(g.mostrar ?? POR_PAGINA)
 
   const falla = (e: Error) => setError(e.message)
   useEffect(() => {
@@ -43,6 +50,9 @@ export default function Screener() {
       setAvisoDiv(q.avisoDiversificacion(d.base, isins))
     }).catch(falla)
   }, [carteraId])
+  useEffect(() => escribir({ pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar }), [pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar])
+  useEffect(() => () => escribir({ y: scrollY }), []) // al salir (p. ej. a una ficha), dónde estaba la lista
+  useEffect(() => { if (datos && g.y) scrollTo(0, g.y) }, [datos, g])
 
   // sin cartera elegida, Diversificación no tiene datos y su peso se reparte entre los demás bloques
   const puntuados = useMemo(() => {
