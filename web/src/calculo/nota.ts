@@ -12,10 +12,15 @@ export const NOMBRE_BLOQUE: Record<Bloque, string> = {
 }
 export const PESOS_DEFECTO: Pesos = { riesgo: 20, consistencia: 10, coste: 40, proteccion: 20, rentabilidad: 10, diversificacion: 10 }
 
-/** Percentiles de un fondo {'ventana|nombre': percentil} → percentil de cada bloque y si va con 3A; null sin 3 años. */
-export function bloques(pct: Record<string, number>, indexada: boolean): { bloques: Partial<Record<Bloque, number>>; solo3a: boolean } | null {
-  const v = '5a|rentabilidad' in pct ? '5a' : '3a|rentabilidad' in pct ? '3a' : null
-  if (!v) return null
+export const PLAZOS = ['1a', '3a', '5a', '10a'] as const
+export type Plazo = (typeof PLAZOS)[number]
+
+/** Percentiles de un fondo {'ventana|nombre': percentil} → percentil de cada bloque y si va con 3A por no tener 5; null
+ * sin 3 años. Con `plazo`, solo ese plazo (null si el fondo no lo tiene). */
+export function bloques(pct: Record<string, number>, indexada: boolean, plazo?: Plazo): { bloques: Partial<Record<Bloque, number>>; solo3a: boolean } | null {
+  const v = plazo ?? ('5a|rentabilidad' in pct ? '5a' : '3a|rentabilidad' in pct ? '3a' : null)
+  if (!v || !(`${v}|rentabilidad` in pct)) return null
+  const largo = v === '5a' || v === '10a'
   const media = (...claves: string[]) => {
     const xs = claves.filter((k) => k in pct).map((k) => pct[k])
     return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined
@@ -23,12 +28,12 @@ export function bloques(pct: Record<string, number>, indexada: boolean): { bloqu
   const b: Partial<Record<Bloque, number | undefined>> = {
     riesgo: media(`${v}|sharpe`, `${v}|sortino`),
     consistencia: indexada ? media(`${v}|tracking_error`)
-      : media(...(v === '5a' ? ['hist|consistencia'] : []), '3a|ratio_informacion'),
+      : media(...(largo ? ['hist|consistencia'] : []), `${largo ? '3a' : v}|ratio_informacion`),
     coste: media('hoy|ter'),
     proteccion: media(`${v}|max_caida`, `${v}|captura_bajista`),
     rentabilidad: media(`${v}|rentabilidad`),
   }
-  return { bloques: Object.fromEntries(Object.entries(b).filter(([, x]) => x !== undefined)) as Partial<Record<Bloque, number>>, solo3a: v === '3a' }
+  return { bloques: Object.fromEntries(Object.entries(b).filter(([, x]) => x !== undefined)) as Partial<Record<Bloque, number>>, solo3a: !plazo && v === '3a' }
 }
 
 /** Peso efectivo de cada bloque con datos (suma 1); los bloques sin datos o con peso 0 no aparecen. */

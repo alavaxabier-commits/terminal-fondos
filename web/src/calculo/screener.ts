@@ -1,6 +1,6 @@
 // Screener: filtros y nota de cada fondo del universo con los pesos elegidos (sin red).
 import type { FilaScreener } from '../datos/consultas'
-import { bloques, nota, type Bloque, type Pesos } from './nota'
+import { bloques, nota, type Bloque, type Pesos, type Plazo } from './nota'
 
 export const TIPOS = ['renta variable', 'renta fija', 'mixto', 'monetario', 'otros'] as const
 export type Tipo = (typeof TIPOS)[number]
@@ -84,10 +84,10 @@ export function ordenar(filas: Puntuado[], orden: Orden): Puntuado[] {
   return [...filas].sort((a, b) => (v(a) == null ? 1 : 0) - (v(b) == null ? 1 : 0) || signo * ((v(a) ?? 0) - (v(b) ?? 0)))
 }
 
-export function puntuar(filas: FilaScreener[], pesos: Pesos, diversificacion?: Map<string, number>): Puntuado[] {
+export function puntuar(filas: FilaScreener[], pesos: Pesos, diversificacion?: Map<string, number>, plazo?: Plazo): Puntuado[] {
   return filas
     .map((f) => {
-      const b = bloques(f.pct ?? {}, indexada(f))
+      const b = bloques(f.pct ?? {}, indexada(f), plazo)
       const d = diversificacion?.get(f.isin)
       const bs = b ? (d == null ? b.bloques : { ...b.bloques, diversificacion: d }) : {}
       return { ...f, bloques: bs, solo3a: b?.solo3a ?? false, nota: b ? nota(bs, pesos) : null }

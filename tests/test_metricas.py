@@ -110,7 +110,7 @@ def test_metricas_fondo_completo():
         for n in ('rentabilidad', 'volatilidad', 'max_caida', 'sharpe', 'sortino', 'alfa', 'beta',
                   'tracking_error', 'ratio_informacion'):
             assert (v, n) in m, (v, n)
-    assert ('5a', 'captura_alcista') in m and ('10a', 'recuperacion_semanas') in m
+    assert ('5a', 'captura_alcista') in m and ('1a', 'captura_bajista') in m and ('10a', 'recuperacion_semanas') in m
     assert ('hist', 'consistencia') in m and ('ytd', 'rentabilidad') in m and ('2025', 'rentabilidad') in m
     assert m[('10a', 'rentabilidad')] == pytest.approx(1.0015 ** 52 - 1, abs=0.002)
     assert m[('5a', 'beta')] > 0

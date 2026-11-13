@@ -346,9 +346,8 @@ def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[S
                           - math.prod(1 + x for x in rb_c) ** (SEMANAS_ANO / len(rb_c)))
                 if te:
                     poner(nombre_v, 'ratio_informacion', exceso / te)
-            if n == 5:
-                poner(nombre_v, 'captura_alcista', captura(rf_c, rb_c, True))
-                poner(nombre_v, 'captura_bajista', captura(rf_c, rb_c, False))
+            poner(nombre_v, 'captura_alcista', captura(rf_c, rb_c, True))
+            poner(nombre_v, 'captura_bajista', captura(rf_c, rb_c, False))
 
     if ref:
         poner('hist', 'consistencia', consistencia(s, ref))
@@ -428,9 +427,10 @@ def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, flo
 
 def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool, ventana: str | None = None
                  ) -> tuple[dict[str, float], bool] | None:
-    """Percentil de cada bloque de la nota (solo los que tienen datos) y si va con 3A; None sin 3 años.
+    """Percentil de cada bloque de la nota (solo los que tienen datos) y si va con 3A por no tener 5; None sin 3 años.
 
-    `ventana` ('1a', '3a', '5a' o '10a') obliga a usar ese plazo (para el análisis); None si el fondo no lo tiene.
+    `ventana` ('1a', '3a', '5a' o '10a') obliga a usar ese plazo (el selector del screener y el análisis); None si el
+    fondo no lo tiene.
     En 5 y 10 años, la consistencia es la histórica más el ratio de información a 3; en 1 y 3, el ratio de ese plazo."""
     v = ventana or ('5a' if ('5a', 'rentabilidad') in pct else '3a' if ('3a', 'rentabilidad') in pct else None)
     if v is None or (v, 'rentabilidad') not in pct:
@@ -448,7 +448,7 @@ def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool, ventana: str
     bloques = {'riesgo': media((v, 'sharpe'), (v, 'sortino')), 'consistencia': consistencia_,
                'coste': media(('hoy', 'ter')), 'proteccion': media((v, 'max_caida'), (v, 'captura_bajista')),
                'rentabilidad': media((v, 'rentabilidad'))}
-    return {b: x for b, x in bloques.items() if x is not None}, v == '3a'
+    return {b: x for b, x in bloques.items() if x is not None}, ventana is None and v == '3a'
 
 
 def ponderar(bloques: dict[str, float], pesos: dict[str, float]) -> float | None:

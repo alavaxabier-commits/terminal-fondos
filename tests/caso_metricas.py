@@ -45,14 +45,23 @@ NOTAS = [
       '5a|max_caida': 30, '5a|captura_bajista': 50, '5a|rentabilidad': 100, '5a|tracking_error': 0}, True),
     ({'3a|rentabilidad': 50, '3a|sharpe': 50, 'hist|consistencia': 0, '3a|ratio_informacion': 100}, False),
     ({'1a|rentabilidad': 50}, False),
+    # con plazo elegido en el screener
+    ({'1a|rentabilidad': 40, '1a|sharpe': 60, '1a|captura_bajista': 20, '1a|ratio_informacion': 70, 'hist|consistencia': 10,
+      '3a|ratio_informacion': 0, 'hoy|ter': 50, '5a|rentabilidad': 90}, False, '1a'),
+    ({'10a|rentabilidad': 40, '10a|max_caida': 60, 'hist|consistencia': 10, '3a|ratio_informacion': 30, '10a|tracking_error': 80},
+     False, '10a'),
+    ({'10a|rentabilidad': 40, '10a|tracking_error': 80}, True, '10a'),
+    ({'5a|rentabilidad': 90}, False, '10a'),
 ]
 
 
 def notas():
     out = []
-    for pct, indexada in NOTAS:
-        n = m.nota({tuple(k.split('|')): v for k, v in pct.items()}, indexada)
-        out.append({'pct': pct, 'indexada': indexada, 'nota': n and n[0], 'solo_3a': n and n[1]})
+    for pct, indexada, *ventana in NOTAS:
+        b = m.bloques_nota({tuple(k.split('|')): v for k, v in pct.items()}, indexada, *ventana)
+        n = b and m.ponderar(b[0], m.PESOS_NOTA)
+        out.append({'pct': pct, 'indexada': indexada, 'ventana': ventana[0] if ventana else None,
+                    'nota': n, 'solo_3a': b and b[1] if n is not None else None})
     return out
 
 

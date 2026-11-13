@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, millones, pct } from '../calculo/formato'
-import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, pesosEfectivos, type Pesos } from '../calculo/nota'
+import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, pesosEfectivos, PLAZOS, type Pesos, type Plazo } from '../calculo/nota'
 import { grupo, grupos, indexada, MIN_CATEGORIA, ordenar, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado, type Tipo } from '../calculo/screener'
 import * as q from '../datos/consultas'
 
@@ -10,7 +10,8 @@ const control = 'border border-borde bg-panel px-2 py-1 text-texto outline-none 
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
 const CLAVE = 'screener'
-type Guardado = { pesos: Pesos; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; orden: Orden; y: number }
+type Guardado = { pesos: Pesos; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; orden: Orden; plazo: Plazo | ''; y: number }
+const anos = (p: Plazo) => (p === '1a' ? '1 año' : `${parseInt(p)} años`)
 const leer = (): Partial<Guardado> => { try { return JSON.parse(sessionStorage.getItem(CLAVE) ?? '{}') } catch { return {} } }
 const escribir = (g: Partial<Guardado>) => { try { sessionStorage.setItem(CLAVE, JSON.stringify({ ...leer(), ...g })) } catch { /* sin almacenamiento: se pierde al salir */ } }
 
@@ -33,6 +34,7 @@ export default function Screener() {
   const [sel, setSel] = useState<string | null>(g.sel ?? null)
   const [mostrar, setMostrar] = useState(g.mostrar ?? POR_PAGINA)
   const [orden, setOrden] = useState<Orden>(g.orden ?? 'nota')
+  const [plazo, setPlazo] = useState<Plazo | ''>(g.plazo ?? '')
 
   const falla = (e: Error) => setError(e.message)
   useEffect(() => {
@@ -51,15 +53,15 @@ export default function Screener() {
       setAvisoDiv(q.avisoDiversificacion(d.base, isins))
     }).catch(falla)
   }, [carteraId])
-  useEffect(() => escribir({ pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden }), [pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden])
+  useEffect(() => escribir({ pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden, plazo }), [pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden, plazo])
   useEffect(() => () => escribir({ y: scrollY }), []) // al salir (p. ej. a una ficha), dónde estaba la lista
   useEffect(() => { if (datos && g.y) scrollTo(0, g.y) }, [datos, g])
 
   // sin cartera elegida, Diversificación no tiene datos y su peso se reparte entre los demás bloques
   const puntuados = useMemo(() => {
     const excluir = excluirSuyos ? enCartera : new Set<string>()
-    return datos ? ordenar(puntuar(datos.filter((f) => pasa(f, filtros, hoy(), excluir)), pesos, div), orden) : []
-  }, [datos, filtros, excluirSuyos, enCartera, pesos, div, orden])
+    return datos ? ordenar(puntuar(datos.filter((f) => pasa(f, filtros, hoy(), excluir)), pesos, div, plazo || undefined), orden) : []
+  }, [datos, filtros, excluirSuyos, enCartera, pesos, div, orden, plazo])
   // shortcut: cuenta clases, no fondos (el percentil cuenta uno por fondo); basta para avisar de categorías casi vacías
   const tamano = useMemo(() => {
     const n = new Map<string, number>()
@@ -186,7 +188,7 @@ export default function Screener() {
         {listas.map(([titulo, filas]) => (
           <section key={titulo} className="space-y-1">
             {titulo && <h2 className="text-[11px] uppercase tracking-widest text-suave">{titulo} · {filas.length}</h2>}
-            <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={orden} setOrden={setOrden} pocos={pocos} />
+            <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={orden} setOrden={setOrden} pocos={pocos} plazo={plazo} />
             {filas.length > mostrar && (
               <button onClick={() => setMostrar((n) => n + POR_PAGINA)} className="text-suave hover:text-texto">ver {Math.min(POR_PAGINA, filas.length - mostrar)} más</button>
             )}
@@ -197,7 +199,15 @@ export default function Screener() {
 
       <aside aria-label="Pesos y desglose" className="flex w-full flex-col gap-5 sm:w-72">
         <section className="flex flex-col gap-2">
-          <h2 className="text-[11px] uppercase tracking-widest text-suave">Pesos de la nota</h2>
+          <h2 className="text-[11px] uppercase tracking-widest text-suave">Plazo de la nota</h2>
+          <div role="group" aria-label="Plazo de las métricas de la nota" className="flex w-fit border border-borde">
+            {(['', ...PLAZOS] as const).map((p) => (
+              <button key={p} aria-pressed={plazo === p} onClick={() => setPlazo(p)}
+                className={`min-h-8 px-2 ${plazo === p ? 'bg-panel text-acento' : 'text-suave hover:text-texto'} [&+&]:border-l [&+&]:border-borde`}>{p ? p.toUpperCase() : 'auto'}</button>
+            ))}
+          </div>
+          <p className="text-suave">{plazo ? `Métricas a ${anos(plazo)}; los fondos sin ese historial no tienen nota.` : 'Auto: el plazo más largo de cada fondo (5 años, o 3), como la nota guardada y las señales.'}</p>
+          <h2 className="mt-2 text-[11px] uppercase tracking-widest text-suave">Pesos de la nota</h2>
           {BLOQUES.map((k) => (
             <label key={k} className={`grid grid-cols-[1fr_auto] gap-x-2 ${k === 'diversificacion' && !div ? 'text-suave' : ''}`}>
               <span>{NOMBRE_BLOQUE[k]}</span><span className="tabular text-right">{k === 'diversificacion' && !div ? '—' : `${Math.round((100 * pesos[k]) / (totalPesos || 1))} %`}</span>
@@ -211,7 +221,7 @@ export default function Screener() {
             <button onClick={() => setPesos(PESOS_DEFECTO)} className="min-h-8 border border-borde px-3 text-suave hover:text-texto">por defecto</button>
           </div>
         </section>
-        {elegido && <Desglose f={elegido} pocos={pocos(elegido)} pesos={pesos} seguido={seguidos.has(elegido.isin)} seguir={seguirFondo} />}
+        {elegido && <Desglose f={elegido} plazo={plazo} pocos={pocos(elegido)} pesos={pesos} seguido={seguidos.has(elegido.isin)} seguir={seguirFondo} />}
       </aside>
     </div>
   )
@@ -231,9 +241,9 @@ function CampoNumero({ valor, cambiar }: { valor: number | undefined; cambiar: (
   return <input inputMode="decimal" value={texto} onChange={(e) => { setTexto(e.target.value); cambiar(numero(e.target.value)) }} className={control} />
 }
 
-function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos }: {
+function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo }: {
   filas: Puntuado[]; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; conCategoria: boolean
-  orden: Orden; setOrden: (o: Orden) => void; pocos: (f: Puntuado) => number
+  orden: Orden; setOrden: (o: Orden) => void; pocos: (f: Puntuado) => number; plazo: Plazo | ''
 }) {
   const cabecera = (o: Orden, texto: string, clase = '') => (
     <th className={`font-normal ${clase}`} aria-sort={orden === o ? (o === 'ter' ? 'ascending' : 'descending') : 'none'}>
@@ -265,7 +275,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
                 {conCategoria && <span className="block text-suave">{f.categoria}</span>}
               </td>
               <td className="text-left">
-                {f.nota == null ? <span className="text-suave">sin historial</span> : (
+                {f.nota == null ? <span className="text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span> : (
                   <span className="inline-flex items-center gap-2">
                     <span className="w-7 text-right text-acento">{Math.round(f.nota)}</span>
                     <span aria-hidden className="inline-block h-1.5 w-20 bg-borde/60"><span className="block h-1.5 bg-acento" style={{ width: `${f.nota}%` }} /></span>
@@ -289,7 +299,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
   )
 }
 
-function Desglose({ f, pocos, pesos, seguido, seguir }: { f: Puntuado; pocos: number; pesos: Pesos; seguido: boolean; seguir: (i: string) => void }) {
+function Desglose({ f, plazo, pocos, pesos, seguido, seguir }: { f: Puntuado; plazo: Plazo | ''; pocos: number; pesos: Pesos; seguido: boolean; seguir: (i: string) => void }) {
   const w = pesosEfectivos(f.bloques, pesos)
   const flojos = BLOQUES.filter((k) => w[k] && f.bloques[k]! < 40).map((k) => `${NOMBRE_BLOQUE[k].toLowerCase()} (percentil ${Math.round(f.bloques[k]!)})`)
   return (
@@ -297,7 +307,7 @@ function Desglose({ f, pocos, pesos, seguido, seguir }: { f: Puntuado; pocos: nu
       <h2 className="text-[11px] uppercase tracking-widest text-suave">{f.nota == null ? 'Sin nota' : `Por qué ${Math.round(f.nota)}`}</h2>
       <p><a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a><br />
         <span className="text-suave">{f.isin} · {f.gestion ?? 'gestión sin dato'} · TER {f.ter == null ? '—' : `${cifra(f.ter)} %`} · SRRI {f.srri ?? '—'}</span></p>
-      {f.nota == null ? <p className="text-suave">Menos de 3 años de historial: no tiene nota.</p> : (
+      {f.nota == null ? <p className="text-suave">{plazo ? `Menos de ${anos(plazo)} de historial: no tiene nota a ese plazo.` : 'Menos de 3 años de historial: no tiene nota.'}</p> : (
         <table className="w-full text-right tabular [&_tr>*+*]:pl-2">
           <thead className="text-[11px] uppercase tracking-widest text-suave">
             <tr><th className="py-0.5 text-left font-normal">Bloque</th><th className="font-normal">Pct.</th><th className="font-normal">Peso</th><th className="font-normal">Pone</th></tr>
