@@ -109,12 +109,12 @@ export async function sustitutos(): Promise<{ indice: string; isin: string; nomb
 }
 
 export type { Rebalanceo } from '../calculo/metricas'
-import type { Rebalanceo } from '../calculo/metricas'
-export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo; banda: number } // banda: puntos, para 'bandas'
+import type { Bandas, Rebalanceo } from '../calculo/metricas'
+export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo; banda: number; banda_tipo: Bandas['tipo']; revision: Bandas['revision'] } // para 'bandas'
 export type CarteraFondo = { peso: number; fondo: Fondo }
 
 export async function carteras(): Promise<Cartera[]> {
-  const { data, error: e } = await supabase.from('cartera').select('id,nombre,objetivo,rebalanceo,banda').eq('archivada', false).order('nombre')
+  const { data, error: e } = await supabase.from('cartera').select('id,nombre,objetivo,rebalanceo,banda,banda_tipo,revision').eq('archivada', false).order('nombre')
   error(e)
   return (data ?? []) as Cartera[]
 }
@@ -123,7 +123,7 @@ export async function carteras(): Promise<Cartera[]> {
 export async function cartera(id: number): Promise<{ cartera: Cartera; fondos: CarteraFondo[] } | null> {
   const { data, error: e } = await supabase
     .from('cartera')
-    .select('id,nombre,objetivo,rebalanceo,banda,cartera_fondo(peso,fondo(*))')
+    .select('id,nombre,objetivo,rebalanceo,banda,banda_tipo,revision,cartera_fondo(peso,fondo(*))')
     .eq('id', id)
     .maybeSingle()
   error(e)
@@ -176,7 +176,7 @@ export async function referenciaSeries(claves: string[]): Promise<Map<string, Re
 }
 
 // ------------------------------------------------------------------ edición de carteras (solo el propietario, por RLS)
-export type CarteraEditable = { nombre: string; objetivo: string | null; rebalanceo: Rebalanceo; banda: number }
+export type CarteraEditable = Omit<Cartera, 'id'>
 export type Cambio = { fecha: string; sale: string | null; entra: string | null; motivo: string | null }
 
 /** Crea una cartera (con un número al final si el nombre ya existe) y devuelve su id. */

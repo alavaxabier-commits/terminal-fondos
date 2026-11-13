@@ -1,7 +1,7 @@
 // Estadísticas de una cartera modelo, calculadas en la web con el port del motor (metricas.ts): se ven al momento al editarla.
 import {
   anosDeMeses, caidaEn, combinarRend, contribuciones, CRISIS, metricasFondo, rendimientos, rendMeses, riesgo,
-  semanal, serieDeRendimientos, simularCartera, VENTANAS, type Metricas, type Rebalanceo, type Semanal,
+  semanal, serieDeRendimientos, simularCartera, VENTANAS, type Bandas, type Metricas, type Rebalanceo, type Semanal,
 } from './metricas'
 import type { Punto } from './series'
 
@@ -31,9 +31,9 @@ function haceAnos(f: string, n: number): string {
  * La cartera simulada con su rebalanceo y sus métricas (las mismas que las de un fondo) frente a la combinación de las
  * referencias de sus fondos; crisis, aportación y peso de hoy de cada fondo y correlaciones. `rf`: €STR semanal.
  */
-export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, rf: Map<string, number>, hoy: string, banda = 5): CalculoCartera | null {
+export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, rf: Map<string, number>, hoy: string, bandas?: Bandas): CalculoCartera | null {
   if (!fondos.length || fondos.some((f) => f.serie.length < 2)) return null
-  const sim = simularCartera(fondos, rebalanceo, banda)
+  const sim = simularCartera(fondos, rebalanceo, bandas)
   if (sim.valor.length < 2) return null
   const total = fondos.reduce((s, f) => s + f.peso, 0)
   const s = semanal(sim.valor)

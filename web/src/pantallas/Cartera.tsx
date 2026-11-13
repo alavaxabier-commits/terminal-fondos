@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { calcularCartera, type RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
 import { cifra, fecha, pct } from '../calculo/formato'
-import { rendimientos, simularCartera } from '../calculo/metricas'
+import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
 import type { Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import EstadisticasCartera from '../componentes/EstadisticasCartera'
@@ -17,6 +17,9 @@ type Linea = { fondo: q.Fondo; peso: number }
 type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
 
 const hoy = () => new Date().toISOString().slice(0, 10)
+const REVISION = { diaria: 'cada día', mensual: 'cada mes', trimestral: 'cada trimestre', semestral: 'cada semestre', anual: 'cada año' }
+const textoBandas = (b: Bandas) =>
+  `por bandas de ±${cifra(b.banda, 1)} ${b.tipo === 'relativa' ? '% del peso de cada fondo' : 'puntos'}, revisadas ${REVISION[b.revision]}`
 
 async function cargarFondo(f: q.Fondo, cats: Awaited<ReturnType<typeof q.categoriasReferencia>>): Promise<DatosFondo> {
   const clave = q.claveReferencia(f, cats)
@@ -79,10 +82,11 @@ export default function Cartera({ id }: { id: number }) {
     [listos, datos, JSON.stringify(conPeso.map((l) => [l.fondo.isin, l.peso]))], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const reb = cartera?.rebalanceo ?? 'anual'
-  const banda = cartera?.banda || 5
-  const simulacion = useMemo(() => simularCartera(fondosCalc, reb, banda), [fondosCalc, reb, banda])
+  const bandas = useMemo<Bandas>(() => ({ banda: cartera?.banda || 5, tipo: cartera?.banda_tipo ?? 'puntos', revision: cartera?.revision ?? 'diaria' }),
+    [cartera?.banda, cartera?.banda_tipo, cartera?.revision])
+  const simulacion = useMemo(() => simularCartera(fondosCalc, reb, bandas), [fondosCalc, reb, bandas])
   const sim = simulacion.valor
-  const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy(), banda) : null), [fondosCalc, reb, rf, banda])
+  const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy(), bandas) : null), [fondosCalc, reb, rf, bandas])
 
   if (error) return <p className="text-baja">No se ha podido leer o guardar la cartera: {error}</p>
   if (guardada === undefined) return <p className="text-suave">Cargando…</p>
@@ -93,7 +97,7 @@ export default function Cartera({ id }: { id: number }) {
   const limita = [...fondosCalc].filter((f) => f.serie.length).sort((a, b) => b.serie[0].fecha.localeCompare(a.serie[0].fecha))[0]
   const nombreDe = (isin: string) => lineas.find((l) => l.fondo.isin === isin)?.fondo.nombre ?? guardada.fondos.find((l) => l.fondo.isin === isin)?.fondo.nombre ?? isin
   const editar = (cambio: Partial<Borrador>) => setBorrador((b) => (b ? { ...b, ...cambio } : b))
-  const puedeGuardar = borrador && borrador.nombre.trim() && borrador.banda > 0 && borrador.banda <= 50 && lineas.length > 0 && Math.abs(suma - 100) < 0.01 && lineas.every((l) => l.peso > 0)
+  const puedeGuardar = borrador && borrador.nombre.trim() && borrador.banda > 0 && borrador.banda <= 100 && lineas.length > 0 && Math.abs(suma - 100) < 0.01 && lineas.every((l) => l.peso > 0)
 
   async function hacer(accion: () => Promise<void>) {
     setOcupado(true)
@@ -113,15 +117,15 @@ export default function Cartera({ id }: { id: number }) {
       ...entra.map((i) => ({ sale: null, entra: i, motivo: [motivo, `peso ${ahora.get(i)} %`].filter(Boolean).join(' · ') })),
       ...(pesos.length ? [{ sale: null, entra: null, motivo: [motivo, `Pesos: ${pesos.join(', ')}`].filter(Boolean).join(' · ') }] : []),
     ]
-    await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo, banda: borrador.banda },
+    await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo, banda: borrador.banda, banda_tipo: borrador.banda_tipo, revision: borrador.revision },
       borrador.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })), cambios)
     setBorrador(null)
     await leer()
   }
 
   async function duplicar() {
-    const { nombre, objetivo, rebalanceo, banda } = guardada!.cartera
-    const nuevo = await q.crearCartera({ nombre: `${nombre} (copia)`, objetivo, rebalanceo, banda },
+    const { id: _, nombre, ...resto } = guardada!.cartera
+    const nuevo = await q.crearCartera({ ...resto, nombre: `${nombre} (copia)` },
       guardada!.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })))
     location.hash = `#/cartera/${nuevo}`
   }
@@ -153,12 +157,25 @@ export default function Cartera({ id }: { id: number }) {
                 </select>
               </label>
               {borrador.rebalanceo === 'bandas' && (
-                <label className="flex items-center gap-2 text-suave">
+                <label className="flex flex-wrap items-center gap-2 text-suave">
                   ±
-                  <input type="number" min={0.5} max={50} step={0.5} value={borrador.banda} aria-label="Banda en puntos"
+                  <input type="number" min={0.5} max={100} step={0.5} value={borrador.banda} aria-label="Banda"
                     onChange={(e) => editar({ banda: Number(e.target.value) })}
                     className="w-16 border border-borde bg-panel px-1 py-1 text-right text-texto outline-none focus:border-acento" />
-                  puntos
+                  <select value={borrador.banda_tipo} onChange={(e) => editar({ banda_tipo: e.target.value as Bandas['tipo'] })}
+                    aria-label="Tipo de banda" className="border border-borde bg-panel px-2 py-1 text-texto">
+                    <option value="puntos">puntos</option>
+                    <option value="relativa">% del peso de cada fondo</option>
+                  </select>
+                  revisada
+                  <select value={borrador.revision} onChange={(e) => editar({ revision: e.target.value as Bandas['revision'] })}
+                    aria-label="Revisión de la banda" className="border border-borde bg-panel px-2 py-1 text-texto">
+                    <option value="diaria">cada día</option>
+                    <option value="mensual">al final de cada mes</option>
+                    <option value="trimestral">al final de cada trimestre</option>
+                    <option value="semestral">al final de cada semestre</option>
+                    <option value="anual">al final de cada año</option>
+                  </select>
                 </label>
               )}
               <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="objetivo (opcional)"
@@ -169,7 +186,7 @@ export default function Cartera({ id }: { id: number }) {
           <div>
             <h1 className="text-lg font-bold text-acento">{cartera.nombre}</h1>
             <p className="text-suave">
-              {lineas.length} fondos · rebalanceo {cartera.rebalanceo === 'bandas' ? `por bandas de ±${cifra(cartera.banda, 1)} puntos` : cartera.rebalanceo}
+              {lineas.length} fondos · rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}
               {cartera.objetivo && ` · ${cartera.objetivo}`}
             </p>
           </div>

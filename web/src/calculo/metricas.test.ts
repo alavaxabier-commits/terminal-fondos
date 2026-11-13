@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import caso from './caso_metricas.json'
-import { anosDeMeses, caidaEn, contribuciones, metricasFondo, rendMeses, riesgo, semanal, simularCartera } from './metricas'
+import { anosDeMeses, BANDAS, caidaEn, contribuciones, metricasFondo, rendMeses, riesgo, semanal, simularCartera } from './metricas'
 
 const puntos = (xs: number[][] | (string | number)[][]) => xs.map(([f, v]) => ({ fecha: String(f), valor: Number(v) }))
 
@@ -37,11 +37,17 @@ describe('carteras', () => {
     // bandas: el 31/12 y el 2/1 «a» pesa 66,7 % (+16,7 puntos): con ±5 rebalancea los dos días; con ±20 solo el 2/1,
     // cuando sin rebalancear ya pesa 80 % (+30), y al cierre: el valor es el de no rebalancear
     const ab = [{ serie: a, peso: 50 }, { serie: b, peso: 50 }]
-    expect(simularCartera(ab, 'bandas', 5)).toMatchObject({ rebalanceos: 2, ultimoRebalanceo: '2026-01-02' })
-    expect(simularCartera(ab, 'bandas', 5).valor.at(-1)!.valor).toBe(225)
-    expect(simularCartera(ab, 'bandas', 20).valor.at(-1)!.valor).toBe(250)
-    expect(simularCartera(ab, 'bandas', 20)).toMatchObject({ rebalanceos: 1, ultimoRebalanceo: '2026-01-02' })
+    expect(simularCartera(ab, 'bandas', { ...BANDAS, banda: 5 })).toMatchObject({ rebalanceos: 2, ultimoRebalanceo: '2026-01-02' })
+    expect(simularCartera(ab, 'bandas', { ...BANDAS, banda: 5 }).valor.at(-1)!.valor).toBe(225)
+    expect(simularCartera(ab, 'bandas', { ...BANDAS, banda: 20 }).valor.at(-1)!.valor).toBe(250)
+    expect(simularCartera(ab, 'bandas', { ...BANDAS, banda: 20 })).toMatchObject({ rebalanceos: 1, ultimoRebalanceo: '2026-01-02' })
     expect(simularCartera(ab, 'anual').rebalanceos).toBe(1)
+    // revisada solo al final de cada año: rebalancea el 31/12 pero no el 2/1 (no cierra año)
+    expect(simularCartera(ab, 'bandas', { banda: 5, tipo: 'puntos', revision: 'anual' })).toMatchObject({ rebalanceos: 1, ultimoRebalanceo: '2025-12-31' })
+    // 20/80: el 31/12 «a» pesa 33,3 % (+13,3 puntos). ±15 puntos no salta hasta el 2/1 (+30); ±50 % de su peso (±10) sí
+    const ab2 = [{ serie: a, peso: 20 }, { serie: b, peso: 80 }]
+    expect(simularCartera(ab2, 'bandas', { banda: 15, tipo: 'puntos', revision: 'diaria' })).toMatchObject({ rebalanceos: 1, ultimoRebalanceo: '2026-01-02' })
+    expect(simularCartera(ab2, 'bandas', { banda: 50, tipo: 'relativa', revision: 'diaria' }).rebalanceos).toBe(2)
     expect(contribuciones(sim, '2025-12-30')).toEqual([1.25, 0])
     expect(contribuciones(sim, '2025-01-01')).toBeNull() // sin historia desde esa fecha
   })
