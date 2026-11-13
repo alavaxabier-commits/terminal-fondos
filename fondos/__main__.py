@@ -242,6 +242,7 @@ def main(argv=None) -> int:
     n = sub.add_parser('notas')
     n.add_argument('--semanas', type=int, default=52, help='semanas anteriores a calcular (52)')
     sub.add_parser('estado')
+    sub.add_parser('analisis', help='análisis de los pesos de la nota con cortes pasados (no escribe nada)')
     sub.add_parser('myinvestor')
     u = sub.add_parser('universo')
     u.add_argument('--limite', type=int, help='solo las primeras N fichas (pruebas)')
@@ -282,6 +283,12 @@ def ejecutar(args, repo) -> int:
         return orden_metricas(repo)
     if args.orden == 'notas':
         return orden_notas(repo, args.semanas)
+    if args.orden == 'analisis':
+        from .analisis import analizar
+        texto = analizar(repo.datos_metricas(), hoy(), log=lambda x: print(x, flush=True))
+        print(texto)
+        resumen_github(texto)
+        return 0
     if args.orden == 'universo':
         return orden_universo(repo, args.limite, args.min_patrimonio, args.min_anos, args.tope, args.max_minima)
     if args.orden == 'estado':

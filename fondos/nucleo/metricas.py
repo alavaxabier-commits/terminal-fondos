@@ -417,6 +417,15 @@ def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, flo
     (el peso de un bloque sin datos se reparte entre los demás). Con menos de 5 años, las métricas de 5A pasan a 3A
     y no hay consistencia: los activos usan solo el ratio de información a 3A.
     """
+    b = bloques_nota(pct, indexada)
+    if b is None:
+        return None
+    n = ponderar(b[0], pesos)
+    return None if n is None else (n, b[1])
+
+
+def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool) -> tuple[dict[str, float], bool] | None:
+    """Percentil de cada bloque de la nota (solo los que tienen datos) y si va con 3A; None sin 3 años."""
     v = '5a' if ('5a', 'rentabilidad') in pct else '3a' if ('3a', 'rentabilidad') in pct else None
     if v is None:
         return None
@@ -432,8 +441,11 @@ def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, flo
     bloques = {'riesgo': media((v, 'sharpe'), (v, 'sortino')), 'consistencia': consistencia_,
                'coste': media(('hoy', 'ter')), 'proteccion': media((v, 'max_caida'), (v, 'captura_bajista')),
                'rentabilidad': media((v, 'rentabilidad'))}
-    con = {b: x for b, x in bloques.items() if x is not None and pesos.get(b)}
+    return {b: x for b, x in bloques.items() if x is not None}, v == '3a'
+
+
+def ponderar(bloques: dict[str, float], pesos: dict[str, float]) -> float | None:
+    """Media ponderada de los bloques con datos: el peso de un bloque sin datos se reparte entre los demás."""
+    con = {b: x for b, x in bloques.items() if pesos.get(b)}
     total = sum(pesos[b] for b in con)
-    if not total:
-        return None
-    return sum(pesos[b] * x for b, x in con.items()) / total, v == '3a'
+    return sum(pesos[b] * x for b, x in con.items()) / total if total else None
