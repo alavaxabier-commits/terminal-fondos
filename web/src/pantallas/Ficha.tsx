@@ -26,8 +26,16 @@ type Datos = {
 
 const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
 
+// Inicio, Revisión, Cartera, Comparador y Simulador piden las mismas series: se leen una vez por visita (recargar la página las renueva).
+const series = new Map<string, Promise<Punto[]>>()
+
 /** Serie en EUR de un fondo (con tipos de cambio si cotiza en otra divisa). */
-export async function serieEur(isin: string, divisa: string | null): Promise<Punto[]> {
+export function serieEur(isin: string, divisa: string | null): Promise<Punto[]> {
+  if (!series.has(isin)) series.set(isin, leerSerieEur(isin, divisa).catch((e) => { series.delete(isin); throw e }))
+  return series.get(isin)!
+}
+
+async function leerSerieEur(isin: string, divisa: string | null): Promise<Punto[]> {
   const v = await q.valores(isin)
   if (!divisa || divisa === 'EUR') return v
   if (divisa === 'GBX') return aEur(v.map((p) => ({ ...p, valor: p.valor / 100 })), await q.tiposCambio('GBP')) // peniques
@@ -61,7 +69,7 @@ async function cargar(isin: string): Promise<Datos | null> {
            seguido: seguidos.some((x) => x.isin === isin) }
 }
 
-const FILAS: [string, string, (v: number) => string][] = [
+export const FILAS: [string, string, (v: number) => string][] = [
   ['rentabilidad', 'Rentabilidad anualizada', (v) => pct(v)],
   ['volatilidad', 'Volatilidad', (v) => pct(v, 1, false)],
   ['max_caida', 'Máxima caída', (v) => pct(v)],
@@ -244,6 +252,7 @@ export default function Ficha({ isin }: { isin: string }) {
       <section className="flex flex-wrap items-center gap-3">
         <button onClick={seguir} disabled={seguido}
           className="min-h-9 border border-acento bg-panel px-3 text-acento disabled:border-borde disabled:text-suave">{seguido ? '★ en seguimiento' : 'añadir a seguimiento'}</button>
+        <a href={`#/comparar/${f.isin}`} className="min-h-9 border border-borde px-3 py-1.5 text-suave hover:text-texto">comparar</a>
         <span className="text-suave">
           {datos.carteras.length ? <>En {datos.carteras.map((c, i) => <span key={c.id}>{i > 0 && ', '}<a href={`#/cartera/${c.id}`} className="text-texto hover:text-acento">{c.nombre}</a> ({cifra(c.peso, 0)} %)</span>)}</> : 'No está en ninguna cartera.'}
         </span>

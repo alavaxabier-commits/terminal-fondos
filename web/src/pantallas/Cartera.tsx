@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { calcularCartera, type RefSerie } from '../calculo/cartera'
+import { calcularCartera, cambiosCartera, type RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
 import { cifra, fecha, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
@@ -13,17 +13,17 @@ import { revisar, type FondoRevisado } from '../datos/revision'
 import { serieEur } from './Ficha'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
-type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
+export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
 type Linea = { fondo: q.Fondo; peso: number }
 type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
 
-const hoy = () => new Date().toISOString().slice(0, 10)
+export const hoy = () => new Date().toISOString().slice(0, 10)
 
 const REVISION = { diaria: 'cada día', mensual: 'cada mes', trimestral: 'cada trimestre', semestral: 'cada semestre', anual: 'cada año' }
 const textoBandas = (b: Bandas) =>
   `por bandas de ±${cifra(b.banda, 1)} ${b.tipo === 'relativa' ? '% del peso de cada fondo' : 'puntos'}, revisadas ${REVISION[b.revision]}`
 
-async function cargarFondo(f: q.Fondo, cats: Awaited<ReturnType<typeof q.categoriasReferencia>>): Promise<DatosFondo> {
+export async function cargarFondo(f: q.Fondo, cats: Awaited<ReturnType<typeof q.categoriasReferencia>>): Promise<DatosFondo> {
   const clave = q.claveReferencia(f, cats)
   const [serie, ms, comps, refs] = await Promise.all([
     serieEur(f.isin, f.divisa),
@@ -112,17 +112,8 @@ export default function Cartera({ id }: { id: number }) {
 
   async function guardar() {
     if (!borrador) return
-    const antes = new Map(guardada!.fondos.map((l) => [l.fondo.isin, l.peso]))
-    const ahora = new Map(borrador.fondos.map((l) => [l.fondo.isin, l.peso]))
-    const motivo = borrador.motivo.trim() || null
-    const sale = [...antes.keys()].filter((i) => !ahora.has(i))
-    const entra = [...ahora.keys()].filter((i) => !antes.has(i))
-    const pesos = [...ahora].filter(([i, p]) => antes.has(i) && antes.get(i) !== p).map(([i, p]) => `${nombreDe(i)} ${antes.get(i)} → ${p} %`)
-    const cambios: Omit<q.Cambio, 'fecha'>[] = [
-      ...sale.map((i) => ({ sale: i, entra: null, motivo })),
-      ...entra.map((i) => ({ sale: null, entra: i, motivo: [motivo, `peso ${ahora.get(i)} %`].filter(Boolean).join(' · ') })),
-      ...(pesos.length ? [{ sale: null, entra: null, motivo: [motivo, `Pesos: ${pesos.join(', ')}`].filter(Boolean).join(' · ') }] : []),
-    ]
+    const cambios = cambiosCartera(new Map(guardada!.fondos.map((l) => [l.fondo.isin, l.peso])), new Map(borrador.fondos.map((l) => [l.fondo.isin, l.peso])),
+      borrador.motivo, nombreDe)
     await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo, banda: borrador.banda, banda_tipo: borrador.banda_tipo, revision: borrador.revision },
       borrador.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })), cambios)
     setBorrador(null)
@@ -210,6 +201,7 @@ export default function Cartera({ id }: { id: number }) {
             <>
               <button onClick={() => setBorrador({ ...guardada.cartera, fondos: guardada.fondos, motivo: '' })}
                 className="min-h-9 border border-borde px-3 text-suave hover:text-texto">editar</button>
+              <a href={`#/simular/${id}`} title="Atajo: m" className="min-h-9 border border-borde px-3 py-1.5 text-suave hover:text-texto">simular cambios</a>
               <button onClick={() => hacer(duplicar)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-texto">duplicar</button>
               <button onClick={() => hacer(archivar)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-baja">archivar</button>
             </>

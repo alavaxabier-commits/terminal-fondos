@@ -67,3 +67,15 @@ export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, 
     })),
   }
 }
+
+/** Líneas del historial al pasar de unos pesos a otros (ISIN → %): salidas, entradas y cambios de peso, con el motivo. */
+export function cambiosCartera(antes: Map<string, number>, ahora: Map<string, number>, motivo: string, nombreDe: (isin: string) => string) {
+  const m = motivo.trim() || null
+  const con = (...x: (string | null)[]) => x.filter(Boolean).join(' · ') || null
+  const pesos = [...ahora].filter(([i, p]) => antes.has(i) && antes.get(i) !== p).map(([i, p]) => `${nombreDe(i)} ${antes.get(i)} → ${p} %`)
+  return [
+    ...[...antes.keys()].filter((i) => !ahora.has(i)).map((i) => ({ sale: i, entra: null, motivo: m })),
+    ...[...ahora.keys()].filter((i) => !antes.has(i)).map((i) => ({ sale: null, entra: i, motivo: con(m, `peso ${ahora.get(i)} %`) })),
+    ...(pesos.length ? [{ sale: null, entra: null, motivo: con(m, `Pesos: ${pesos.join(', ')}`) }] : []),
+  ]
+}

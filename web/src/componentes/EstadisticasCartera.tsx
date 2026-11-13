@@ -32,7 +32,6 @@ const corto = (nombre: string) => nombre.split(' ').slice(0, 3).join(' ')
 export default function EstadisticasCartera({ calc, fondos }: { calc: CalculoCartera | null; fondos: FondoE[] }) {
   const total = fondos.reduce((s, f) => s + f.peso, 0) || 1
   const coste = fondos.every((f) => f.ter != null) ? fondos.reduce((s, f) => s + (f.peso * f.ter!) / total, 0) : null
-  const solapes = solapamiento(fondos).filter((s) => s.pct >= 1)
 
   if (!calc)
     return (
@@ -203,55 +202,70 @@ export default function EstadisticasCartera({ calc, fondos }: { calc: CalculoCar
               <span className={calc.volatilidadMedia - vol3 >= 0.005 ? 'text-sube' : ''}>{cifra(Math.max(0, calc.volatilidadMedia - vol3) * 100, 1)} puntos</span>
             </p>
           )}
-          <div className="overflow-x-auto">
-            <table className="tabular whitespace-nowrap [&_tr>*+*]:pl-3 text-center">
-              <thead className="text-suave">
-                <tr>
-                  <th />
-                  {fondos.map((f, j) => <th key={f.isin} className="w-14 font-normal" title={f.nombre}>{j + 1}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {fondos.map((f, i) => (
-                  <tr key={f.isin}>
-                    <th className="pr-3 text-left font-normal">
-                      <span className="text-suave">{i + 1}</span> {corto(f.nombre)}
-                    </th>
-                    {calc.correlacion!.matriz[i].map((v, j) => (
-                      <td
-                        key={j}
-                        className="py-2"
-                        style={i !== j && v != null ? { background: `rgba(79, 209, 139, ${Math.max(0, v) * 0.6})`, color: v >= 0.6 ? '#0b0e0d' : undefined } : undefined}
-                        title={`${f.nombre} · ${fondos[j].nombre}`}
-                      >
-                        {i === j ? '·' : cifra(v)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <MatrizCorrelacion nombres={fondos.map((f) => f.nombre)} matriz={calc.correlacion.matriz} />
           <p className="mt-1 text-suave">Correlación de las rentabilidades semanales de {calc.correlacion.semanas} semanas: por encima de 0,9 es casi el mismo fondo; cerca de 0 o negativa, diversifican.</p>
         </div>
       )}
 
-      <div>
-        <Titulo>Posiciones en común</Titulo>
-        {!solapes.length ? (
-          <p className="text-suave">Los fondos no comparten posiciones (o no hay composición todavía).</p>
-        ) : (
-          <ul className="space-y-1">
-            {solapes.map((s) => (
-              <li key={`${s.a}|${s.b}`}>
-                <span className="tabular">{pct(s.pct / 100, 1, false)}</span> · {corto(s.a)} y {corto(s.b)}
-                <span className="text-suave"> · {s.comunes.join(', ')}{!s.completo && ' · al menos (falta alguna posición)'}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="mt-1 text-suave">Parte de cartera que comparten dos fondos: la suma del menor peso de cada posición común.</p>
-      </div>
+      <Solapes fondos={fondos} />
     </section>
+  )
+}
+
+/** Correlaciones de cada par, coloreadas (más verde, más se parecen). */
+export function MatrizCorrelacion({ nombres, matriz }: { nombres: string[]; matriz: (number | null)[][] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="tabular whitespace-nowrap [&_tr>*+*]:pl-3 text-center">
+        <thead className="text-suave">
+          <tr>
+            <th />
+            {nombres.map((f, j) => <th key={j} className="w-14 font-normal" title={f}>{j + 1}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {nombres.map((f, i) => (
+            <tr key={i}>
+              <th className="pr-3 text-left font-normal">
+                <span className="text-suave">{i + 1}</span> {corto(f)}
+              </th>
+              {matriz[i].map((v, j) => (
+                <td
+                  key={j}
+                  className="py-2"
+                  style={i !== j && v != null ? { background: `rgba(79, 209, 139, ${Math.max(0, v) * 0.6})`, color: v >= 0.6 ? '#0b0e0d' : undefined } : undefined}
+                  title={`${f} · ${nombres[j]}`}
+                >
+                  {i === j ? '·' : cifra(v)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Pares de fondos que comparten posiciones, de más a menos. */
+export function Solapes({ fondos }: { fondos: { nombre: string; c: Composicion | null }[] }) {
+  const solapes = solapamiento(fondos).filter((s) => s.pct >= 1)
+  return (
+    <div>
+      <Titulo>Posiciones en común</Titulo>
+      {!solapes.length ? (
+        <p className="text-suave">Los fondos no comparten posiciones (o no hay composición todavía).</p>
+      ) : (
+        <ul className="space-y-1">
+          {solapes.map((s) => (
+            <li key={`${s.a}|${s.b}`}>
+              <span className="tabular">{pct(s.pct / 100, 1, false)}</span> · {corto(s.a)} y {corto(s.b)}
+              <span className="text-suave"> · {s.comunes.join(', ')}{!s.completo && ' · al menos (falta alguna posición)'}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1 text-suave">Parte de cartera que comparten dos fondos: la suma del menor peso de cada posición común.</p>
+    </div>
   )
 }

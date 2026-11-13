@@ -62,6 +62,9 @@ export default function Revision() {
           </div>
           <ul className="list-disc space-y-1 py-3 pl-8 pr-3">{m.senales.map((s) => <li key={s.tipo}>{s.motivo}</li>)}</ul>
           {m.alternativas.length > 0 && (
+            <p className="px-3 pb-2"><a href={`#/comparar/${[m.fondo.isin, ...m.alternativas.map((a) => a.isin)].slice(0, 5).join(',')}`} className="text-suave hover:text-acento">comparar con sus alternativas →</a></p>
+          )}
+          {m.alternativas.length > 0 && (
             <div className="overflow-x-auto px-3 pb-3">
               <table className="w-full min-w-[40rem] text-right tabular [&_tr>*+*]:pl-3">
                 <thead className="text-[11px] uppercase tracking-widest text-suave">
@@ -80,7 +83,7 @@ export default function Revision() {
                       <td className={`text-left ${a.myinvestor ? 'text-sube' : 'text-suave'}`}>{a.myinvestor ? 'sí' : 'no'}</td>
                       <td className="whitespace-nowrap">
                         <button onClick={() => q.seguir(a.isin).catch((e: Error) => setError(e.message))} className="min-h-7 text-suave hover:text-acento">+ seguir</button>
-                        <button disabled className="ml-3 min-h-7 text-suave/60">probar en la cartera (fase 4)</button>
+                        <a href={`#/simular/${m.cartera.id}/${m.fondo.isin}/${a.isin}`} className="ml-3 text-suave hover:text-acento">probar en la cartera</a>
                       </td>
                     </tr>
                   ))}

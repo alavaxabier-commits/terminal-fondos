@@ -1,14 +1,28 @@
 import { useEffect, useState } from 'react'
-import { fecha } from '../calculo/formato'
+import { calcularCartera } from '../calculo/cartera'
+import { fecha, pct } from '../calculo/formato'
 import { estadoDescargas, type Tarea } from '../calculo/vigilancia'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
-import { crearCartera, carteras as leerCarteras, notasDe, seguidos, sustitutos, vigilancia, type Cartera } from '../datos/consultas'
+import { cartera as leerCartera, crearCartera, carteras as leerCarteras, notasDe, seguidos, sustitutos, vigilancia, type Cartera } from '../datos/consultas'
 import { revisar, type Revision } from '../datos/revision'
+import { hoy } from './Cartera'
+import { serieEur } from './Ficha'
+
+/** Rentabilidad simulada de la cartera este año y a 3 años (anual), con su rebalanceo: las cifras de su pantalla. */
+async function resumen(c: Cartera): Promise<{ ytd?: number; r3?: number } | null> {
+  const d = await leerCartera(c.id)
+  if (!d?.fondos.length) return null
+  const fs = await Promise.all(d.fondos.map(async (l) => ({ isin: l.fondo.isin, peso: l.peso, serie: await serieEur(l.fondo.isin, l.fondo.divisa), ref: null, vol3: null })))
+  const m = calcularCartera(fs, c.rebalanceo, new Map(), hoy(), { banda: c.banda || 5, tipo: c.banda_tipo, revision: c.revision })?.metricas
+  return m ? { ytd: m.ytd?.rentabilidad, r3: m['3a']?.rentabilidad } : null
+}
+const color = (v?: number) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 
 /** Inicio: estado de las descargas, mis carteras modelo, fondos a revisar, cambios del seguimiento e índices. */
 export default function Inicio() {
   const [indices, setIndices] = useState<{ indice: string; isin: string }[]>([])
   const [carteras, setCarteras] = useState<Cartera[]>([])
+  const [resumenes, setResumenes] = useState<Map<number, Awaited<ReturnType<typeof resumen>>>>(new Map())
   const [error, setError] = useState('')
   const [descargas, setDescargas] = useState<Tarea[] | null>(null)
   const [revision, setRevision] = useState<Revision | null>(null)
@@ -28,7 +42,10 @@ export default function Inicio() {
     }).catch((e: Error) => setError(e.message))
     vigilancia().then((l) => setDescargas(estadoDescargas(l, new Date()))).catch((e: Error) => setError(e.message))
     sustitutos().then(setIndices).catch((e: Error) => setError(e.message))
-    leerCarteras().then(setCarteras).catch((e: Error) => setError(e.message))
+    leerCarteras().then((cs) => {
+      setCarteras(cs)
+      for (const c of cs) resumen(c).then((r) => setResumenes((m) => new Map(m).set(c.id, r))).catch((e: Error) => setError(e.message))
+    }).catch((e: Error) => setError(e.message))
   }, [])
 
   return (
@@ -50,8 +67,14 @@ export default function Inicio() {
           <ul className="grid gap-px border border-borde bg-borde sm:grid-cols-2">
             {carteras.map((c) => (
               <li key={c.id} className="bg-fondo">
-                <a href={`#/cartera/${c.id}`} className="block px-3 py-2 hover:bg-panel">
-                  {c.nombre} <span className="text-suave">· rebalanceo {c.rebalanceo}</span>
+                <a href={`#/cartera/${c.id}`} className="flex flex-wrap items-baseline justify-between gap-x-3 px-3 py-2 hover:bg-panel">
+                  <span>{c.nombre} <span className="text-suave">· rebalanceo {c.rebalanceo}</span></span>
+                  {resumenes.has(c.id) ? (
+                    <span className="tabular">
+                      <span className="text-suave">año </span><span className={color(resumenes.get(c.id)?.ytd)}>{pct(resumenes.get(c.id)?.ytd)}</span>
+                      <span className="text-suave"> · 3A anual </span><span className={color(resumenes.get(c.id)?.r3)}>{pct(resumenes.get(c.id)?.r3)}</span>
+                    </span>
+                  ) : <span className="text-suave">…</span>}
                 </a>
               </li>
             ))}

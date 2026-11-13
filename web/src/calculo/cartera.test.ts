@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcularCartera } from './cartera'
+import { calcularCartera, cambiosCartera } from './cartera'
 import caso from './caso_metricas.json'
 import { semanal } from './metricas'
 
@@ -34,5 +34,17 @@ describe('calcularCartera', () => {
 
   it('sin precios de algún fondo no hay cálculo', () => {
     expect(calcularCartera([{ isin: 'A', peso: 100, serie: [], ref: null, vol3: null }], 'anual', rf, caso.hoy)).toBeNull()
+  })
+})
+
+describe('cambiosCartera', () => {
+  it('salidas, entradas y cambios de peso', () => {
+    const c = cambiosCartera(new Map([['A', 50], ['B', 50]]), new Map([['A', 60], ['C', 40]]), ' cambio ', (i) => `F${i}`)
+    expect(c).toEqual([
+      { sale: 'B', entra: null, motivo: 'cambio' },
+      { sale: null, entra: 'C', motivo: 'cambio · peso 40 %' },
+      { sale: null, entra: null, motivo: 'cambio · Pesos: FA 50 → 60 %' },
+    ])
+    expect(cambiosCartera(new Map([['A', 100]]), new Map([['A', 100]]), '', String)).toEqual([])
   })
 })
