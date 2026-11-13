@@ -3,7 +3,7 @@ import { calcularCartera, type RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
 import { cifra, fecha, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
-import type { Punto } from '../calculo/series'
+import { lineasCartera, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import EstadisticasCartera from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
@@ -17,6 +17,7 @@ type Linea = { fondo: q.Fondo; peso: number }
 type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
 
 const hoy = () => new Date().toISOString().slice(0, 10)
+
 const REVISION = { diaria: 'cada día', mensual: 'cada mes', trimestral: 'cada trimestre', semestral: 'cada semestre', anual: 'cada año' }
 const textoBandas = (b: Bandas) =>
   `por bandas de ±${cifra(b.banda, 1)} ${b.tipo === 'relativa' ? '% del peso de cada fondo' : 'puntos'}, revisadas ${REVISION[b.revision]}`
@@ -281,7 +282,12 @@ export default function Cartera({ id }: { id: number }) {
           ) : (
             <>
               <p className="mb-2 text-suave">Desde {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)} · {simulacion.rebalanceos} rebalanceos.</p>
-              <Grafico lineas={[{ nombre: cartera.nombre, serie: sim, color: '#4fd18b' }]} />
+              <Grafico lineas={lineasCartera(cartera.nombre, sim, calc?.referenciaSerie ?? [])} />
+              {calc?.referenciaSerie.length ? (
+                <p className="mt-1 text-suave">
+                  Referencia: la de cada fondo combinada con sus pesos{calc.referenciaSerie[0].fecha > sim[0].fecha && `; empieza el ${fecha(calc.referenciaSerie[0].fecha)}, desde el nivel de la cartera ese día`}.
+                </p>
+              ) : null}
             </>
           )}
         </section>

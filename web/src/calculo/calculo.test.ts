@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cifra, colorPercentil, fecha, millones, pct } from './formato'
 import { simularCartera } from './metricas'
-import { aEur, base100, combinar, haceAnos, inicioComun } from './series'
+import { aEur, base100, combinar, haceAnos, inicioComun, lineasCartera } from './series'
 
 describe('series', () => {
   it('pasa a EUR con el último tipo disponible', () => {
@@ -55,5 +55,12 @@ describe('formato', () => {
     expect(fecha('2026-11-06')).toBe('06/11/2026')
     expect(colorPercentil(80)).toBe('text-sube')
     expect(colorPercentil(10)).toBe('text-baja')
+  })
+
+  it('la referencia de la cartera arranca al nivel de la cartera', () => {
+    const sim = [{ fecha: '2017-01-02', valor: 100 }, { fecha: '2019-10-04', valor: 130 }, { fecha: '2019-10-11', valor: 132 }]
+    const ref = [{ fecha: '2019-10-04', valor: 50 }, { fecha: '2019-10-11', valor: 55 }]
+    expect(lineasCartera('C', sim, ref)[1].serie.map((p) => p.valor)).toEqual([130, 143])
+    expect(lineasCartera('C', sim, [])).toHaveLength(1)
   })
 })

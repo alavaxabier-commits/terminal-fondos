@@ -15,6 +15,7 @@ export type CalculoCartera = {
   ultimoRebalanceo: string | null
   metricas: Metricas
   referencia: Metricas | null // periodos con la serie semanal; años naturales de cierre a cierre de mes
+  referenciaSerie: Punto[] // la referencia combinada, semanal (fechada el viernes), para la gráfica
   crisis: Record<string, { cartera: [number, number] | null; referencia: [number, number] | null }>
   volatilidadMedia: number | null // media ponderada de las volatilidades a 3 años de los fondos
   correlacion: { semanas: number; matriz: (number | null)[][] } | null
@@ -54,6 +55,7 @@ export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, 
     ultimoRebalanceo: sim.ultimoRebalanceo,
     metricas: metricasFondo(s, ref, rf, hoy, sim.valor),
     referencia,
+    referenciaSerie: ref ? [...ref].map(([k, v]) => ({ fecha: new Date(Date.parse(k) + 4 * 864e5).toISOString().slice(0, 10), valor: v })) : [],
     crisis: Object.fromEntries(CRISIS.map(([k, , d, h]) => [k, { cartera: caidaEn(s, d, h), referencia: ref ? caidaEn(ref, d, h) : null }])),
     volatilidadMedia: fondos.every((f) => f.vol3 != null) ? fondos.reduce((acc, f) => acc + f.peso * f.vol3!, 0) / total : null,
     correlacion: r && { semanas: r.semanas, matriz: r.matriz },
