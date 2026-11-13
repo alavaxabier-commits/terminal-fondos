@@ -18,7 +18,7 @@ import os
 import sys
 from zoneinfo import ZoneInfo
 
-from . import ingesta
+from . import ingesta, vigilancia
 from .proveedores import BCE, FT, Morningstar, Yahoo
 
 
@@ -47,32 +47,54 @@ def orden_alta(repo, isins: list[str]) -> int:
     return 1 if fallos else 0
 
 
+def avisar(repo, tarea: str, alarmas: list[str]) -> int:
+    """Deja el resultado de la vigilancia en el registro (la web lo enseña en Inicio). Con alarmas, la tarea acaba en rojo
+    y GitHub avisa por correo."""
+    for a in alarmas:
+        repo.registrar('vigilancia', None, 'error', a)
+    if not alarmas:
+        repo.registrar('vigilancia', None, 'ok', f'{tarea}: sin alarmas')
+        return 0
+    texto = f'### Alarmas · {tarea}\n\n' + '\n'.join(f'- {a}' for a in alarmas)
+    print(texto)
+    resumen_github(texto)
+    return 1
+
+
+def vigilar_precios(repo, cuenta: dict, desde: dt.datetime) -> list[str]:
+    from .validacion import dias_habiles_entre
+    sin_precio = [(n, None if f is None else dias_habiles_entre(f, hoy())) for n, f in repo.ultimos_precios_carteras()]
+    return vigilancia.precios(cuenta, repo.descargas_por_fuente(desde), sin_precio)
+
+
 def orden_precios(repo, tanda: int) -> int:
+    desde = dt.datetime.now(dt.timezone.utc)
     c = ingesta.precios(repo, Morningstar(), Yahoo(), FT(), hoy(), tanda)
     texto = f"### Precios · {hoy()}\n\n{c['ok']} ok · {c['aviso']} con aviso · {c['error']} con error"
     print(texto)
     resumen_github(texto)
-    return 1 if c['error'] and not (c['ok'] or c['aviso']) else 0  # en rojo solo si falla todo
+    return avisar(repo, 'precios', vigilar_precios(repo, c, desde))
 
 
 def orden_composicion(repo, tanda: int) -> int:
     import time
-    ms, c = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}
+    ms, c, completas = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}, 0
     for isin, ms_id in repo.fondos_para_composicion(tanda):
         try:
             fecha, datos = ms.composicion(ms_id)
             repo.guardar_composicion(isin, fecha, datos)  # sin desglose también se guarda: no se reintenta hasta el mes que viene
             estado = 'ok' if datos else 'aviso'
+            completas += bool(datos.get('posiciones_todas'))
             repo.registrar('morningstar', isin, estado, f"composición: cartera a {fecha}, {len(datos.get('posiciones', []))} posiciones" if datos else 'composición: sin desglose publicado')
         except Exception as e:  # noqa: BLE001
             estado = 'error'
             repo.registrar('morningstar', isin, estado, f'composición: {type(e).__name__}: {e}'[:500])
         c[estado] += 1
         time.sleep(ms.pausa)
-    texto = f"### Composición · {hoy()}\n\n{c['ok']} ok · {c['aviso']} sin desglose · {c['error']} con error"
+    texto = f"### Composición · {hoy()}\n\n{c['ok']} ok ({completas} con todas sus posiciones) · {c['aviso']} sin desglose · {c['error']} con error"
     print(texto)
     resumen_github(texto)
-    return 1 if c['error'] and not (c['ok'] or c['aviso']) else 0
+    return avisar(repo, 'composición', vigilancia.composicion(c, completas))
 
 
 def orden_metricas(repo) -> int:
@@ -83,13 +105,14 @@ def orden_metricas(repo) -> int:
     t1 = time.time()
     filas, refs = calculo.calcular(datos, hoy())
     t2 = time.time()
+    anterior = repo.n_metricas()
     repo.guardar_metricas(filas, refs)
     fondos = len({f[0] for f in filas})
     texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos y {len(refs)} referencias · '
              f'carga {t1 - t0:.0f} s, cálculo {t2 - t1:.0f} s, guardado {time.time() - t2:.0f} s')
     print(texto)
     resumen_github(texto)
-    return 0
+    return avisar(repo, 'métricas', vigilancia.metricas(len(filas), anterior))
 
 
 def orden_estado(repo) -> int:
@@ -116,6 +139,9 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
             lote = []
             print(f'{n} fichas…', flush=True)
     repo.guardar_fondos(lote)
+    anteriores = repo.ultimo_mensaje('universo', 'fichas: ')
+    if not limite:  # una prueba con pocas fichas no cuenta como referencia para la semana siguiente
+        repo.registrar('universo', None, 'ok', f'fichas: {n}')
     dentro = repo.marcar_universo(min_patrimonio, min_anos, tope, max_minima)
     borrados = repo.limpiar_valores()
     con_minima, fichas = repo.resumen_minimas()
@@ -125,7 +151,10 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
              f'{borrados} valores borrados de fondos que salen')
     print(texto)
     resumen_github(texto)
-    return 0
+    alarmas = vigilancia.universo(n, int(anteriores.split()[-1]) if anteriores else None, *repo.sin_dato_universo())
+    if limite:  # una prueba con pocas fichas no se compara con la semana anterior
+        alarmas = [a for a in alarmas if 'fichas' not in a]
+    return avisar(repo, 'universo', alarmas)
 
 
 def orden_prueba_red(isin: str) -> int:
@@ -197,7 +226,7 @@ def main(argv=None) -> int:
     if args.orden == 'diario':
         ingesta.macro(repo, BCE(), hoy())
         codigo = orden_precios(repo, args.tanda)
-        orden_metricas(repo)
+        codigo |= orden_metricas(repo)
         orden_estado(repo)
         return codigo
     if args.orden == 'metricas':

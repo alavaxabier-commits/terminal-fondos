@@ -213,3 +213,12 @@ export async function cambios(id: number): Promise<Cambio[]> {
   error(e)
   return (data ?? []) as Cambio[]
 }
+
+/** Líneas de vigilancia de las descargas de los últimos 15 días (fondos/vigilancia.py), para Inicio. */
+export async function vigilancia(): Promise<{ ts: string; estado: string; mensaje: string }[]> {
+  const desde = new Date(Date.now() - 15 * 864e5).toISOString()
+  const { data, error: e } = await supabase.from('registro_descarga').select('ts,estado,mensaje')
+    .eq('fuente', 'vigilancia').gte('ts', desde).order('ts', { ascending: false }).limit(200)
+  error(e)
+  return (data ?? []) as { ts: string; estado: string; mensaje: string }[]
+}

@@ -227,6 +227,37 @@ class Repo:
             left join v using (isin)
             group by f.nombre, f.isin order by f.nombre""")
 
+    # ------------------------------------------------------------ vigilancia (fondos/vigilancia.py)
+    def descargas_por_fuente(self, desde: dt.datetime) -> dict[str, int]:
+        """Descargas de precios buenas (ok o aviso) por fuente desde `desde`: si Morningstar falla, crece el respaldo."""
+        return dict(self._filas("""
+            select fuente, count(*)::int from fondos.registro_descarga
+            where ts >= %s and estado in ('ok', 'aviso') and fuente in ('morningstar', 'yahoo', 'ft')
+              and mensaje not like 'composición%%' group by fuente""", (desde,)))
+
+    def ultimos_precios_carteras(self) -> list[tuple[str, dt.date | None]]:
+        """(nombre, fecha del último precio) de cada fondo de mis carteras sin archivar."""
+        return self._filas("""
+            select f.nombre, (select max(v.fecha) from fondos.valor_liquidativo v where v.isin = f.isin)
+            from fondos.fondo f
+            where f.isin in (select cf.isin from fondos.cartera_fondo cf join fondos.cartera c on c.id = cf.cartera_id
+                             where not c.archivada)
+            order by f.nombre""")
+
+    def sin_dato_universo(self) -> tuple[float, float]:
+        """Parte del universo sin TER y sin categoría."""
+        a, b = self._filas("""select coalesce(avg((ter is null)::int), 0), coalesce(avg((categoria is null)::int), 0)
+                              from fondos.fondo where en_universo""")[0]
+        return float(a), float(b)
+
+    def ultimo_mensaje(self, fuente: str, prefijo: str) -> str | None:
+        f = self._filas("""select mensaje from fondos.registro_descarga where fuente = %s and mensaje like %s
+                           order by ts desc limit 1""", (fuente, prefijo + '%'))
+        return f[0][0] if f else None
+
+    def n_metricas(self) -> int:
+        return self._filas('select count(*)::int from fondos.metrica')[0][0]
+
     def errores_recientes(self, horas: int = 36) -> list[tuple]:
         return self._filas("""select ts, fuente, isin, estado, mensaje from fondos.registro_descarga
                               where estado <> 'ok' and ts > now() - make_interval(hours => %s) order by ts desc limit 50""",
