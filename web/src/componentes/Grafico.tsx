@@ -4,8 +4,8 @@ import type { Punto } from '../calculo/series'
 
 type Linea = { nombre: string; serie: Punto[]; color: string }
 
-/** Líneas en base 100 con zoom (rueda o pellizco) y tooltip. Tema oscuro de la app. */
-export default function Grafico({ lineas }: { lineas: Linea[] }) {
+/** Líneas (en base 100, o la nota semanal) con zoom (rueda o pellizco) y tooltip. Tema oscuro de la app. */
+export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Linea[]; alto?: string }) {
   const caja = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -49,5 +49,5 @@ export default function Grafico({ lineas }: { lineas: Linea[] }) {
     )
   }, [lineas])
 
-  return <div ref={caja} className="h-72 w-full sm:h-96" />
+  return <div ref={caja} className={`w-full ${alto}`} />
 }

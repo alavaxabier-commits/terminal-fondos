@@ -17,6 +17,10 @@ export type Fondo = {
   indice_id: string | null
   en_universo: boolean
   fund_id?: string | null
+  gestion?: 'activa' | 'indexada' | null
+  inversion_minima?: number | null
+  calidad_media?: string | null
+  vencimiento_efectivo?: number | null
 }
 
 export type Indice = { id: string; nombre: string; proxy_isin: string | null; componentes: { id: string; peso: number }[] | null }
@@ -132,6 +136,23 @@ export async function cartera(id: number): Promise<{ cartera: Cartera; fondos: C
   const { cartera_fondo, ...c } = data as unknown as Cartera & { cartera_fondo: { peso: string; fondo: Fondo }[] }
   const fondos = cartera_fondo.map((x) => ({ peso: Number(x.peso), fondo: x.fondo })).sort((a, b) => b.peso - a.peso)
   return { cartera: { ...c, banda: Number(c.banda) }, fondos }
+}
+
+/** Todas las clases de un fondo (también las de fuera del universo), de menor a mayor TER. */
+export async function clases(fundId: string): Promise<Fondo[]> {
+  const { data, error: e } = await supabase.from('fondo').select('isin,nombre,divisa,ter,en_universo,inversion_minima')
+    .eq('fund_id', fundId).order('ter', { nullsFirst: false }).limit(50)
+  error(e)
+  return (data ?? []) as Fondo[]
+}
+
+/** Carteras (no archivadas) en las que está un fondo, con su peso. */
+export async function carterasDe(isin: string): Promise<{ id: number; nombre: string; peso: number }[]> {
+  const { data, error: e } = await supabase.from('cartera_fondo').select('peso,cartera!inner(id,nombre,archivada)')
+    .eq('isin', isin).eq('cartera.archivada', false)
+  error(e)
+  return ((data ?? []) as unknown as { peso: string; cartera: { id: number; nombre: string } }[])
+    .map((x) => ({ id: x.cartera.id, nombre: x.cartera.nombre, peso: Number(x.peso) }))
 }
 
 /** Métricas de varios fondos a la vez (la tabla de una cartera). */

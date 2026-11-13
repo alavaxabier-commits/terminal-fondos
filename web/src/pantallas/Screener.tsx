@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, millones, pct } from '../calculo/formato'
-import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, pesosEfectivos, PLAZOS, type Pesos, type Plazo } from '../calculo/nota'
+import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, PLAZOS, type Pesos, type Plazo } from '../calculo/nota'
 import { grupo, grupos, indexada, MIN_CATEGORIA, ordenar, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado, type Tipo } from '../calculo/screener'
+import TablaNota from '../componentes/TablaNota'
 import * as q from '../datos/consultas'
 
 const POR_PAGINA = 100
@@ -300,34 +301,16 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
 }
 
 function Desglose({ f, plazo, pocos, pesos, seguido, seguir }: { f: Puntuado; plazo: Plazo | ''; pocos: number; pesos: Pesos; seguido: boolean; seguir: (i: string) => void }) {
-  const w = pesosEfectivos(f.bloques, pesos)
-  const flojos = BLOQUES.filter((k) => w[k] && f.bloques[k]! < 40).map((k) => `${NOMBRE_BLOQUE[k].toLowerCase()} (percentil ${Math.round(f.bloques[k]!)})`)
   return (
     <section className="flex flex-col gap-2 border-t border-borde pt-4">
       <h2 className="text-[11px] uppercase tracking-widest text-suave">{f.nota == null ? 'Sin nota' : `Por qué ${Math.round(f.nota)}`}</h2>
       <p><a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a><br />
         <span className="text-suave">{f.isin} · {f.gestion ?? 'gestión sin dato'} · TER {f.ter == null ? '—' : `${cifra(f.ter)} %`} · SRRI {f.srri ?? '—'}</span></p>
       {f.nota == null ? <p className="text-suave">{plazo ? `Menos de ${anos(plazo)} de historial: no tiene nota a ese plazo.` : 'Menos de 3 años de historial: no tiene nota.'}</p> : (
-        <table className="w-full text-right tabular [&_tr>*+*]:pl-2">
-          <thead className="text-[11px] uppercase tracking-widest text-suave">
-            <tr><th className="py-0.5 text-left font-normal">Bloque</th><th className="font-normal">Pct.</th><th className="font-normal">Peso</th><th className="font-normal">Pone</th></tr>
-          </thead>
-          <tbody>
-            {BLOQUES.map((k) => (
-              <tr key={k} className={`border-t border-borde/50 ${w[k] == null ? 'text-suave' : f.bloques[k]! < 40 ? 'text-aviso' : ''}`}>
-                <td className="py-0.5 text-left">{NOMBRE_BLOQUE[k]}</td>
-                <td>{f.bloques[k] == null ? '—' : Math.round(f.bloques[k]!)}</td>
-                <td>{w[k] == null ? '0 %' : `${cifra(w[k]! * 100, 1)} %`}</td>
-                <td>{w[k] == null ? '—' : cifra(w[k]! * f.bloques[k]!, 1)}</td>
-              </tr>
-            ))}
-            <tr className="border-t border-borde text-acento"><td className="py-0.5 text-left">Nota</td><td /><td>100 %</td><td>{cifra(f.nota, 1)}</td></tr>
-          </tbody>
-        </table>
+        <TablaNota bloques={f.bloques} pesos={pesos} nota={f.nota} />
       )}
       {pocos > 0 && <p className="text-aviso">Su categoría ({f.categoria}) solo tiene {pocos} fondos en el universo: los percentiles se calculan frente a ellos y la nota dice poco.</p>}
       {f.solo3a && <p className="text-suave">Menos de 5 años: métricas a 3 años y, en los activos, consistencia solo con el ratio de información.</p>}
-      {flojos.length > 0 && <p className="text-suave">Lo flojo: {flojos.join(', ')}.</p>}
       <button onClick={() => seguir(f.isin)} disabled={seguido}
         className="min-h-9 border border-acento bg-panel px-3 text-left text-acento disabled:border-borde disabled:text-suave">{seguido ? '★ en seguimiento' : 'añadir a seguimiento'}</button>
       <button disabled className="min-h-9 border border-borde px-3 text-left text-suave">comparar (fase 4)</button>

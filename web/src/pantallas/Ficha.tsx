@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, colorPercentil, fecha, millones, pct } from '../calculo/formato'
+import type { Composicion } from '../calculo/exposicion'
+import { bloques, PESOS_DEFECTO } from '../calculo/nota'
+import { evolucion, type NotaSemanal } from '../calculo/senales'
 import { aEur, base100, combinar, haceAnos, inicioComun, type Punto } from '../calculo/series'
+import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
+import TablaNota from '../componentes/TablaNota'
 import * as q from '../datos/consultas'
 
 type Datos = {
@@ -10,6 +15,12 @@ type Datos = {
   serie: Punto[]
   serieRef: Punto[]
   metricas: q.Metrica[]
+  comp: { datos: Composicion; fecha_cartera: string | null } | null
+  notas: NotaSemanal[]
+  clases: q.Fondo[]
+  myinvestor: Set<string>
+  carteras: { id: number; nombre: string; peso: number }[]
+  seguido: boolean
 }
 
 const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
@@ -39,8 +50,13 @@ async function cargar(isin: string): Promise<Datos | null> {
   const fondo = await q.fondo(isin)
   if (!fondo) return null
   const ref = await q.referencia(fondo)
-  const [serie, serieRef, metricas] = await Promise.all([serieEur(isin, fondo.divisa), serieIndice(ref.indice), q.metricas(isin)])
-  return { fondo, ref, serie, serieRef, metricas }
+  const [serie, serieRef, metricas, comps, notas, clases, carteras, seguidos] = await Promise.all([
+    serieEur(isin, fondo.divisa), serieIndice(ref.indice), q.metricas(isin), q.composiciones([isin]), q.notasDe([isin]),
+    fondo.fund_id ? q.clases(fondo.fund_id) : Promise.resolve([]), q.carterasDe(isin), q.seguimiento(),
+  ])
+  const myinvestor = await q.enMyinvestor([isin, ...clases.map((c) => c.isin)])
+  return { fondo, ref, serie, serieRef, metricas, comp: comps[0] ?? null, notas, clases, myinvestor, carteras,
+           seguido: seguidos.some((x) => x.isin === isin) }
 }
 
 const FILAS: [string, string, (v: number) => string][] = [
@@ -55,15 +71,20 @@ const FILAS: [string, string, (v: number) => string][] = [
   ['ratio_informacion', 'Ratio de información', (v) => cifra(v)],
   ['volatilidad_mensual', 'Volatilidad (mensual)', (v) => pct(v, 1, false)],
   ['sharpe_mensual', 'Sharpe (mensual)', (v) => cifra(v)],
+  ['captura_alcista', 'Captura alcista', (v) => cifra(v, 0)],
+  ['captura_bajista', 'Captura bajista', (v) => cifra(v, 0)],
+  ['r2', 'R²', (v) => cifra(v, 0)],
+  ['acumulada', 'Rentabilidad acumulada', (v) => pct(v)],
 ]
 
 export default function Ficha({ isin }: { isin: string }) {
   const [datos, setDatos] = useState<Datos | null | undefined>(undefined)
   const [error, setError] = useState('')
   const [rango, setRango] = useState<number>(5)
+  const [seguido, setSeguido] = useState(false)
 
   useEffect(() => {
-    cargar(isin).then(setDatos).catch((e: Error) => setError(e.message))
+    cargar(isin).then((d) => { setDatos(d); setSeguido(d?.seguido ?? false) }).catch((e: Error) => setError(e.message))
   }, [isin])
 
   const m = useMemo(() => {
@@ -86,6 +107,10 @@ export default function Ficha({ isin }: { isin: string }) {
   if (datos === null) return <p className="text-suave">No hay ningún fondo con ISIN {isin}.</p>
 
   const { fondo: f, ref } = datos
+  const pctFondo = Object.fromEntries(datos.metricas.filter((x) => x.percentil != null).map((x) => [`${x.ventana}|${x.nombre}`, x.percentil!]))
+  const b = bloques(pctFondo, f.gestion === 'indexada')
+  const e = evolucion(datos.notas)
+  const seguir = () => q.seguir(f.isin).then(() => setSeguido(true)).catch((x: Error) => setError(x.message))
   const celda = (ventana: string, nombre: string, fmt: (v: number) => string) => {
     const x = m.get(`${ventana}|${nombre}`)
     if (!x) return <span className="text-suave">—</span>
@@ -117,6 +142,14 @@ export default function Ficha({ isin }: { isin: string }) {
           ['Lanzamiento', fecha(f.fecha_lanzamiento)],
           ['Referencia', textoRef ?? '—'],
           ['Último valor', datos.serie.length ? `${fecha(datos.serie.at(-1)!.fecha)}` : '—'],
+          ['Gestión', f.gestion ?? '—'],
+          ['SRRI', f.srri ?? '—'],
+          ['Inversión mínima', f.inversion_minima == null ? '—' : `${cifra(Number(f.inversion_minima), 0)} ${f.divisa ?? ''}`],
+          ['MyInvestor', datos.myinvestor.has(f.isin) ? 'se puede comprar' : 'no'],
+          ...(f.duracion_efectiva != null || f.calidad_media ? [
+            ['Duración efectiva', f.duracion_efectiva == null ? '—' : `${cifra(Number(f.duracion_efectiva), 1)} años`],
+            ['Calidad media', f.calidad_media ?? '—'],
+          ] : []),
         ].map(([k, v]) => (
           <div key={k} className="bg-fondo px-3 py-2">
             <dt className="text-[10px] uppercase tracking-widest text-suave">{k}</dt>
@@ -159,11 +192,10 @@ export default function Ficha({ isin }: { isin: string }) {
         <p className="mt-1 text-[11px] text-suave">pNN = percentil en su categoría (100 = mejor). Ventanas solo con historia completa.</p>
       </section>
 
-      <section className="grid gap-px border border-borde bg-borde sm:grid-cols-4">
+      <section className="grid gap-px border border-borde bg-borde sm:grid-cols-3">
         {[
           ['Este año', celda('ytd', 'rentabilidad', (v) => pct(v))],
           ['Consistencia', celda('hist', 'consistencia', (v) => `${cifra(v, 0)} %`)],
-          ['Captura alcista / bajista 5A', <>{celda('5a', 'captura_alcista', (v) => cifra(v, 0))} / {celda('5a', 'captura_bajista', (v) => cifra(v, 0))}</>],
           ['Recuperación de la peor caída', recup == null ? '—' : recup < 0 ? 'sin recuperar' : `${cifra(recup, 0)} semanas`],
         ].map(([k, v], i) => (
           <div key={i} className="bg-fondo px-3 py-2">
@@ -186,6 +218,61 @@ export default function Ficha({ isin }: { isin: string }) {
           </div>
         </section>
       )}
+
+      <section className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <h2 className="text-[11px] uppercase tracking-widest text-suave">Nota del screener</h2>
+          {e ? (
+            <p className="tabular">
+              <span className="text-base text-acento">{Math.round(e.nota)}</span>
+              {e.percentil != null && <span className="text-suave"> · percentil {Math.round(e.percentil)} de su categoría</span>}
+              {e.periodo != null && <span className={e.periodo >= 0 ? 'text-sube' : 'text-baja'}> · {e.periodo >= 0 ? '+' : ''}{cifra(e.periodo, 0)} en 12 meses</span>}
+              <span className="text-suave"> · semana del {fecha(e.fecha)}</span>
+            </p>
+          ) : <p className="text-suave">Sin nota: fuera del universo o menos de 3 años de historia.</p>}
+          {datos.notas.length > 1 && <Grafico lineas={[{ nombre: 'Nota', serie: datos.notas.map((n) => ({ fecha: n.fecha, valor: n.nota })), color: '#4fd18b' }]} alto="h-48" />}
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-[11px] uppercase tracking-widest text-suave">Por qué{b?.solo3a ? ' · con métricas a 3 años' : ''}</h2>
+          {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_DEFECTO} nota={e.nota} /> : <p className="text-suave">—</p>}
+          <p className="text-[11px] text-suave">Pesos por defecto, sin Diversificación (la nota de las señales). Bloques con las métricas de hoy.</p>
+        </div>
+      </section>
+
+      <section className="flex flex-wrap items-center gap-3">
+        <button onClick={seguir} disabled={seguido}
+          className="min-h-9 border border-acento bg-panel px-3 text-acento disabled:border-borde disabled:text-suave">{seguido ? '★ en seguimiento' : 'añadir a seguimiento'}</button>
+        <span className="text-suave">
+          {datos.carteras.length ? <>En {datos.carteras.map((c, i) => <span key={c.id}>{i > 0 && ', '}<a href={`#/cartera/${c.id}`} className="text-texto hover:text-acento">{c.nombre}</a> ({cifra(c.peso, 0)} %)</span>)}</> : 'No está en ninguna cartera.'}
+        </span>
+      </section>
+
+      {datos.clases.length > 1 && (
+        <section className="overflow-x-auto">
+          <h2 className="mb-1 text-[11px] uppercase tracking-widest text-suave">Clases del mismo fondo · {datos.clases.length}</h2>
+          <table className="w-full min-w-[560px] tabular">
+            <thead>
+              <tr className="border-b border-borde text-[11px] uppercase tracking-widest text-suave">
+                <th className="py-1 text-left font-normal">Clase</th><th className="text-left font-normal">Divisa</th>
+                <th className="text-right font-normal">TER</th><th className="text-right font-normal">Mínimo</th><th className="text-right font-normal">MyInvestor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {datos.clases.map((c) => (
+                <tr key={c.isin} className={`border-b border-borde/50 ${c.isin === f.isin ? 'text-acento' : ''}`}>
+                  <td className="py-1"><a href={`#/fondo/${c.isin}`} className="hover:text-acento">{c.nombre}</a> <span className="text-suave">{c.isin}{c.en_universo ? '' : ' · fuera del universo'}</span></td>
+                  <td>{c.divisa ?? '—'}</td>
+                  <td className="text-right">{c.ter == null ? '—' : `${cifra(Number(c.ter))} %`}</td>
+                  <td className="text-right">{c.inversion_minima == null ? '—' : cifra(Number(c.inversion_minima), 0)}</td>
+                  <td className="text-right">{datos.myinvestor.has(c.isin) ? 'sí' : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      <Exposicion fondos={[{ peso: 100, nombre: f.nombre, c: datos.comp?.datos ?? null, duracion: f.duracion_efectiva, fechaCartera: datos.comp?.fecha_cartera ?? null }]} />
     </article>
   )
 }
