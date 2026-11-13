@@ -24,6 +24,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - `fondos/ingesta.py`: qué toca a cada fondo (`accion`, `planificar`) y cómo se descarga (`descargar_fondo`). `fondos/validacion.py`: huecos y saltos (`avisos`), fechas hábiles. `fondos/vigilancia.py`: alarmas de cada tarea (fallos parciales, respaldo en lugar de Morningstar, campos vacíos): la tarea acaba en rojo (GitHub avisa por correo) y la web lo enseña en Inicio.
 - `fondos/db.py` (`Repo`): toda la lectura y escritura de la base; `reducir()` pasa la serie diaria a semanal + cierres de mes.
 - `fondos/nucleo/metricas.py`: **motor de métricas puro** (sin red ni base). `fondos/calculo.py`: referencias (índice, índice combinado, €STR o media de la categoría) y percentiles por categoría.
+- `fondos/analisis.py`: orden `analisis` (a mano, no escribe nada): con cortes semestrales pasados, qué bloques, repartos y plazos de la nota predicen mejor la rentabilidad, el Sharpe y la caída de después. De ahí salen los pesos de la nota.
 - `web/src/`: `datos/` (cliente y consultas, paginadas de 1.000 en 1.000; `revision.ts` junta lo que necesitan las señales), `calculo/` (series, port del motor de métricas `metricas.ts`, cálculo de carteras `cartera.ts`, nota del screener `nota.ts`, filtros `screener.ts`, señales `senales.ts`, exposición X-Ray y formato, con test), `pantallas/` (Entrar, Inicio, Ficha, Cartera, Screener, Seguimiento, Revision), `componentes/` (Buscador, Grafico, Exposicion, EstadisticasCartera).
 
 ## Datos: lo esencial
