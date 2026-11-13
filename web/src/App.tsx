@@ -7,6 +7,7 @@ import Entrar from './pantallas/Entrar'
 import Ficha from './pantallas/Ficha'
 import Inicio from './pantallas/Inicio'
 import Screener from './pantallas/Screener'
+import Seguimiento from './pantallas/Seguimiento'
 
 /** Ruta mínima por el hash: #/fondo/ISIN, #/cartera/N, #/screener o inicio. Sin librería de rutas. */
 function useRuta(): string {
@@ -45,7 +46,7 @@ export default function App() {
           TERMINAL<span className="hidden sm:inline"> DE FONDOS</span>
         </a>
         <nav aria-label="Pantallas" className="flex shrink-0 gap-1">
-          {([['#/', 'inicio'], ['#/screener', 'screener']] as const).map(([h, t]) => (
+          {([['#/', 'inicio'], ['#/screener', 'screener'], ['#/seguimiento', 'seguimiento']] as const).map(([h, t]) => (
             <a key={h} href={h} aria-current={(ruta || '#/') === h ? 'page' : undefined}
               className={`px-2 py-1 ${(ruta || '#/') === h ? 'border border-borde bg-panel text-acento' : 'text-suave hover:text-texto'}`}>{t}</a>
           ))}
@@ -60,7 +61,7 @@ export default function App() {
         </button>
       </header>
       <main className="flex-1 px-4 py-4">
-        {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} /> : ruta === '#/screener' ? <Screener /> : <Inicio />}
+        {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : <Inicio />}
       </main>
     </div>
   )

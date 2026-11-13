@@ -265,3 +265,36 @@ export async function seguimiento(): Promise<Seguido[]> {
 export async function seguir(isin: string, nota: string | null = null) {
   error((await supabase.from('seguimiento').upsert({ isin, nota, estado: 'vigilando' }, { onConflict: 'isin', ignoreDuplicates: true })).error)
 }
+
+/** Notas semanales de varios fondos (13 meses como mucho por fondo), de 1.000 en 1.000. */
+export async function notasDe(isins: string[]): Promise<import('../calculo/senales').NotaSemanal[]> {
+  if (!isins.length) return []
+  const out: import('../calculo/senales').NotaSemanal[] = []
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error: e } = await supabase.from('nota_semanal').select('isin,fecha,nota,percentil').in('isin', isins)
+      .order('isin').order('fecha').range(desde, desde + 999)
+    error(e)
+    out.push(...((data ?? []) as { isin: string; fecha: string; nota: string; percentil: string | null }[])
+      .map((r) => ({ ...r, nota: Number(r.nota), percentil: r.percentil == null ? null : Number(r.percentil) })))
+    if ((data ?? []).length < 1000) return out
+  }
+}
+
+/** Fondos en seguimiento con su ficha y si se pueden comprar en MyInvestor (catálogo, clase abierta). */
+export async function seguidos(): Promise<(Seguido & { fondo: Pick<Fondo, 'nombre' | 'categoria' | 'ter'>; myinvestor: boolean })[]> {
+  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota,fondo(nombre,categoria,ter)').order('alta', { ascending: false })
+  error(e)
+  const filas = (data ?? []) as unknown as (Seguido & { fondo: Pick<Fondo, 'nombre' | 'categoria' | 'ter'> })[]
+  const { data: mi, error: e2 } = await supabase.from('myinvestor').select('isin').eq('abierto', true).in('isin', filas.map((f) => f.isin))
+  error(e2)
+  const en = new Set(((mi ?? []) as { isin: string }[]).map((r) => r.isin))
+  return filas.map((f) => ({ ...f, myinvestor: en.has(f.isin) }))
+}
+
+export async function cambiarSeguimiento(isin: string, cambios: Partial<Pick<Seguido, 'estado' | 'nota'>>) {
+  error((await supabase.from('seguimiento').update(cambios).eq('isin', isin)).error)
+}
+
+export async function dejarDeSeguir(isin: string) {
+  error((await supabase.from('seguimiento').delete().eq('isin', isin)).error)
+}
