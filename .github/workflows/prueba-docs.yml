@@ -2,7 +2,7 @@ name: Prueba documentos (temporal)
 on:
   workflow_dispatch:
     inputs:
-      fondos: { description: 'ISIN:MS_ID separados por espacios', required: true }
+      fondos: { description: 'MS_ID separados por espacios', required: true }
 jobs:
   prueba:
     runs-on: ubuntu-latest
