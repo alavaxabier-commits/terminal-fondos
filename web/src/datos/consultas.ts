@@ -332,10 +332,13 @@ export async function pares(categorias: string[]): Promise<import('../calculo/se
 
 /** De unos ISIN, los que se pueden comprar en MyInvestor (catálogo, clase abierta). */
 export async function enMyinvestor(isins: string[]): Promise<Set<string>> {
-  if (!isins.length) return new Set()
-  const { data, error: e } = await supabase.from('myinvestor').select('isin').eq('abierto', true).in('isin', isins)
-  error(e)
-  return new Set(((data ?? []) as { isin: string }[]).map((r) => r.isin))
+  const out = new Set<string>()
+  for (let i = 0; i < isins.length; i += 200) { // de 200 en 200: la lista va en la dirección de la petición
+    const { data, error: e } = await supabase.from('myinvestor').select('isin').eq('abierto', true).in('isin', isins.slice(i, i + 200))
+    error(e)
+    for (const r of (data ?? []) as { isin: string }[]) out.add(r.isin)
+  }
+  return out
 }
 
 /** Percentil de diversificación de cada fondo frente a una cartera y con qué fondos de ella se calculó. */

@@ -22,6 +22,7 @@ export async function revisar(ids?: number[]): Promise<Revision> {
   const isins = [...fondos.keys()]
   const categorias = [...new Set([...fondos.values()].map((f) => f.categoria).filter((c): c is string => !!c))]
   const [notas, todosPares] = await Promise.all([q.notasDe(isins), q.pares(categorias)])
+  const mi = await q.enMyinvestor(todosPares.map((p) => p.isin))
   const rend = new Map<string, Map<string, number>>()
   const cargarRend = async (isin: string, divisa: string | null) => {
     if (!rend.has(isin)) rend.set(isin, rendimientos(semanal(await serieEur(isin, divisa))))
@@ -35,21 +36,20 @@ export async function revisar(ids?: number[]): Promise<Revision> {
       cartera,
       fondos: fs.map(({ fondo, peso }, i): FondoRevisado => {
         const pares = todosPares.filter((p) => p.categoria === fondo.categoria)
+        const candidatos = u.solo_myinvestor ? pares.filter((p) => mi.has(p.isin)) : pares
         const suyas = notas.filter((n) => n.isin === fondo.isin)
         const corr = fs.map((x, j) => ({ nombre: x.fondo.nombre, c: j === i ? null : r?.matriz[i][j] ?? null }))
-        const s = senales({ isin: fondo.isin, ter: fondo.ter == null ? null : Number(fondo.ter), fund_id: fondo.fund_id ?? null }, suyas, pares, u, corr)
-        const alts = s.length ? alternativas({ isin: fondo.isin, fund_id: fondo.fund_id ?? null }, pares) : []
-        return { fondo, peso, nota: evolucion(suyas, u.empeora_meses), senales: s, alternativas: alts.map((a) => ({ ...a, myinvestor: false, c: null })) }
+        const s = senales({ isin: fondo.isin, ter: fondo.ter == null ? null : Number(fondo.ter), fund_id: fondo.fund_id ?? null }, suyas, pares, u, corr, candidatos)
+        const alts = s.length ? alternativas({ isin: fondo.isin, fund_id: fondo.fund_id ?? null }, candidatos) : []
+        return { fondo, peso, nota: evolucion(suyas, u.empeora_meses), senales: s, alternativas: alts.map((a) => ({ ...a, myinvestor: mi.has(a.isin), c: null })) }
       }),
     }
   })
 
-  // alternativas: si están en MyInvestor y su correlación con el fondo al que sustituirían
+  // alternativas: su correlación con el fondo al que sustituirían
   const marcados = carteras.flatMap((c) => c.fondos).filter((f) => f.alternativas.length)
-  const mi = await q.enMyinvestor(marcados.flatMap((f) => f.alternativas.map((a) => a.isin)))
   const divisas = new Map((await Promise.all(marcados.flatMap((f) => f.alternativas.map((a) => q.fondo(a.isin))))).map((f) => [f?.isin, f?.divisa ?? null]))
   await Promise.all(marcados.flatMap((f) => f.alternativas.map(async (a) => {
-    a.myinvestor = mi.has(a.isin)
     a.c = correlacion(rend.get(f.fondo.isin)!, await cargarRend(a.isin, divisas.get(a.isin) ?? null))
   })))
   return { carteras, umbrales }

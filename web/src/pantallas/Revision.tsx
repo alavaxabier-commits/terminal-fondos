@@ -10,6 +10,7 @@ const REGLA: Record<string, string> = {
   mejor_puntos: 'Hay algo claramente mejor: puntos más de nota, con TER igual o menor',
   caro_puntos_ter: 'Caro: puntos de TER sobre la mediana de su categoría',
   redundante_correlacion: 'Redundante: correlación con otro fondo de la misma cartera desde',
+  solo_myinvestor: 'Alternativas y «algo claramente mejor» solo entre fondos de MyInvestor',
 }
 
 /** Revisión: los fondos de mis carteras con alguna señal, por qué y sus 3 mejores alternativas; umbrales editables. */
@@ -36,6 +37,7 @@ export default function Revision() {
         <p className="text-suave">
           {marcados.length} fondos marcados en {new Set(marcados.map((m) => m.cartera.id)).size} de {datos.carteras.length} carteras
           {semana && ` · nota de la semana del ${fecha(semana)} (pesos por defecto, sin Diversificación)`}
+          {datos.umbrales.find((u) => u.clave === 'solo_myinvestor')?.valor ? ' · alternativas solo de MyInvestor' : ''}
         </p>
       </div>
       {error && <p className="text-baja">{error}</p>}
@@ -99,9 +101,11 @@ export default function Revision() {
                 <tr key={u.clave} className="border-b border-borde/50">
                   <td className="py-1">{REGLA[u.clave] ?? u.descripcion}</td>
                   <td className="w-24 text-right">
-                    <input key={u.valor} defaultValue={String(u.valor).replace('.', ',')} inputMode="decimal" aria-label={REGLA[u.clave] ?? u.clave}
+                    {u.clave === 'solo_myinvestor' ? (
+                      <input type="checkbox" checked={!!u.valor} aria-label={REGLA[u.clave]} onChange={(e) => guardar(u.clave, e.target.checked ? '1' : '0')} className="accent-acento" />
+                    ) : <input key={u.valor} defaultValue={String(u.valor).replace('.', ',')} inputMode="decimal" aria-label={REGLA[u.clave] ?? u.clave}
                       onBlur={(e) => e.target.value !== String(u.valor).replace('.', ',') && guardar(u.clave, e.target.value)}
-                      className="w-20 border border-borde bg-panel px-1 py-1 text-right outline-none focus:border-acento" />
+                      className="w-20 border border-borde bg-panel px-1 py-1 text-right outline-none focus:border-acento" />}
                   </td>
                 </tr>
               ))}

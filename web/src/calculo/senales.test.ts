@@ -35,3 +35,14 @@ describe('señales de revisión', () => {
     expect(senales({ isin: 'B', ter: 0.5, fund_id: null }, [{ ...n('2026-11-09', 70), isin: 'B', percentil: 80 }], sinA2, U, [{ nombre: 'C', c: 0.94 }])).toEqual([])
   })
 })
+
+describe('candidatos (solo MyInvestor)', () => {
+  it('«algo mejor» solo mira los candidatos; la mediana del TER, toda la categoría', () => {
+    const pares = [par('A', 50, 1.5), par('B', 80, 0.5), par('C', 60, 0.4)]
+    const notas = [{ ...n('2026-11-09', 50), isin: 'A', percentil: 60 }]
+    const todos = senales({ isin: 'A', ter: 1.5, fund_id: null }, notas, pares, U, [])
+    const soloC = senales({ isin: 'A', ter: 1.5, fund_id: null }, notas, pares, U, [], [pares[2]])
+    expect(todos.map((s) => s.tipo)).toEqual(['Hay algo claramente mejor', 'Caro'])
+    expect(soloC.map((s) => s.tipo)).toEqual(['Caro']) // C solo tiene 10 puntos más
+  })
+})

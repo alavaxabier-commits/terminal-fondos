@@ -28,7 +28,7 @@ export function evolucion(notas: NotaSemanal[], meses = 12) {
 // ------------------------------------------------------------------ señales de revisión
 export type Umbrales = {
   nota_baja_percentil: number; empeora_puntos: number; empeora_meses: number
-  mejor_puntos: number; caro_puntos_ter: number; redundante_correlacion: number
+  mejor_puntos: number; caro_puntos_ter: number; redundante_correlacion: number; solo_myinvestor?: number
 }
 /** Un fondo con su nota de la última semana (los de su categoría son los «pares»). */
 export type Par = { isin: string; nombre: string; categoria: string | null; ter: number | null; fund_id: string | null; nota: number; percentil: number | null }
@@ -50,9 +50,10 @@ export function alternativas(f: { isin: string; fund_id: string | null }, pares:
 }
 
 /** Señales de un fondo de una cartera. `notas`: su nota semanal; `pares`: los fondos de su categoría con su nota de la
- * última semana; `correlaciones`: con cada uno de los otros fondos de la cartera. */
+ * última semana (para la mediana del TER); `candidatos`: los que podrían sustituirlo (por defecto, los mismos pares);
+ * `correlaciones`: con cada uno de los otros fondos de la cartera. */
 export function senales(f: { isin: string; ter: number | null; fund_id: string | null }, notas: NotaSemanal[], pares: Par[], u: Umbrales,
-  correlaciones: { nombre: string; c: number | null }[]): Senal[] {
+  correlaciones: { nombre: string; c: number | null }[], candidatos: Par[] = pares): Senal[] {
   const out: Senal[] = []
   const e = evolucion(notas, u.empeora_meses)
   if (e?.percentil != null && e.percentil < u.nota_baja_percentil)
@@ -60,7 +61,7 @@ export function senales(f: { isin: string; ter: number | null; fund_id: string |
   if (e?.periodo != null && e.periodo <= -u.empeora_puntos)
     out.push({ tipo: 'Empeora', motivo: `Ha perdido ${n0(-e.periodo)} puntos de nota en ${u.empeora_meses} meses (umbral ${u.empeora_puntos}).` })
   if (e && f.ter != null) {
-    const mejores = alternativas(f, pares, Infinity).filter((p) => p.nota >= e.nota + u.mejor_puntos && p.ter != null && p.ter <= f.ter!)
+    const mejores = alternativas(f, candidatos, Infinity).filter((p) => p.nota >= e.nota + u.mejor_puntos && p.ter != null && p.ter <= f.ter!)
     if (mejores.length)
       out.push({ tipo: 'Hay algo claramente mejor', motivo: `${mejores[0].nombre} tiene ${n0(mejores[0].nota - e.nota)} puntos más de nota y un TER de ${n2(mejores[0].ter!)} %` +
         (mejores.length > 1 ? `; en total, ${mejores.length} fondos de su categoría con ${u.mejor_puntos} puntos más o más y TER igual o menor.` : '.') })
