@@ -37,10 +37,30 @@ def calcular(hoy, serie, ref, rf):
     return {f'{v}|{n}': x for (v, n), x in sorted(out.items())}
 
 
+# Notas del screener: percentiles de un fondo → nota (o None), para el port de la web
+NOTAS = [
+    ({'5a|sharpe': 80, '5a|sortino': 60, 'hist|consistencia': 40, '3a|ratio_informacion': 60, 'hoy|ter': 90,
+      '5a|max_caida': 30, '5a|captura_bajista': 50, '5a|rentabilidad': 100, '5a|tracking_error': 0}, False),
+    ({'5a|sharpe': 80, '5a|sortino': 60, 'hist|consistencia': 40, '3a|ratio_informacion': 60, 'hoy|ter': 90,
+      '5a|max_caida': 30, '5a|captura_bajista': 50, '5a|rentabilidad': 100, '5a|tracking_error': 0}, True),
+    ({'3a|rentabilidad': 50, '3a|sharpe': 50, 'hist|consistencia': 0, '3a|ratio_informacion': 100}, False),
+    ({'1a|rentabilidad': 50}, False),
+]
+
+
+def notas():
+    out = []
+    for pct, indexada in NOTAS:
+        n = m.nota({tuple(k.split('|')): v for k, v in pct.items()}, indexada)
+        out.append({'pct': pct, 'indexada': indexada, 'nota': n and n[0], 'solo_3a': n and n[1]})
+    return out
+
+
 def generar():
     hoy, serie, ref, rf = entrada()
     caso = {'hoy': hoy.isoformat(), 'serie': serie, 'referencia': ref,
-            'rf': [[m.lunes_de(k).isoformat(), x] for k, x in rf.items()], 'esperado': calcular(hoy, serie, ref, rf)}
+            'rf': [[m.lunes_de(k).isoformat(), x] for k, x in rf.items()], 'esperado': calcular(hoy, serie, ref, rf),
+            'notas': notas()}
     RUTA.write_text(json.dumps(caso, separators=(',', ':')))
 
 

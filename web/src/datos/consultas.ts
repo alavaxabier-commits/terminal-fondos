@@ -222,3 +222,46 @@ export async function vigilancia(): Promise<{ ts: string; estado: string; mensaj
   error(e)
   return (data ?? []) as { ts: string; estado: string; mensaje: string }[]
 }
+
+// ------------------------------------------------------------------ screener y seguimiento (fase 3)
+export type FilaScreener = {
+  isin: string; nombre: string; categoria: string | null; divisa: string | null; ter: number | null; srri: number | null
+  gestion: 'activa' | 'indexada' | null; patrimonio_meur: number | null; fecha_lanzamiento: string | null
+  myinvestor: boolean; pct: Record<string, number> | null; r5: number | null; r3: number | null
+}
+
+/** El universo entero con los percentiles de la nota (vista fondos.screener), de 1.000 en 1.000. */
+export async function screener(): Promise<FilaScreener[]> {
+  const out: FilaScreener[] = []
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error: e } = await supabase.from('screener').select('*').order('isin').range(desde, desde + 999)
+    error(e)
+    out.push(...((data ?? []) as FilaScreener[]))
+    if ((data ?? []).length < 1000) return out
+  }
+}
+
+export type Perfil = { id: number; nombre: string; pesos: import('../calculo/nota').Pesos; filtros: Record<string, unknown>; modo: string }
+
+export async function perfiles(): Promise<Perfil[]> {
+  const { data, error: e } = await supabase.from('perfil_screener').select('id,nombre,pesos,filtros,modo').order('id')
+  error(e)
+  return (data ?? []) as Perfil[]
+}
+
+/** Guarda un perfil por su nombre (si existe, lo sustituye). */
+export async function guardarPerfil(p: Omit<Perfil, 'id'>) {
+  error((await supabase.from('perfil_screener').upsert(p, { onConflict: 'nombre' })).error)
+}
+
+export type Seguido = { isin: string; alta: string; estado: 'vigilando' | 'candidato' | 'descartado'; nota: string | null }
+
+export async function seguimiento(): Promise<Seguido[]> {
+  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota').order('alta', { ascending: false })
+  error(e)
+  return (data ?? []) as Seguido[]
+}
+
+export async function seguir(isin: string, nota: string | null = null) {
+  error((await supabase.from('seguimiento').upsert({ isin, nota, estado: 'vigilando' }, { onConflict: 'isin', ignoreDuplicates: true })).error)
+}
