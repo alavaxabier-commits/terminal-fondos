@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_DEFECTO } from './nota'
-import { grupo, pasa, puntuar, tipoActivo } from './screener'
+import { grupo, ordenar, pasa, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
@@ -47,9 +47,17 @@ describe('región o estilo', () => {
       ['Asia ex-Japan Equity', 'Asia y Pacífico'], ['Sector Equity Technology', 'sectoriales y temáticos'], ['Long/Short Equity - Europe', 'otros'],
       ['EUR Corporate Bond - Short Term', 'corto plazo y vencimiento fijo'], ['Global High Yield Bond - EUR Hedged', 'high yield'], ['EUR Government Bond', 'gobierno'],
       ['Global Emerging Markets Bond', 'emergentes'], ['EUR Flexible Bond', 'flexible y diversificada'], ['Other Bond', 'otros'],
+      ['JPY Bond', 'otras divisas'], ['USD Flexible Bond', 'otras divisas'], ['Global Diversified Bond - USD Hedged', 'otras divisas'],
+      ['Global Flexible Bond - EUR Hedged', 'flexible y diversificada'], ['EUR Bond - Long Term', 'flexible y diversificada'], ['USD Government Bond', 'gobierno'],
       ['EUR Cautious Allocation - Global', 'conservador'], ['GBP Allocation 80%+ Equity', 'agresivo'], ['EUR Money Market', null],
     ]
     for (const [c, g] of casos) expect(grupo(c), c).toBe(g)
+  })
+
+  it('ordena por TER o rentabilidad, sin dato al final', () => {
+    const fs = puntuar([fila({ isin: 'A', ter: 1, r5: 0.02 }), fila({ isin: 'B', ter: null, r5: null, r3: 0.05 }), fila({ isin: 'C', ter: 0.5, r5: null })], PESOS_DEFECTO)
+    expect(ordenar(fs, 'ter').map((f) => f.isin)).toEqual(['C', 'A', 'B'])
+    expect(ordenar(fs, 'r5').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
   })
 
   it('la diversificación entra en la nota si hay cartera', () => {

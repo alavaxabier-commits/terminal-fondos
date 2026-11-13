@@ -27,7 +27,9 @@ const GRUPOS: Partial<Record<Tipo, [string, RegExp][]>> = {
   'renta fija': [
     ['convertibles', /convertible/i], ['emergentes', /emerging|asia|china|rmb|hkd/i], ['high yield', /high yield/i],
     ['corto plazo y vencimiento fijo', /short.term|fixed term/i], ['gobierno', /government|inflation/i], ['corporativa', /corporate|subordinated/i],
-    ['flexible y diversificada', /flexible|diversified|bond - long term|^(eur|usd|chf|gbp|jpy|dkk|nok|sek) (domestic )?bond/i],
+    // bonos en (o cubiertos a) otra divisa: en euros los mueve sobre todo el cambio, no la gestión
+    ['otras divisas', /^(usd|chf|gbp|jpy|dkk|nok|sek) |- (usd|chf|gbp) hedged/i],
+    ['flexible y diversificada', /flexible|diversified|bond - long term|^eur bond/i],
   ],
   mixto: [
     ['conservador', /cautious|0-20%|20-40%/i], ['moderado', /moderate|40-60%/i], ['agresivo', /aggressive|60-80%|80%\+/i],
@@ -70,6 +72,18 @@ export function pasa(f: FilaScreener, x: Filtros, hoy: string, excluir: Set<stri
 
 /** Nota de cada fondo con los pesos dados, de mejor a peor; los que no tienen nota (menos de 3 años), al final.
  * `diversificacion`: percentil de cada fondo frente a la cartera elegida (sin cartera, el bloque no tiene datos). */
+/** Con menos fondos en la categoría, su percentil (y la nota) dice poco: «el mejor de 3» saca 100. */
+export const MIN_CATEGORIA = 5
+
+export type Orden = 'nota' | 'ter' | 'r5'
+/** Orden de la tabla: por nota (como sale de puntuar), por TER (menor primero) o por rentabilidad a 5 años (a 3 si no hay). */
+export function ordenar(filas: Puntuado[], orden: Orden): Puntuado[] {
+  if (orden === 'nota') return filas
+  const v = (f: Puntuado) => (orden === 'ter' ? f.ter : f.r5 ?? f.r3)
+  const signo = orden === 'ter' ? 1 : -1
+  return [...filas].sort((a, b) => (v(a) == null ? 1 : 0) - (v(b) == null ? 1 : 0) || signo * ((v(a) ?? 0) - (v(b) ?? 0)))
+}
+
 export function puntuar(filas: FilaScreener[], pesos: Pesos, diversificacion?: Map<string, number>): Puntuado[] {
   return filas
     .map((f) => {

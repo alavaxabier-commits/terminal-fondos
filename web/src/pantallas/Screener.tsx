@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, millones, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, pesosEfectivos, type Pesos } from '../calculo/nota'
-import { grupo, grupos, indexada, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Puntuado, type Tipo } from '../calculo/screener'
+import { grupo, grupos, indexada, MIN_CATEGORIA, ordenar, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado, type Tipo } from '../calculo/screener'
 import * as q from '../datos/consultas'
 
 const POR_PAGINA = 100
@@ -10,7 +10,7 @@ const control = 'border border-borde bg-panel px-2 py-1 text-texto outline-none 
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
 const CLAVE = 'screener'
-type Guardado = { pesos: Pesos; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; y: number }
+type Guardado = { pesos: Pesos; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; orden: Orden; y: number }
 const leer = (): Partial<Guardado> => { try { return JSON.parse(sessionStorage.getItem(CLAVE) ?? '{}') } catch { return {} } }
 const escribir = (g: Partial<Guardado>) => { try { sessionStorage.setItem(CLAVE, JSON.stringify({ ...leer(), ...g })) } catch { /* sin almacenamiento: se pierde al salir */ } }
 
@@ -32,6 +32,7 @@ export default function Screener() {
   const [avisoDiv, setAvisoDiv] = useState<string | null>(null)
   const [sel, setSel] = useState<string | null>(g.sel ?? null)
   const [mostrar, setMostrar] = useState(g.mostrar ?? POR_PAGINA)
+  const [orden, setOrden] = useState<Orden>(g.orden ?? 'nota')
 
   const falla = (e: Error) => setError(e.message)
   useEffect(() => {
@@ -50,15 +51,22 @@ export default function Screener() {
       setAvisoDiv(q.avisoDiversificacion(d.base, isins))
     }).catch(falla)
   }, [carteraId])
-  useEffect(() => escribir({ pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar }), [pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar])
+  useEffect(() => escribir({ pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden }), [pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden])
   useEffect(() => () => escribir({ y: scrollY }), []) // al salir (p. ej. a una ficha), dónde estaba la lista
   useEffect(() => { if (datos && g.y) scrollTo(0, g.y) }, [datos, g])
 
   // sin cartera elegida, Diversificación no tiene datos y su peso se reparte entre los demás bloques
   const puntuados = useMemo(() => {
     const excluir = excluirSuyos ? enCartera : new Set<string>()
-    return datos ? puntuar(datos.filter((f) => pasa(f, filtros, hoy(), excluir)), pesos, div) : []
-  }, [datos, filtros, excluirSuyos, enCartera, pesos, div])
+    return datos ? ordenar(puntuar(datos.filter((f) => pasa(f, filtros, hoy(), excluir)), pesos, div), orden) : []
+  }, [datos, filtros, excluirSuyos, enCartera, pesos, div, orden])
+  // shortcut: cuenta clases, no fondos (el percentil cuenta uno por fondo); basta para avisar de categorías casi vacías
+  const tamano = useMemo(() => {
+    const n = new Map<string, number>()
+    for (const f of datos ?? []) if (f.categoria) n.set(f.categoria, (n.get(f.categoria) ?? 0) + 1)
+    return n
+  }, [datos])
+  const pocos = (f: Puntuado) => f.nota != null && (tamano.get(f.categoria ?? '') ?? 0) < MIN_CATEGORIA ? tamano.get(f.categoria ?? '') ?? 0 : 0
   const listas: [string, Puntuado[]][] = modo === 'separados'
     ? [['Indexados', puntuados.filter(indexada)], ['Activos', puntuados.filter((f) => !indexada(f))]]
     : [['', modo === 'juntos' ? puntuados : puntuados.filter((f) => indexada(f) === (modo === 'indexados'))]]
@@ -176,7 +184,7 @@ export default function Screener() {
         {listas.map(([titulo, filas]) => (
           <section key={titulo} className="space-y-1">
             {titulo && <h2 className="text-[11px] uppercase tracking-widest text-suave">{titulo} · {filas.length}</h2>}
-            <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} />
+            <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={orden} setOrden={setOrden} pocos={pocos} />
             {filas.length > mostrar && (
               <button onClick={() => setMostrar((n) => n + POR_PAGINA)} className="text-suave hover:text-texto">ver {Math.min(POR_PAGINA, filas.length - mostrar)} más</button>
             )}
@@ -201,7 +209,7 @@ export default function Screener() {
             <button onClick={() => setPesos(PESOS_DEFECTO)} className="min-h-8 border border-borde px-3 text-suave hover:text-texto">por defecto</button>
           </div>
         </section>
-        {elegido && <Desglose f={elegido} pesos={pesos} seguido={seguidos.has(elegido.isin)} seguir={seguirFondo} />}
+        {elegido && <Desglose f={elegido} pocos={pocos(elegido)} pesos={pesos} seguido={seguidos.has(elegido.isin)} seguir={seguirFondo} />}
       </aside>
     </div>
   )
@@ -221,9 +229,15 @@ function CampoNumero({ valor, cambiar }: { valor: number | undefined; cambiar: (
   return <input inputMode="decimal" value={texto} onChange={(e) => { setTexto(e.target.value); cambiar(numero(e.target.value)) }} className={control} />
 }
 
-function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria }: {
+function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos }: {
   filas: Puntuado[]; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; conCategoria: boolean
+  orden: Orden; setOrden: (o: Orden) => void; pocos: (f: Puntuado) => number
 }) {
+  const cabecera = (o: Orden, texto: string, clase = '') => (
+    <th className={`font-normal ${clase}`} aria-sort={orden === o ? (o === 'ter' ? 'ascending' : 'descending') : 'none'}>
+      <button onClick={() => setOrden(o)} className={`uppercase tracking-widest ${orden === o ? 'text-acento' : 'hover:text-texto'}`}>{texto}{orden === o ? (o === 'ter' ? ' ↑' : ' ↓') : ''}</button>
+    </th>
+  )
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[40rem] text-right [&_tr>*+*]:pl-3">
@@ -231,9 +245,9 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria }: {
           <tr className="border-b border-borde">
             <th className="w-8 py-1 font-normal">#</th>
             <th className="text-left font-normal">Fondo</th>
-            <th className="w-36 text-left font-normal">Nota</th>
-            <th className="font-normal">TER</th>
-            <th className="font-normal">5A anual</th>
+            {cabecera('nota', 'Nota', 'w-36 text-left')}
+            {cabecera('ter', 'TER')}
+            {cabecera('r5', '5A anual')}
             <th className="font-normal">Patrim.</th>
             <th className="w-8 font-normal"><span className="sr-only">Seguir</span></th>
           </tr>
@@ -241,7 +255,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria }: {
         <tbody className="tabular">
           {filas.map((f, i) => (
             <tr key={f.isin} onClick={() => setSel(f.isin)} className={`cursor-pointer border-b border-borde/50 ${sel === f.isin ? 'bg-panel' : 'hover:bg-panel/50'}`}>
-              <td className="py-1 text-suave">{f.nota == null ? '' : i + 1}</td>
+              <td className="py-1 text-suave">{f.nota == null && orden === 'nota' ? '' : i + 1}</td>
               <td className="text-left">
                 <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.nombre}</a>
                 {f.myinvestor && <span className="text-suave" title="Se puede comprar en MyInvestor"> · MI</span>}
@@ -253,6 +267,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria }: {
                     <span className="w-7 text-right text-acento">{Math.round(f.nota)}</span>
                     <span aria-hidden className="inline-block h-1.5 w-20 bg-borde/60"><span className="block h-1.5 bg-acento" style={{ width: `${f.nota}%` }} /></span>
                     {f.solo3a && <span className="text-suave" title="Menos de 5 años: métricas a 3 años">3A</span>}
+                    {pocos(f) > 0 && <span className="text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
                   </span>
                 )}
               </td>
@@ -271,7 +286,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria }: {
   )
 }
 
-function Desglose({ f, pesos, seguido, seguir }: { f: Puntuado; pesos: Pesos; seguido: boolean; seguir: (i: string) => void }) {
+function Desglose({ f, pocos, pesos, seguido, seguir }: { f: Puntuado; pocos: number; pesos: Pesos; seguido: boolean; seguir: (i: string) => void }) {
   const w = pesosEfectivos(f.bloques, pesos)
   const flojos = BLOQUES.filter((k) => w[k] && f.bloques[k]! < 40).map((k) => `${NOMBRE_BLOQUE[k].toLowerCase()} (percentil ${Math.round(f.bloques[k]!)})`)
   return (
@@ -297,6 +312,7 @@ function Desglose({ f, pesos, seguido, seguir }: { f: Puntuado; pesos: Pesos; se
           </tbody>
         </table>
       )}
+      {pocos > 0 && <p className="text-aviso">Su categoría ({f.categoria}) solo tiene {pocos} fondos en el universo: los percentiles se calculan frente a ellos y la nota dice poco.</p>}
       {f.solo3a && <p className="text-suave">Menos de 5 años: métricas a 3 años y, en los activos, consistencia solo con el ratio de información.</p>}
       {flojos.length > 0 && <p className="text-suave">Lo flojo: {flojos.join(', ')}.</p>}
       <button onClick={() => seguir(f.isin)} disabled={seguido}
