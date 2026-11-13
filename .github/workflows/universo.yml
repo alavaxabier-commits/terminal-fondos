@@ -9,22 +9,37 @@ on:
         required: false
         default: ''
 concurrency: ingesta
+permissions: { contents: read, actions: read }
 jobs:
   universo:
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
+      - name: La programada se salta si hubo una correcta hace menos de 3 días (lanzada a mano)
+        id: reciente
+        if: github.event_name == 'schedule'
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          ultima=$(gh api "repos/${{ github.repository }}/actions/workflows/universo.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].created_at // empty')
+          if [ -n "$ultima" ] && [ $(( $(date +%s) - $(date -d "$ultima" +%s) )) -lt 259200 ]; then
+            echo "saltar=1" >> "$GITHUB_OUTPUT"
+            echo "Universo actualizado el $ultima: esta semana no se repite" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/checkout@v4
+        if: steps.reciente.outputs.saltar != '1'
       - uses: actions/setup-python@v5
+        if: steps.reciente.outputs.saltar != '1'
         with: { python-version: '3.12', cache: pip }
       - run: pip install --quiet .
-      - name: Fichas de Morningstar España y universo
+        if: steps.reciente.outputs.saltar != '1'
+      - name: Fichas de Morningstar España, catálogo de MyInvestor y universo
+        if: steps.reciente.outputs.saltar != '1'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ARGUMENTOS: ${{ inputs.argumentos }}
         run: python -m fondos universo $ARGUMENTOS
       - name: Composición de las carteras (X-Ray), una cuarta parte del universo cada semana
-        if: success() || failure()
+        if: (success() || failure()) && steps.reciente.outputs.saltar != '1'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python -m fondos composicion

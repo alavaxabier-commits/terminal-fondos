@@ -80,18 +80,28 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple]]:
         ref = series_ref.get(usa.get(isin, ''))
         resultados[isin] = m.metricas_fondo(s, ref, estr_semanal, hoy, en_eur[isin])
 
-    # percentiles dentro de la categoría, solo entre fondos del universo
+    # percentiles dentro de la categoría, entre fondos del universo y con una sola clase por fondo (la de menor TER);
+    # las demás clases del universo de ese fondo se sitúan frente a la misma distribución, sin contar en ella
     filas = []
+    del_universo = [i for i in resultados if fondos[i].get('en_universo') and fondos[i].get('categoria')]
+    cuenta: dict[str, str] = {}
+    for isin in sorted(del_universo, key=lambda i: (fondos[i].get('ter') is None, fondos[i].get('ter') or 0, i)):
+        cuenta.setdefault(fondos[isin].get('fund_id') or isin, isin)
+    cuentan = set(cuenta.values())
     por_cat_metrica: dict[tuple[str, str, str], dict[str, float]] = defaultdict(dict)
-    for isin, res in resultados.items():
-        f = fondos[isin]
-        if f.get('en_universo') and f.get('categoria'):
-            for (ventana, nombre), valor in res.items():
-                por_cat_metrica[(f['categoria'], ventana, nombre)][isin] = valor
+    for isin in cuentan:
+        for (ventana, nombre), valor in resultados[isin].items():
+            por_cat_metrica[(fondos[isin]['categoria'], ventana, nombre)][isin] = valor
     pct: dict[tuple[str, str, str], float] = {}
     for (cat, ventana, nombre), valores in por_cat_metrica.items():
         for isin, p in m.percentiles(valores, nombre).items():
             pct[(isin, ventana, nombre)] = p
+    for isin in set(del_universo) - cuentan:
+        for (ventana, nombre), valor in resultados[isin].items():
+            valores = por_cat_metrica.get((fondos[isin]['categoria'], ventana, nombre), {})
+            p = m.percentiles({**valores, isin: valor}, nombre).get(isin)
+            if p is not None:
+                pct[(isin, ventana, nombre)] = p
     for isin, res in resultados.items():
         for (ventana, nombre), valor in res.items():
             filas.append((isin, ventana, nombre, float(valor), pct.get((isin, ventana, nombre))))

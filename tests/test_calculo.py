@@ -102,3 +102,16 @@ def test_series_de_referencia_para_la_web():
     m = dict(zip(meses, mes))
     assert m[D(2023, 12, 1)] / m[D(2022, 12, 1)] == pytest.approx(cierre(2023) / cierre(2022))
     assert {'indice:mixto-60-40', 'indice:estr', 'media:Sector Equity Technology'} <= set(refs)
+
+
+def test_una_clase_por_fondo_en_los_percentiles():
+    d = datos_base()
+    # otra clase del fondo TECNO0000003, más cara y un poco peor: no debe mover los percentiles de los demás
+    d['fondos']['TECNO0000003'].update(fund_id='FS3', ter=0.5)
+    d['fondos']['TECNO000003B'] = {'categoria': 'Sector Equity Technology', 'divisa': 'EUR', 'indice_id': None,
+                                   'en_universo': True, 'fund_id': 'FS3', 'ter': 1.2}
+    d['valores']['TECNO000003B'] = diaria(0.002 + 3 * 0.0002 - 0.00002, ruido=0.015, fase=1)
+    filas = por_clave(calculo.calcular(d, HOY)[0])
+    pct = {i: filas[(i, '5a', 'rentabilidad')][1] for i in [f'TECNO000000{k}' for k in range(5)] + ['TECNO000003B']}
+    assert [pct[f'TECNO000000{k}'] for k in range(5)] == [0, 25, 50, 75, 100]  # como sin la clase de más
+    assert 50 < pct['TECNO000003B'] < 75   # situada en la misma distribución, entre el 2 y el 3

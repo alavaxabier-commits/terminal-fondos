@@ -181,9 +181,10 @@ class Repo:
     # ------------------------------------------------------------ métricas
     def datos_metricas(self) -> dict:
         """Todo lo que necesita calculo.calcular: fondos (universo, diarios y sustitutos), valores, tipos, €STR…"""
-        fondos = {isin: {'categoria': cat, 'divisa': div, 'indice_id': iid, 'en_universo': uni}
-                  for isin, cat, div, iid, uni in self._filas("""
-            select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo from fondos.fondo f
+        fondos = {isin: {'categoria': cat, 'divisa': div, 'indice_id': iid, 'en_universo': uni, 'fund_id': fid,
+                         'ter': None if ter is None else float(ter)}
+                  for isin, cat, div, iid, uni, fid, ter in self._filas("""
+            select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo, f.fund_id, f.ter from fondos.fondo f
             where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")}
         valores: dict[str, dict] = {}
         # Paquetes anuales en streaming (cursor con nombre): cada fondo se reduce a su último dato de cada semana y de
