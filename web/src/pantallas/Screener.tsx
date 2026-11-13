@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, millones, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, pesosEfectivos, type Pesos } from '../calculo/nota'
-import { indexada, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Puntuado, type Tipo } from '../calculo/screener'
+import { grupo, grupos, indexada, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Puntuado, type Tipo } from '../calculo/screener'
 import * as q from '../datos/consultas'
 
 const POR_PAGINA = 100
@@ -18,8 +18,11 @@ export default function Screener() {
   const [pesos, setPesos] = useState<Pesos>(PESOS_DEFECTO)
   const [filtros, setFiltros] = useState<Filtros>({})
   const [modo, setModo] = useState<Modo>('juntos')
-  const [excluirCartera, setExcluirCartera] = useState<number | ''>('')
-  const [excluir, setExcluir] = useState<Set<string>>(new Set())
+  const [carteraId, setCarteraId] = useState<number | ''>('')
+  const [enCartera, setEnCartera] = useState<Set<string>>(new Set())
+  const [excluirSuyos, setExcluirSuyos] = useState(false)
+  const [div, setDiv] = useState<Map<string, number> | undefined>(undefined)
+  const [avisoDiv, setAvisoDiv] = useState<string | null>(null)
   const [sel, setSel] = useState<string | null>(null)
   const [mostrar, setMostrar] = useState(POR_PAGINA)
 
@@ -31,23 +34,32 @@ export default function Screener() {
     q.seguimiento().then((s) => setSeguidos(new Set(s.map((x) => x.isin)))).catch(falla)
   }, [])
   useEffect(() => {
-    if (excluirCartera === '') return setExcluir(new Set())
-    q.cartera(excluirCartera).then((c) => setExcluir(new Set(c?.fondos.map((f) => f.fondo.isin)))).catch(falla)
-  }, [excluirCartera])
+    setEnCartera(new Set()); setDiv(undefined); setAvisoDiv(null)
+    if (carteraId === '') return
+    Promise.all([q.cartera(carteraId), q.diversificacion(carteraId)]).then(([c, d]) => {
+      const isins = c?.fondos.map((f) => f.fondo.isin) ?? []
+      setEnCartera(new Set(isins))
+      setDiv(d.percentiles)
+      setAvisoDiv(q.avisoDiversificacion(d.base, isins))
+    }).catch(falla)
+  }, [carteraId])
 
-  // shortcut: Diversificación necesita la correlación de cada fondo con la cartera elegida; hasta tenerla, su peso es 0
-  const pesosNota = useMemo(() => ({ ...pesos, diversificacion: 0 }), [pesos])
-  const puntuados = useMemo(() => (datos ? puntuar(datos.filter((f) => pasa(f, filtros, hoy(), excluir)), pesosNota) : []),
-    [datos, filtros, excluir, pesosNota])
+  // sin cartera elegida, Diversificación no tiene datos y su peso se reparte entre los demás bloques
+  const puntuados = useMemo(() => {
+    const excluir = excluirSuyos ? enCartera : new Set<string>()
+    return datos ? puntuar(datos.filter((f) => pasa(f, filtros, hoy(), excluir)), pesos, div) : []
+  }, [datos, filtros, excluirSuyos, enCartera, pesos, div])
   const listas: [string, Puntuado[]][] = modo === 'separados'
     ? [['Indexados', puntuados.filter(indexada)], ['Activos', puntuados.filter((f) => !indexada(f))]]
     : [['', modo === 'juntos' ? puntuados : puntuados.filter((f) => indexada(f) === (modo === 'indexados'))]]
   const elegido = puntuados.find((f) => f.isin === sel) ?? null
   const categorias = useMemo(() => {
     const n = new Map<string, number>()
-    for (const f of datos ?? []) if (f.categoria && (!filtros.tipo || tipoActivo(f.categoria) === filtros.tipo)) n.set(f.categoria, (n.get(f.categoria) ?? 0) + 1)
+    for (const f of datos ?? [])
+      if (f.categoria && (!filtros.tipo || tipoActivo(f.categoria) === filtros.tipo) && (!filtros.grupo || grupo(f.categoria) === filtros.grupo))
+        n.set(f.categoria, (n.get(f.categoria) ?? 0) + 1)
     return [...n].sort(([a], [b]) => a.localeCompare(b))
-  }, [datos, filtros.tipo])
+  }, [datos, filtros.tipo, filtros.grupo])
   const divisas = useMemo(() => [...new Set((datos ?? []).map((f) => f.divisa).filter(Boolean) as string[])].sort(), [datos])
   const filtrar = (x: Partial<Filtros>) => { setFiltros((f) => ({ ...f, ...x })); setMostrar(POR_PAGINA) }
 
@@ -79,11 +91,19 @@ export default function Screener() {
           </select>
         </label>
         <label className="flex flex-col gap-1 text-suave">tipo de activo
-          <select value={filtros.tipo ?? ''} onChange={(e) => filtrar({ tipo: (e.target.value || undefined) as Tipo | undefined, categoria: undefined })} className={control}>
+          <select value={filtros.tipo ?? ''} onChange={(e) => filtrar({ tipo: (e.target.value || undefined) as Tipo | undefined, grupo: undefined, categoria: undefined })} className={control}>
             <option value="">todos</option>
             {TIPOS.map((x) => <option key={x}>{x}</option>)}
           </select>
         </label>
+        {filtros.tipo && grupos(filtros.tipo).length > 1 && (
+          <label className="flex flex-col gap-1 text-suave">{filtros.tipo === 'mixto' ? 'perfil' : filtros.tipo === 'renta fija' ? 'tipo de bono' : 'región o estilo'}
+            <select value={filtros.grupo ?? ''} onChange={(e) => filtrar({ grupo: e.target.value || undefined, categoria: undefined })} className={control}>
+              <option value="">todos</option>
+              {grupos(filtros.tipo).map((g) => <option key={g}>{g}</option>)}
+            </select>
+          </label>
+        )}
         <label className="flex flex-col gap-1 text-suave">categoría ({categorias.length})
           <select value={filtros.categoria ?? ''} onChange={(e) => filtrar({ categoria: e.target.value || undefined })} className={control}>
             <option value="">todas</option>
@@ -113,13 +133,18 @@ export default function Screener() {
           <input type="checkbox" checked={!!filtros.soloMyinvestor} onChange={(e) => filtrar({ soloMyinvestor: e.target.checked || undefined })} />
           solo los de MyInvestor
         </label>
-        <label className="flex flex-col gap-1 text-suave">excluir los de la cartera
-          <select value={excluirCartera} onChange={(e) => setExcluirCartera(e.target.value ? +e.target.value : '')} className={control}>
+        <label className="flex flex-col gap-1 text-suave">cartera para diversificar
+          <select value={carteraId} onChange={(e) => setCarteraId(e.target.value ? +e.target.value : '')} className={control}>
             <option value="">ninguna</option>
             {carteras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
         </label>
-        <button onClick={() => { setFiltros({}); setExcluirCartera('') }} className="min-h-8 border border-borde px-3 text-suave hover:text-texto">quitar filtros</button>
+        <label className="flex items-center gap-2 text-suave">
+          <input type="checkbox" checked={excluirSuyos} disabled={carteraId === ''} onChange={(e) => setExcluirSuyos(e.target.checked)} />
+          excluir los que ya están
+        </label>
+        {avisoDiv && <p role="status" className="text-aviso">{avisoDiv}</p>}
+        <button onClick={() => { setFiltros({}); setCarteraId(''); setExcluirSuyos(false) }} className="min-h-8 border border-borde px-3 text-suave hover:text-texto">quitar filtros</button>
       </aside>
 
       <main className="min-w-0 flex-[999_1_32rem] space-y-3">
@@ -154,19 +179,19 @@ export default function Screener() {
         <section className="flex flex-col gap-2">
           <h2 className="text-[11px] uppercase tracking-widest text-suave">Pesos de la nota</h2>
           {BLOQUES.map((k) => (
-            <label key={k} className={`grid grid-cols-[1fr_auto] gap-x-2 ${k === 'diversificacion' ? 'text-suave' : ''}`}>
+            <label key={k} className={`grid grid-cols-[1fr_auto] gap-x-2 ${k === 'diversificacion' && !div ? 'text-suave' : ''}`}>
               <span>{NOMBRE_BLOQUE[k]}</span><span className="tabular text-right">{pesos[k]} %</span>
-              <input type="range" min={0} max={50} value={pesos[k]} disabled={k === 'diversificacion'} aria-label={`Peso de ${NOMBRE_BLOQUE[k]}`}
+              <input type="range" min={0} max={50} value={pesos[k]} disabled={k === 'diversificacion' && !div} aria-label={`Peso de ${NOMBRE_BLOQUE[k]}`}
                 onChange={(e) => setPesos((p) => ({ ...p, [k]: +e.target.value }))} className="col-span-2 accent-acento" />
             </label>
           ))}
-          <p className="text-suave">Diversificación (correlación con una cartera) aún no se calcula: su peso se reparte entre los demás, igual que el de un bloque sin datos.</p>
+          <p className="text-suave">{div ? 'Diversificación: 1 − correlación media con los fondos de la cartera elegida (3 años), en percentil de su categoría.' : 'Sin cartera elegida, el peso de Diversificación se reparte entre los demás, igual que el de un bloque sin datos.'}</p>
           <div className="flex flex-wrap gap-2">
             <button onClick={guardar} className="min-h-8 border border-borde px-3 hover:text-acento">guardar perfil</button>
             <button onClick={() => setPesos(PESOS_DEFECTO)} className="min-h-8 border border-borde px-3 text-suave hover:text-texto">por defecto</button>
           </div>
         </section>
-        {elegido && <Desglose f={elegido} pesos={pesosNota} seguido={seguidos.has(elegido.isin)} seguir={seguirFondo} />}
+        {elegido && <Desglose f={elegido} pesos={pesos} seguido={seguidos.has(elegido.isin)} seguir={seguirFondo} />}
       </aside>
     </div>
   )

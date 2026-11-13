@@ -107,13 +107,14 @@ def orden_metricas(repo) -> int:
     t0 = time.time()
     datos = repo.datos_metricas()
     t1 = time.time()
-    filas, refs, notas = calculo.calcular(datos, hoy())
+    filas, refs, notas, diversificacion = calculo.calcular(datos, hoy())
     t2 = time.time()
     anterior = repo.n_metricas()
     repo.guardar_metricas(filas, refs)
     repo.guardar_notas(lunes(hoy()), notas)
+    repo.guardar_diversificacion(diversificacion, datos['carteras'])
     fondos = len({f[0] for f in filas})
-    texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos, {len(notas)} notas '
+    texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos, {len(notas)} notas, {len(diversificacion)} correlaciones con {len(datos["carteras"])} carteras '
              f'y {len(refs)} referencias · '
              f'carga {t1 - t0:.0f} s, cálculo {t2 - t1:.0f} s, guardado {time.time() - t2:.0f} s')
     print(texto)
@@ -129,7 +130,7 @@ def orden_notas(repo, semanas: int) -> int:
     for k in range(1, semanas + 1):
         dia = lunes(hoy()) - dt.timedelta(weeks=k)
         corte = dia + dt.timedelta(days=6)
-        recortados = {**datos, 'valores': {i: {d: v for d, v in s.items() if d <= corte} for i, s in datos['valores'].items()}}
+        recortados = {**datos, 'carteras': {}, 'valores': {i: {d: v for d, v in s.items() if d <= corte} for i, s in datos['valores'].items()}}
         notas = calculo.calcular(recortados, corte)[2]
         repo.guardar_notas(dia, notas)
         print(f'{dia}: {len(notas)} notas', flush=True)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_DEFECTO } from './nota'
-import { pasa, puntuar, tipoActivo } from './screener'
+import { grupo, pasa, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
@@ -36,5 +36,25 @@ describe('screener', () => {
     expect(r.map((x) => x.isin)).toEqual(['C', 'B', 'A'])
     expect(r[0].nota).toBeCloseTo((80 * 10 + 100 * 20) / 30)
     expect(r[2].nota).toBeNull()
+  })
+})
+
+describe('región o estilo', () => {
+  it('clasifica las categorías dentro de su tipo', () => {
+    const casos: [string, string | null][] = [
+      ['Global Large-Cap Blend Equity', 'global'], ['Global Emerging Markets Equity', 'emergentes'], ['US Small-Cap Equity', 'EE. UU.'],
+      ['Eurozone Large-Cap Equity', 'Europa'], ['Spain Equity', 'Europa'], ['Japan Large-Cap Blend Equity', 'Japón'],
+      ['Asia ex-Japan Equity', 'Asia y Pacífico'], ['Sector Equity Technology', 'sectoriales y temáticos'], ['Long/Short Equity - Europe', 'otros'],
+      ['EUR Corporate Bond - Short Term', 'corto plazo y vencimiento fijo'], ['Global High Yield Bond - EUR Hedged', 'high yield'], ['EUR Government Bond', 'gobierno'],
+      ['Global Emerging Markets Bond', 'emergentes'], ['EUR Flexible Bond', 'flexible y diversificada'], ['Other Bond', 'otros'],
+      ['EUR Cautious Allocation - Global', 'conservador'], ['GBP Allocation 80%+ Equity', 'agresivo'], ['EUR Money Market', null],
+    ]
+    for (const [c, g] of casos) expect(grupo(c), c).toBe(g)
+  })
+
+  it('la diversificación entra en la nota si hay cartera', () => {
+    const f = fila({ pct: { '5a|rentabilidad': 50 } })
+    expect(puntuar([f], PESOS_DEFECTO)[0].nota).toBe(50)
+    expect(puntuar([f], PESOS_DEFECTO, new Map([['X', 100]]))[0].nota).toBeCloseTo((50 * 10 + 100 * 10) / 20)
   })
 })

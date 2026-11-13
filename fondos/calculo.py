@@ -90,16 +90,30 @@ def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict]) 
     return pct
 
 
-def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], list[tuple]]:
-    """datos: fondos, valores, tipos, estr, indices y categorias → (filas (isin, ventana, nombre, valor, percentil),
-    {clave de referencia: (lunes, valores semanales, meses, valores de cierre de mes)},
-    notas (isin, nota, percentil, solo_3a))."""
+def diversificacion(rend: dict[str, dict], fondos: dict[str, dict], carteras: dict[int, list[str]]) -> list[tuple]:
+    """Para cada cartera, (cartera_id, isin, correlación media con sus fondos, percentil de 1 − correlación en la
+    categoría) de cada fondo del universo: el bloque Diversificación del screener."""
+    filas = []
+    for cid, isins in carteras.items():
+        suyos = [rend[i] for i in isins if i in rend]
+        corr = {i: c for i, r in rend.items() if fondos[i].get('en_universo')
+                and (c := m.correlacion_media(r, suyos)) is not None}
+        pct = percentiles_categoria({i: {('hoy', 'diversificacion'): 1 - c} for i, c in corr.items()}, fondos)
+        filas += [(cid, i, round(c, 4), pct.get(i, {}).get(('hoy', 'diversificacion'))) for i, c in corr.items()]
+    return filas
+
+
+def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], list[tuple], list[tuple]]:
+    """datos: fondos, valores, tipos, estr, indices, categorias y carteras ({id: [isin]}) → (filas (isin, ventana,
+    nombre, valor, percentil), {clave de referencia: (lunes, valores semanales, meses, valores de cierre de mes)},
+    notas (isin, nota, percentil, solo_3a), diversificación (cartera_id, isin, correlación, percentil))."""
     fondos, tipos = datos['fondos'], datos['tipos']
     en_eur = {isin: serie_eur(v, fondos[isin].get('divisa'), tipos) for isin, v in datos['valores'].items() if isin in fondos}
     semanales = {isin: m.semanal(v) for isin, v in en_eur.items()}
     semanales = {i: s for i, s in semanales.items() if len(s) >= 2}
     estr_semanal = m.tasa_semanal(datos['estr'])
-    series_ref, usa = referencias(fondos, {i: m.rendimientos(s) for i, s in semanales.items()},
+    rend = {i: m.rendimientos(s) for i, s in semanales.items()}
+    series_ref, usa = referencias(fondos, rend,
                                   datos['indices'], datos['categorias'], estr_semanal)
 
     resultados: dict[str, dict] = {}
@@ -126,4 +140,4 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
     refs = {clave: ([m.lunes_de(k) for k in s], list(s.values()),
                     [dt.date(a, mes, 1) for a, mes in ref_mes.get(clave, {})], list(ref_mes.get(clave, {}).values()))
             for clave, s in series_ref.items()}
-    return filas, refs, notas_filas
+    return filas, refs, notas_filas, diversificacion(rend, fondos, datos.get('carteras', {}))

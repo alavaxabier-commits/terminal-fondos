@@ -388,6 +388,22 @@ def percentiles(valores: dict[str, float], nombre: str) -> dict[str, float]:
 
 
 
+# ------------------------------------------------------------------ diversificación (bloque del screener)
+def correlacion_media(r: dict[Semana, float], cartera: list[dict[Semana, float]], semanas: int = 3 * SEMANAS_ANO,
+                      minimo: int = SEMANAS_ANO) -> float | None:
+    """Correlación media de las rentabilidades semanales de un fondo con las de cada fondo de una cartera, en las
+    últimas `semanas` comunes (al menos `minimo`). Los fondos de la cartera sin historia común no cuentan."""
+    cs = []
+    for otro in cartera:
+        comunes = sorted(k for k in r if k in otro)[-semanas:]
+        if len(comunes) < minimo:
+            continue
+        a, b = [r[k] for k in comunes], [otro[k] for k in comunes]
+        if pstdev(a) > 0 and pstdev(b) > 0:
+            cs.append(correlation(a, b))
+    return fmean(cs) if cs else None
+
+
 # ------------------------------------------------------------------ nota del screener
 # Pesos por defecto sin Diversificación (que depende de la cartera elegida): la nota de nota_semanal y de las señales.
 PESOS_NOTA = {'riesgo': 25, 'consistencia': 20, 'coste': 20, 'proteccion': 15, 'rentabilidad': 10}

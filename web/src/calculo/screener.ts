@@ -8,15 +8,40 @@ export type Tipo = (typeof TIPOS)[number]
 /** Tipo de activo por el nombre de la categoría de Morningstar (Equity, Bond, Allocation, Money Market…). */
 export function tipoActivo(categoria: string | null): Tipo {
   const c = categoria ?? ''
+  if (/allocation/i.test(c)) return 'mixto' // antes que equity: «GBP Allocation 80%+ Equity»
   if (/equity/i.test(c)) return 'renta variable'
   if (/bond|fixed|debt|credit/i.test(c)) return 'renta fija'
-  if (/allocation/i.test(c)) return 'mixto'
   if (/money market/i.test(c)) return 'monetario'
   return 'otros'
 }
 
+/** Segundo nivel dentro del tipo: región o estilo, por el nombre de la categoría (el orden de las reglas importa). */
+const GRUPOS: Partial<Record<Tipo, [string, RegExp][]>> = {
+  'renta variable': [
+    ['sectoriales y temáticos', /^(sector|thematic)/i], ['otros', /long\/short|market neutral|private equity|^other/i],
+    ['emergentes', /emerging|frontier|latin america|brazil|africa/i], ['global', /^(global|islamic global)/i],
+    ['EE. UU.', /^us /i], ['Japón', /^japan/i],
+    ['Asia y Pacífico', /asia|asean|china|hong kong|india|indonesia|korea|taiwan|vietnam|pacific|australia/i],
+    ['Europa', /europe|eurozone|^uk |france|germany|italy|spain|switzerland|nordic|norway|sweden/i],
+  ],
+  'renta fija': [
+    ['convertibles', /convertible/i], ['emergentes', /emerging|asia|china|rmb|hkd/i], ['high yield', /high yield/i],
+    ['corto plazo y vencimiento fijo', /short.term|fixed term/i], ['gobierno', /government|inflation/i], ['corporativa', /corporate|subordinated/i],
+    ['flexible y diversificada', /flexible|diversified|bond - long term|^(eur|usd|chf|gbp|jpy|dkk|nok|sek) (domestic )?bond/i],
+  ],
+  mixto: [
+    ['conservador', /cautious|0-20%|20-40%/i], ['moderado', /moderate|40-60%/i], ['agresivo', /aggressive|60-80%|80%\+/i],
+    ['flexible', /flexible/i],
+  ],
+}
+export const grupos = (tipo: Tipo) => [...new Set([...(GRUPOS[tipo] ?? []).map(([g]) => g), 'otros'])]
+export function grupo(categoria: string | null): string | null {
+  const reglas = GRUPOS[tipoActivo(categoria)]
+  return reglas ? reglas.find(([, r]) => r.test(categoria ?? ''))?.[0] ?? 'otros' : null
+}
+
 export type Filtros = {
-  tipo?: Tipo; categoria?: string; gestion?: 'activa' | 'indexada'; terMax?: number; srriMax?: number; anosMin?: number
+  tipo?: Tipo; grupo?: string; categoria?: string; gestion?: 'activa' | 'indexada'; terMax?: number; srriMax?: number; anosMin?: number
   patrimonioMin?: number; divisa?: string; soloMyinvestor?: boolean
 }
 export type Modo = 'juntos' | 'separados' | 'indexados' | 'activos'
@@ -28,6 +53,7 @@ export const indexada = (f: FilaScreener) => f.gestion === 'indexada'
 export function pasa(f: FilaScreener, x: Filtros, hoy: string, excluir: Set<string>): boolean {
   if (excluir.has(f.isin)) return false
   if (x.tipo && tipoActivo(f.categoria) !== x.tipo) return false
+  if (x.grupo && grupo(f.categoria) !== x.grupo) return false
   if (x.categoria && f.categoria !== x.categoria) return false
   if (x.gestion && (x.gestion === 'indexada') !== indexada(f)) return false
   if (x.terMax != null && (f.ter == null || f.ter > x.terMax)) return false
@@ -42,12 +68,15 @@ export function pasa(f: FilaScreener, x: Filtros, hoy: string, excluir: Set<stri
   return true
 }
 
-/** Nota de cada fondo con los pesos dados, de mejor a peor; los que no tienen nota (menos de 3 años), al final. */
-export function puntuar(filas: FilaScreener[], pesos: Pesos): Puntuado[] {
+/** Nota de cada fondo con los pesos dados, de mejor a peor; los que no tienen nota (menos de 3 años), al final.
+ * `diversificacion`: percentil de cada fondo frente a la cartera elegida (sin cartera, el bloque no tiene datos). */
+export function puntuar(filas: FilaScreener[], pesos: Pesos, diversificacion?: Map<string, number>): Puntuado[] {
   return filas
     .map((f) => {
       const b = bloques(f.pct ?? {}, indexada(f))
-      return { ...f, bloques: b?.bloques ?? {}, solo3a: b?.solo3a ?? false, nota: b ? nota(b.bloques, pesos) : null }
+      const d = diversificacion?.get(f.isin)
+      const bs = b ? (d == null ? b.bloques : { ...b.bloques, diversificacion: d }) : {}
+      return { ...f, bloques: bs, solo3a: b?.solo3a ?? false, nota: b ? nota(bs, pesos) : null }
     })
     .sort((a, b) => (b.nota ?? -1) - (a.nota ?? -1) || a.nombre.localeCompare(b.nombre))
 }

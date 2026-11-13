@@ -92,7 +92,7 @@ def test_indice_propio_manda_sobre_la_categoria():
 
 def test_series_de_referencia_para_la_web():
     d = datos_base()
-    _, refs, _ = calculo.calcular(d, HOY)
+    _, refs, _, _ = calculo.calcular(d, HOY)
     lunes, sem, meses, mes = refs['indice:msci-world']
     assert all(f.weekday() == 0 for f in lunes) and len(lunes) == len(sem)
     assert all(f.day == 1 for f in meses) and len(meses) == len(mes)
@@ -128,3 +128,14 @@ def test_notas_con_percentil_en_la_categoria():
     assert [p for _, p, _ in tecno] == [0, 25, 50, 75, 100]
     assert all(0 <= n <= 100 and not solo3 for n, _, solo3 in tecno)
     assert 'PROXYWORLD01' not in notas  # fuera del universo y sin percentiles: sin nota
+
+
+def test_diversificacion_por_cartera():
+    d = datos_base()
+    d['carteras'] = {7: ['GLOBAL000001']}
+    filas = {i: (c, p) for cid, i, c, p in calculo.calcular(d, HOY)[3] if cid == 7}
+    assert filas['GLOBAL000001'][0] == pytest.approx(1.0)       # consigo mismo
+    assert filas['GLOBAL000002'][0] == pytest.approx(1.0)       # la misma serie en USD a tipo fijo
+    assert 'PROXYWORLD01' not in filas                          # fuera del universo
+    # las series de prueba alternan ±: los TECNO de fase impar van al revés (−1) y diversifican más
+    assert [filas[f'TECNO000000{k}'] for k in range(5)] == [(1.0, 25.0), (-1.0, 87.5), (1.0, 25.0), (-1.0, 87.5), (1.0, 25.0)]

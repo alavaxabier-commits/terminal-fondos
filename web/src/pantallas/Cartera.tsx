@@ -51,6 +51,7 @@ export default function Cartera({ id }: { id: number }) {
   const [error, setError] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [revision, setRevision] = useState<Map<string, FondoRevisado>>(new Map())
+  const [avisoDiv, setAvisoDiv] = useState<string | null>(null)
 
   async function leer() {
     const [c, cs, estr, h] = await Promise.all([q.cartera(id), q.categoriasReferencia(), q.referenciaSeries(['indice:estr']), q.cambios(id)])
@@ -58,6 +59,7 @@ export default function Cartera({ id }: { id: number }) {
     setRf(rendimientos(estr.get('indice:estr')?.semanal ?? new Map()))
     setHistorial(h)
     setGuardada(c)
+    if (c?.fondos.length) q.baseDiversificacion(id).then((b) => setAvisoDiv(q.avisoDiversificacion(b, c.fondos.map((f) => f.fondo.isin)))).catch((e: Error) => setError(e.message))
     revisar([id]).then((r) => setRevision(new Map(r.carteras[0]?.fondos.map((f) => [f.fondo.isin, f])))).catch((e: Error) => setError(e.message))
     if (c && !c.fondos.length) setBorrador({ ...c.cartera, fondos: [], motivo: '' }) // cartera nueva: directa a editar
   }
@@ -222,6 +224,7 @@ export default function Cartera({ id }: { id: number }) {
         </p>
       )}
       {!borrador && Math.abs(suma - 100) > 0.01 && <p className="text-baja">Los pesos suman {suma} %, no 100 %.</p>}
+      {!borrador && avisoDiv && <p role="status" className="text-aviso">{avisoDiv}</p>}
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[48rem] whitespace-nowrap text-right [&_tr>*+*]:pl-3">

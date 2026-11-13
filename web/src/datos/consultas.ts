@@ -337,3 +337,32 @@ export async function enMyinvestor(isins: string[]): Promise<Set<string>> {
   error(e)
   return new Set(((data ?? []) as { isin: string }[]).map((r) => r.isin))
 }
+
+/** Percentil de diversificación de cada fondo frente a una cartera y con qué fondos de ella se calculó. */
+export async function diversificacion(carteraId: number): Promise<{ percentiles: Map<string, number>; base: { isins: string[]; calculada_en: string } | null }> {
+  const percentiles = new Map<string, number>()
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error: e } = await supabase.from('diversificacion').select('isin,percentil').eq('cartera_id', carteraId)
+      .not('percentil', 'is', null).order('isin').range(desde, desde + 999)
+    error(e)
+    for (const r of (data ?? []) as { isin: string; percentil: string }[]) percentiles.set(r.isin, Number(r.percentil))
+    if ((data ?? []).length < 1000) break
+  }
+  return { percentiles, base: await baseDiversificacion(carteraId) }
+}
+
+/** Con qué fondos de una cartera se calculó su diversificación, y cuándo. */
+export async function baseDiversificacion(carteraId: number): Promise<{ isins: string[]; calculada_en: string } | null> {
+  const { data, error: e } = await supabase.from('diversificacion_base').select('isins,calculada_en').eq('cartera_id', carteraId).maybeSingle()
+  error(e)
+  return data as { isins: string[]; calculada_en: string } | null
+}
+
+/** Aviso si la diversificación de una cartera se calculó con otros fondos de los que tiene ahora (null si está al día). */
+export function avisoDiversificacion(base: { isins: string[]; calculada_en: string } | null, isins: string[]): string | null {
+  const ahora = [...isins].sort().join()
+  if (base && base.isins.join() === ahora) return null
+  return base
+    ? `La cartera ha cambiado desde el ${new Date(base.calculada_en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}: la diversificación del screener todavía usa sus fondos de entonces y se recalcula en la próxima descarga diaria (o lanzando «metricas» a mano).`
+    : 'La diversificación de esta cartera aún no se ha calculado: estará tras la próxima descarga diaria (o lanzando «metricas» a mano).'
+}

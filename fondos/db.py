@@ -217,8 +217,12 @@ class Repo:
                    for i, p, c in self._filas('select id, proxy_isin, componentes from fondos.indice')}
         categorias = {cat: {'indice_id': iid, 'metodo': met}
                       for cat, iid, met in self._filas('select categoria, indice_id, metodo from fondos.categoria_referencia')}
+        carteras: dict[int, list[str]] = {}
+        for cid, isin in self._filas('''select cf.cartera_id, cf.isin from fondos.cartera_fondo cf
+                                        join fondos.cartera c on c.id = cf.cartera_id where not c.archivada'''):
+            carteras.setdefault(cid, []).append(isin)
         return {'fondos': fondos, 'valores': valores, 'tipos': tipos, 'estr': estr,
-                'indices': indices, 'categorias': categorias}
+                'indices': indices, 'categorias': categorias, 'carteras': carteras}
 
     def guardar_metricas(self, filas: list[tuple], refs: dict[str, tuple]):
         """Sustituye todas las métricas y las series de referencia de una vez, en una transacción: nunca se ven a medias."""
@@ -280,6 +284,18 @@ class Repo:
             with c.copy('copy fondos.nota_semanal (fecha, isin, nota, percentil, solo_3a) from stdin') as cp:
                 for fila in notas:
                     cp.write_row((lunes, *fila))
+
+    def guardar_diversificacion(self, filas: list[tuple], carteras: dict[int, list[str]]):
+        """Sustituye la diversificación de todas las carteras y anota con qué fondos de cada una se calculó (la web
+        avisa si la cartera ha cambiado desde entonces)."""
+        with self.cx.transaction(), self.cx.cursor() as c:
+            c.execute('delete from fondos.diversificacion')
+            c.execute('delete from fondos.diversificacion_base')
+            with c.copy('copy fondos.diversificacion (cartera_id, isin, correlacion, percentil) from stdin') as cp:
+                for fila in filas:
+                    cp.write_row(fila)
+            c.executemany('insert into fondos.diversificacion_base (cartera_id, isins) values (%s, %s)',
+                          [(cid, sorted(isins)) for cid, isins in carteras.items()])
 
     def n_metricas(self) -> int:
         return self._filas('select count(*)::int from fondos.metrica')[0][0]

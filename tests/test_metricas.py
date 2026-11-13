@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from fondos.nucleo.metricas import (a_eur, anualizada, captura, combinar, consistencia, desviacion_bajista,
+from fondos.nucleo.metricas import (a_eur, correlacion_media, anualizada, captura, combinar, consistencia, desviacion_bajista,
                                     maxima_caida, media_rendimientos, metricas_fondo, nota, percentiles, regresion,
                                     rendimientos, semanal, serie_de_rendimientos, tasa_semanal, ventana_completa,
                                     volatilidad)
@@ -193,3 +193,14 @@ def test_nota_con_3a_y_bloques_sin_datos():
     # sin TER ni protección: su peso se reparte; con 3A no cuenta la consistencia, solo el ratio de información
     assert nota(pct, indexada=False) == (pytest.approx((50 * 25 + 100 * 20 + 50 * 10) / 55), True)
     assert nota({('1a', 'rentabilidad'): 50}, indexada=False) is None  # menos de 3 años: sin nota
+
+
+def test_correlacion_media_con_la_cartera():
+    semanas = [(2025, s) for s in range(1, 53)] + [(2026, s) for s in range(1, 53)]
+    r = {k: math.sin(i) for i, k in enumerate(semanas)}
+    igual = dict(r)
+    contraria = {k: -v for k, v in r.items()}
+    corta = {k: v for k, v in list(r.items())[:20]}  # sin un año común: no cuenta
+    assert correlacion_media(r, [igual, contraria, corta]) == pytest.approx(0.0)
+    assert correlacion_media(r, [igual]) == pytest.approx(1.0)
+    assert correlacion_media(r, [corta]) is None
