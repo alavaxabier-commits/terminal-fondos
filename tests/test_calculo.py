@@ -139,3 +139,10 @@ def test_diversificacion_por_cartera():
     assert 'PROXYWORLD01' not in filas                          # fuera del universo
     # las series de prueba alternan ±: los TECNO de fase impar van al revés (−1) y diversifican más
     assert [filas[f'TECNO000000{k}'] for k in range(5)] == [(1.0, 25.0), (-1.0, 87.5), (1.0, 25.0), (-1.0, 87.5), (1.0, 25.0)]
+
+
+def test_serie_eur_en_peniques():
+    import datetime as dt
+    from fondos.calculo import serie_eur
+    d = dt.date(2026, 1, 2)
+    assert serie_eur({d: 200.0}, 'GBX', {'GBP': {d: 0.8}}) == {d: 2.5}  # 200 p = 2 £ = 2,5 €

@@ -49,6 +49,10 @@ export type Filtros = {
 export type Modo = 'juntos' | 'separados' | 'indexados' | 'activos'
 export type Puntuado = FilaScreener & { bloques: Partial<Record<Bloque, number>>; solo3a: boolean; nota: number | null }
 
+/** Clase con la divisa cubierta, por el nombre (Morningstar no lo da aparte): «Hdg», «Hedged», «H», «(H)», «H2»…
+ * shortcut: deducido del nombre, puede fallar en alguna clase rara; si Morningstar lo diera en la ficha, guardarlo. */
+export const cubierta = (nombre: string) => /\b(hdg|hedged?)\b|(^|[\s(])H\d?($|[\s)])/i.test(nombre)
+
 /** Sin gestión conocida, el fondo cuenta como activo (igual que la nota de Python). */
 export const indexada = (f: FilaScreener) => f.gestion === 'indexada'
 

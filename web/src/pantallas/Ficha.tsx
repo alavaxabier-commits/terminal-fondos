@@ -3,6 +3,7 @@ import { cifra, colorPercentil, fecha, millones, pct } from '../calculo/formato'
 import type { Composicion } from '../calculo/exposicion'
 import { bloques, PESOS_DEFECTO } from '../calculo/nota'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
+import { cubierta } from '../calculo/screener'
 import { aEur, base100, combinar, haceAnos, inicioComun, type Punto } from '../calculo/series'
 import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
@@ -29,6 +30,7 @@ const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
 export async function serieEur(isin: string, divisa: string | null): Promise<Punto[]> {
   const v = await q.valores(isin)
   if (!divisa || divisa === 'EUR') return v
+  if (divisa === 'GBX') return aEur(v.map((p) => ({ ...p, valor: p.valor / 100 })), await q.tiposCambio('GBP')) // peniques
   return aEur(v, await q.tiposCambio(divisa))
 }
 
@@ -130,7 +132,7 @@ export default function Ficha({ isin }: { isin: string }) {
       <header>
         <h1 className="text-base font-bold text-texto">{f.nombre}</h1>
         <p className="text-suave">
-          {f.isin} · {f.categoria ?? 'sin categoría'} · {f.divisa}
+          {f.isin} · {f.categoria ?? 'sin categoría'} · {f.divisa}{cubierta(f.nombre) && ' cubierta'}
           {!f.en_universo && <span className="text-aviso"> · fuera del universo</span>}
         </p>
       </header>
@@ -261,7 +263,7 @@ export default function Ficha({ isin }: { isin: string }) {
               {datos.clases.map((c) => (
                 <tr key={c.isin} className={`border-b border-borde/50 ${c.isin === f.isin ? 'text-acento' : ''}`}>
                   <td className="py-1"><a href={`#/fondo/${c.isin}`} className="hover:text-acento">{c.nombre}</a> <span className="text-suave">{c.isin}{c.en_universo ? '' : ' · fuera del universo'}</span></td>
-                  <td>{c.divisa ?? '—'}</td>
+                  <td>{c.divisa ?? '—'}{cubierta(c.nombre) && <span className="text-suave"> cubierta</span>}</td>
                   <td className="text-right">{c.ter == null ? '—' : `${cifra(Number(c.ter))} %`}</td>
                   <td className="text-right">{c.inversion_minima == null ? '—' : cifra(Number(c.inversion_minima), 0)}</td>
                   <td className="text-right">{datos.myinvestor.has(c.isin) ? 'sí' : ''}</td>

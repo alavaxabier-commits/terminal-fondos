@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_DEFECTO } from './nota'
-import { grupo, ordenar, pasa, puntuar, tipoActivo } from './screener'
+import { cubierta, grupo, ordenar, pasa, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
@@ -36,6 +36,15 @@ describe('screener', () => {
     expect(r.map((x) => x.isin)).toEqual(['C', 'B', 'A'])
     expect(r[0].nota).toBeCloseTo((80 * 10 + 100 * 40) / 50)
     expect(r[2].nota).toBeNull()
+  })
+})
+
+describe('clase cubierta por el nombre', () => {
+  it('reconoce las formas habituales', () => {
+    expect(['M&G (Lux) Glb Macro Bd A H EUR Acc', 'JPM Flexible Credit D div EUR Hdg', 'PIMCO GIS Income E EUR Hedged Inc', 'Fidelity Global Inc A-QInc(G)-EUR H', 'X Fund (H) EUR']
+      .map(cubierta)).toEqual([true, true, true, true, true])
+    expect(['Vanguard Global Stock Index EUR Acc', 'Hermes Global Equity F', 'Janus Henderson UK Alpha I Acc', 'Schroder ISF Inflation Plus A Acc EUR']
+      .map(cubierta)).toEqual([false, false, false, false])
   })
 })
 

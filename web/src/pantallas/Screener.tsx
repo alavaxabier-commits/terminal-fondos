@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, millones, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, PLAZOS, type Pesos, type Plazo } from '../calculo/nota'
-import { grupo, grupos, indexada, MIN_CATEGORIA, ordenar, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado, type Tipo } from '../calculo/screener'
+import { cubierta, grupo, grupos, indexada, MIN_CATEGORIA, ordenar, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado, type Tipo } from '../calculo/screener'
 import TablaNota from '../componentes/TablaNota'
 import * as q from '../datos/consultas'
 
@@ -273,6 +273,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
               <td className="text-left">
                 <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.nombre}</a>
                 {f.myinvestor && <span className="text-suave" title="Se puede comprar en MyInvestor"> · MI</span>}
+                {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="text-suave"> · {f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
                 {conCategoria && <span className="block text-suave">{f.categoria}</span>}
               </td>
               <td className="text-left">

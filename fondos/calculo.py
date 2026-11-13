@@ -14,6 +14,8 @@ from .nucleo import metricas as m
 def serie_eur(valores: dict[dt.date, float], divisa: str | None, tipos: dict[str, dict[dt.date, float]]) -> dict:
     if not divisa or divisa == 'EUR':
         return valores
+    if divisa == 'GBX':  # peniques: el BCE solo da la libra
+        return m.a_eur({f: v / 100 for f, v in valores.items()}, tipos.get('GBP', {}))
     return m.a_eur(valores, tipos.get(divisa, {}))
 
 
