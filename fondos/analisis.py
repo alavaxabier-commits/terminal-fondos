@@ -2,7 +2,7 @@
 frente a su categoría después?
 
 Para cada corte semestral pasado se calcula todo como si fuera ese día (lo mismo que hace `notas`): los bloques de la
-nota con lo que se sabía entonces y, 1 y 3 años después, la rentabilidad y el Sharpe de esos años. Con eso:
+nota con lo que se sabía entonces y, 1 y 3 años después, la rentabilidad, el Sharpe y la caída máxima de esos años. Con eso:
 - correlación entre el percentil del bloque (o la nota de un reparto) y el percentil del resultado futuro;
 - «top 20 %»: si se elige el 20 % mejor de cada categoría, en qué percentil acaba de media (50 = azar).
 
@@ -21,17 +21,22 @@ from .calculo import calcular, percentiles_categoria
 from .nucleo import metricas as m
 
 HORIZONTES = (1, 3)
-RESULTADOS = ('rentabilidad', 'sharpe')
+RESULTADOS = ('rentabilidad', 'sharpe', 'max_caida')  # caída: percentil alto = cayó menos
 BLOQUES = ('riesgo', 'consistencia', 'coste', 'proteccion', 'rentabilidad')
+# Un reparto es {bloque: peso} o, por tipo de activo, {tipo: {bloque: peso}} (lo que no tenga tipo usa el actual).
 REPARTOS = {
     'actual': m.PESOS_NOTA,
-    'iguales': {b: 20 for b in BLOQUES},
     'más coste': {'riesgo': 20, 'consistencia': 10, 'coste': 40, 'proteccion': 20, 'rentabilidad': 10},
-    'coste + protección': {'riesgo': 20, 'consistencia': 0, 'coste': 40, 'proteccion': 40, 'rentabilidad': 0},
     'coste + riesgo': {'riesgo': 50, 'consistencia': 0, 'coste': 50, 'proteccion': 0, 'rentabilidad': 0},
-    'sin rentabilidad': {**m.PESOS_NOTA, 'rentabilidad': 0},
+    'propuesta': {'riesgo': 30, 'consistencia': 10, 'coste': 40, 'proteccion': 10, 'rentabilidad': 10},
+    'por tipo': {  # salido de la primera pasada: hay que leerlo con cuidado (mismos datos con los que se eligió)
+        'renta variable': {'riesgo': 15, 'consistencia': 0, 'coste': 60, 'proteccion': 15, 'rentabilidad': 10},
+        'renta fija': {'riesgo': 30, 'consistencia': 20, 'coste': 30, 'proteccion': 0, 'rentabilidad': 20},
+        'mixto': {'riesgo': 20, 'consistencia': 20, 'coste': 40, 'proteccion': 10, 'rentabilidad': 10},
+    },
 }
 TIPOS = ('renta variable', 'renta fija', 'mixto')
+NOMBRE = {'rentabilidad': 'Rentabilidad', 'sharpe': 'Sharpe', 'max_caida': 'Caída máxima (percentil alto = cayó menos)'}
 MIN_CATEGORIA = 5  # fondos de la categoría en la muestra para que cuente
 
 
@@ -74,10 +79,12 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
     return out
 
 
-def puntuaciones(bloques: dict[str, float]) -> dict[str, float]:
+def puntuaciones(bloques: dict[str, float], tipo_: str) -> dict[str, float]:
     """Lo que se evalúa de un fondo: cada bloque solo y la nota de cada reparto."""
     out = {f'bloque {b}': x for b, x in bloques.items()}
     for nombre, pesos in REPARTOS.items():
+        if set(pesos) & set(TIPOS):
+            pesos = pesos.get(tipo_, m.PESOS_NOTA)
         n = m.ponderar(bloques, pesos)
         if n is not None:
             out[nombre] = n
@@ -108,7 +115,7 @@ def evaluar(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str, 
     top: dict[tuple[str, str], list[float]] = defaultdict(list)
     for cat, isins in por_cat.items():
         t = tipo(cat)
-        punt = {i: puntuaciones(antes[i]['bloques']) for i in isins}
+        punt = {i: puntuaciones(antes[i]['bloques'], t) for i in isins}
         for nombre in {k for p in punt.values() for k in p}:
             con = [(punt[i][nombre], futuro[i][clave]) for i in isins if nombre in punt[i]]
             if len(con) < MIN_CATEGORIA:
@@ -139,7 +146,7 @@ def informe(resultados: dict[tuple[dt.date, int, str], dict]) -> str:
                 continue
             res = [resultados[(c, h, r)] for c in cs]
             nombres = sorted({k[0] for x in res for k in x}, key=lambda n: (not n.startswith('bloque'), n))
-            lineas += [f'### {r.capitalize()} a {h} año{"s" if h > 1 else ""} · {len(cs)} cortes ({cs[0]} a {cs[-1]})', '',
+            lineas += [f'### {NOMBRE[r]} a {h} año{"s" if h > 1 else ""} · {len(cs)} cortes ({cs[0]} a {cs[-1]})', '',
                        '| Puntuación | Correlación | Top 20 % | A favor | ' + ' | '.join(f'Top 20 % {t}' for t in TIPOS) + ' | Fondos/corte |',
                        '|---|---:|---:|---:|' + '---:|' * len(TIPOS) + '---:|']
             for n in nombres:

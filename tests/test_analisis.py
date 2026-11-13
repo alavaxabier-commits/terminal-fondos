@@ -21,3 +21,11 @@ def test_un_bloque_que_acierta_y_otro_que_no():
     assert round(c, 6) == 1 and top == 94.45 and n == 10  # el top 20 % son los dos mejores: percentiles 100 y 88,9
     assert round(r[('bloque rentabilidad', 'renta variable')][0], 6) == -1
     assert '| bloque coste | +1.00 | 94.5 | 1/1 |' in informe({(dt.date(2020, 6, 30), 3, 'rentabilidad'): r})
+
+
+def test_reparto_por_tipo():
+    from fondos.analisis import puntuaciones
+    b = {'coste': 100, 'riesgo': 0, 'consistencia': 0, 'proteccion': 0, 'rentabilidad': 0}
+    assert puntuaciones(b, 'renta variable')['por tipo'] == 60
+    assert puntuaciones(b, 'renta fija')['por tipo'] == 30
+    assert puntuaciones(b, 'otros')['por tipo'] == puntuaciones(b, 'otros')['actual']
