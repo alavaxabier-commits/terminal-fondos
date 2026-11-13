@@ -141,7 +141,7 @@ def test_precios_cuenta_resultados():
         def fondos_para_ingesta(self):
             return [fondo(), fondo('IE0000000002')]
     ms = MSFalso(serie_diaria(D(2026, 11, 2), D(2026, 11, 17)))
-    c = ingesta.precios(RepoPlan(), ms, YahooFalso(), FTFalso(), HOY, pausa=0, log=lambda *_: None)
+    c = ingesta.precios(RepoPlan(), ms, YahooFalso(), FTFalso(), HOY, log=lambda *_: None)
     assert c == {'ok': 2, 'aviso': 0, 'error': 0}
 
 

@@ -38,7 +38,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ARGUMENTOS: ${{ inputs.argumentos }}
         run: python -m fondos universo $ARGUMENTOS
-      - name: Composición de las carteras (X-Ray), una cuarta parte del universo cada semana
+      - name: Composición de las carteras (X-Ray), los míos una vez al mes y el resto del universo cada dos meses
         if: (success() || failure()) && steps.reciente.outputs.saltar != '1'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

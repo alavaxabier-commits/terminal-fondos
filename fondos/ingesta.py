@@ -12,13 +12,12 @@ Reglas (especificación, secciones 3 y 4):
 from __future__ import annotations
 
 import datetime as dt
-import time
 from dataclasses import dataclass
 
 from .validacion import Serie, avisos, hace_anos, lunes, ultimo_habil_anterior
 
 ANOS = 10
-TANDA = 2000           # cargas iniciales por ejecución (~2 s por fondo: unos 70 minutos)
+TANDA = 2000           # cargas iniciales por ejecución (~1,5 s por fondo: unos 50 minutos)
 MIN_DIARIOS_ANYO = 150   # un fondo diario con menos valores en el último año solo tiene la serie semanal: se recarga
 
 
@@ -133,16 +132,14 @@ def descargar_fondo(f: FondoIngesta, que: str, hoy: dt.date, repo, ms, yh, ft) -
     return estado
 
 
-def precios(repo, ms, yh, ft, hoy: dt.date, tanda: int = TANDA, pausa: float = 1.0, log=print) -> dict[str, int]:
+def precios(repo, ms, yh, ft, hoy: dt.date, tanda: int = TANDA, log=print) -> dict[str, int]:
     plan = planificar(repo.fondos_para_ingesta(), hoy, tanda)
     log(f'{len(plan)} fondos que actualizar hoy')
     cuenta = {'ok': 0, 'aviso': 0, 'error': 0}
     for i, (f, que) in enumerate(plan, 1):
         estado = descargar_fondo(f, que, hoy, repo, ms, yh, ft)
         cuenta[estado] += 1
-        log(f'[{i}/{len(plan)}] {f.isin} {f.nombre[:50]} · {que} · {estado}')
-        if pausa:
-            time.sleep(pausa)
+        log(f'[{i}/{len(plan)}] {f.isin} {f.nombre[:50]} · {que} · {estado}')  # el ritmo lo pone la sesión de Morningstar
     return cuenta
 
 

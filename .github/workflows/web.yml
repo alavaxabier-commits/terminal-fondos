@@ -1,6 +1,7 @@
 name: Web
 on:
   push:
+    branches: [main]   # las ramas de trabajo duplicaban la ejecución
     paths: ['web/**', '.github/workflows/web.yml']
   workflow_dispatch:
 jobs:

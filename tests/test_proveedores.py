@@ -129,3 +129,35 @@ def test_myinvestor_token_y_filas():
                            'sin_retrocesion': False, 'abierto': True},
                           {'isin': 'X1', 'nombre': 'Cerrado', 'gestora': None, 'ter': None, 'minimo': None,
                            'sin_retrocesion': None, 'abierto': False}]
+
+
+def test_sesion_intervalo_minimo_y_freno(monkeypatch):
+    import pytest
+    import requests
+    from fondos.proveedores import morningstar as m
+
+    reloj, esperas, codigos = [100.0], [], [200, 200, 403, 200, 429, 403, 429]
+
+    class R:
+        def __init__(self, c):
+            self.status_code, self.url = c, 'https://x/y?z=1'
+
+    def peticion(self, *a, **k):
+        reloj[0] += 0.4  # la respuesta tarda 0,4 s
+        return R(codigos.pop(0))
+
+    def dormir(s):
+        esperas.append(round(s, 2))
+        reloj[0] += s
+
+    monkeypatch.setattr(requests.Session, 'request', peticion)
+    monkeypatch.setattr(m.time, 'monotonic', lambda: reloj[0])
+    monkeypatch.setattr(m.time, 'sleep', dormir)
+    s = m.Sesion(intervalo=1.5, espera=30, max_rechazos=3)
+    s.get('a'); s.get('a')
+    assert esperas == [0.0, 1.1]          # solo lo que falta hasta 1,5 s, no 1,5 s más
+    s.get('a'); s.get('a')                # un 403 suelto: espera y el siguiente correcto pone el contador a cero
+    assert esperas[2:] == [1.1, 30, 0.0] and s.rechazos == 0  # tras la espera de 30 s ya no hace falta más
+    s.get('a'); s.get('a')
+    with pytest.raises(m.Bloqueo, match='429 3 veces'):
+        s.get('a')

@@ -1,5 +1,9 @@
 name: Tests
-on: [push, pull_request]
+on:   # solo en main (los cambios van ahí; las ramas de trabajo duplicaban la ejecución) y si cambia Python
+  push:
+    branches: [main]
+    paths: ['fondos/**', 'tests/**', 'pyproject.toml', '.github/workflows/tests.yml']
+  workflow_dispatch:
 jobs:
   tests:
     runs-on: ubuntu-latest

@@ -13,9 +13,9 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 
 - **Datos** en **Supabase** (`ugobxrjfxzyrcbuxgefz`, esquema `fondos`, expuesto a la Data API). SQL en `db/migraciones/NNNN_*.sql`, numeradas y aplicadas en orden (todas aplicadas hasta la última del directorio). Cambio de base = migración nueva.
 - **Python** `fondos/` (ingesta y cálculo), ejecutado por **GitHub Actions** con el secreto `DATABASE_URL` (session pooler, `psycopg` 3 con `prepare_threshold=None`):
-  - `diario.yml`: cada día 06:17 UTC, `python -m fondos diario` (macro + precios + métricas + estado). A mano: orden y argumentos (`precios --tanda 5000`, `alta ISIN…`, `estado`, `prueba-red ISIN`…).
-  - `universo.yml`: domingos 04:23 UTC, fichas de Morningstar España, catálogo de MyInvestor, marca del universo y `composicion` (X-Ray: los fondos de `fondo_diario` cada semana, el resto del universo una vez al mes, 1.200 por ejecución).
-  - `tests.yml` (pytest) y `web.yml` (typecheck, tests y build de la web; deja el resultado en `registro_descarga` con fuente `web`).
+  - `diario.yml`: de martes a sábado 06:17 UTC, `python -m fondos diario` (macro + precios + métricas + estado). A mano: orden y argumentos (`precios --tanda 5000`, `alta ISIN…`, `estado`, `prueba-red ISIN`…).
+  - `universo.yml`: domingos 04:23 UTC, fichas de Morningstar España, catálogo de MyInvestor, marca del universo y `composicion` (X-Ray: los fondos de `fondo_diario` una vez al mes, el resto del universo cada dos meses, 600 por ejecución).
+  - `tests.yml` (pytest) y `web.yml`, solo con push a `main` (typecheck, tests y build de la web; deja el resultado en `registro_descarga` con fuente `web`).
 - **Web** `web/`: Vite + React 19 + TypeScript + Tailwind v4 + ECharts 5 + supabase-js. Cloudflare Worker con recursos estáticos (`web/wrangler.jsonc`): https://terminal-fondos.alava-xabier.workers.dev, publicada desde `main`. Entrada por enlace mágico (no crea usuarios); rutas con hash (`#/fondo/ISIN`).
 
 ## Dónde está cada cosa
@@ -42,7 +42,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
 - **Seguridad**: RLS en todas las tablas; solo el propietario (`fondos.es_propietario()`, que mira el correo en `fondos.propietario`). La web solo lee, salvo las carteras (`cartera`, `cartera_fondo`, `cartera_cambio`), `seguimiento`, `perfil_screener` y `ajuste`; el resto lo escriben únicamente los scripts. Las funciones que escriben se revocan para `anon` y `authenticated`. Revisa los avisos de seguridad de Supabase tras cada migración.
 - **Métricas como Morningstar**: series en EUR; años naturales y YTD con cierres de mes exactos; volatilidad y Sharpe mensuales con desviación muestral × √12; percentiles invertidos donde menos es mejor; beta sin percentil. Todo cálculo nuevo va en `nucleo/metricas.py` con su test.
 - Las mismas cifras en todas partes: si la web muestra una métrica de un fondo, sale de la tabla `metrica`. Excepciones: las carteras, que se calculan en la web con `web/src/calculo/metricas.ts` (port de `nucleo/metricas.py`), y la nota del screener con pesos propios (`nota.ts`, port de `nota()`); los dos lados pasan el caso común `caso_metricas.json` (`python -m tests.caso_metricas` lo regenera), así que una fórmula se cambia en los dos lados a la vez.
-- **Límites**: Supabase gratis (500 MB de base, unos 2 correos por hora), 2.000 min/mes de Actions (repositorio privado). Morningstar: una petición por fondo (dos para la composición, una vez al mes) y pausa entre peticiones; nada de descargas diarias de todo el universo.
+- **Límites**: Supabase gratis (500 MB de base, unos 2 correos por hora), 2.000 min/mes de Actions (repositorio privado). Morningstar: una petición por fondo (dos para la composición) y como mucho una cada 1,5 s (`Sesion` en `morningstar.py`, que además para la tarea tras tres 429/403 seguidos); nada de descargas diarias de todo el universo.
 - La contraseña de la base y las claves secretas nunca van al chat ni al código: solo en los secretos de GitHub. La clave `sb_publishable_…` está en `web/src/datos/supabase.ts` a propósito.
 
 ## Tests y cómo trabajar

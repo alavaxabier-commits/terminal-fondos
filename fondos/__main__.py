@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 from . import ingesta, vigilancia
 from .validacion import lunes
 from .proveedores import BCE, FT, Morningstar, MyInvestor, Yahoo
+from .proveedores.morningstar import Bloqueo
 
 
 def hoy() -> dt.date:
@@ -81,7 +82,6 @@ def orden_precios(repo, tanda: int) -> int:
 
 
 def orden_composicion(repo, tanda: int) -> int:
-    import time
     ms, c, completas = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}, 0
     for isin, ms_id in repo.fondos_para_composicion(tanda):
         try:
@@ -94,7 +94,6 @@ def orden_composicion(repo, tanda: int) -> int:
             estado = 'error'
             repo.registrar('morningstar', isin, estado, f'composición: {type(e).__name__}: {e}'[:500])
         c[estado] += 1
-        time.sleep(ms.pausa)
     texto = f"### Composición · {hoy()}\n\n{c['ok']} ok ({completas} con todas sus posiciones) · {c['aviso']} sin desglose · {c['error']} con error"
     print(texto)
     resumen_github(texto)
@@ -237,7 +236,7 @@ def main(argv=None) -> int:
         s = sub.add_parser(nombre)
         s.add_argument('--tanda', type=int, default=ingesta.TANDA)
     s = sub.add_parser('composicion')
-    s.add_argument('--tanda', type=int, default=1200, help='fondos como mucho (1200: el universo entero en un mes)')
+    s.add_argument('--tanda', type=int, default=600, help='fondos como mucho (600 por semana: el universo entero en dos meses)')
     sub.add_parser('macro')
     sub.add_parser('metricas')
     n = sub.add_parser('notas')
@@ -259,6 +258,13 @@ def main(argv=None) -> int:
 
     from .db import Repo
     repo = Repo()
+    try:
+        return ejecutar(args, repo)
+    except Bloqueo as e:  # Morningstar rechaza seguido: se para y se avisa (tarea en rojo y aviso en Inicio)
+        return avisar(repo, args.orden, [str(e)])
+
+
+def ejecutar(args, repo) -> int:
     if args.orden == 'alta':
         return orden_alta(repo, [i.upper() for i in args.isins])
     if args.orden == 'macro':

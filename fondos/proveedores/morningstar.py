@@ -190,12 +190,40 @@ def leer_serie(datos) -> Serie:
     return out
 
 
+class Bloqueo(BaseException):
+    """Morningstar rechaza peticiones seguidas (429 o 403): se para la tarea en lugar de insistir.
+    Hereda de BaseException para que no lo absorban los `except Exception` que pasan a Yahoo o FT."""
+
+
+class Sesion(requests.Session):
+    """Peticiones con un intervalo mínimo entre una y otra (cuenta desde que empezó la anterior, así que no se
+    espera de más si la respuesta ya ha tardado) y un freno: tras un 429 o 403 se espera cada vez más y al
+    tercero seguido se para."""
+
+    def __init__(self, intervalo: float = 1.5, espera: float = 30, max_rechazos: int = 3):
+        super().__init__()
+        self.intervalo, self.espera, self.max_rechazos = intervalo, espera, max_rechazos
+        self.ultima, self.rechazos = 0.0, 0
+
+    def request(self, *args, **kwargs):
+        time.sleep(max(0.0, self.ultima + self.intervalo - time.monotonic()))
+        self.ultima = time.monotonic()
+        r = super().request(*args, **kwargs)
+        if r.status_code not in (403, 429):
+            self.rechazos = 0
+            return r
+        self.rechazos += 1
+        if self.rechazos >= self.max_rechazos:
+            raise Bloqueo(f'Morningstar responde {r.status_code} {self.rechazos} veces seguidas ({r.url.split("?")[0]}): se para la tarea')
+        time.sleep(self.espera * self.rechazos)
+        return r
+
+
 class Morningstar:
     nombre = 'morningstar'
 
-    def __init__(self, pausa: float = 1.0):
-        self.pausa = pausa
-        self.http = requests.Session()
+    def __init__(self):
+        self.http = Sesion()
         self.http.headers['User-Agent'] = UA
 
     def _buscador(self, **params) -> dict:
@@ -220,13 +248,12 @@ class Morningstar:
         return None
 
     def composicion(self, ms_id: str) -> tuple[dt.date | None, dict]:
-        """Desglose de la cartera de un fondo: ficha de detalle y posiciones completas (dos peticiones con pausa)."""
+        """Desglose de la cartera de un fondo: ficha de detalle y posiciones completas (dos peticiones)."""
         r = self.http.get(DETALLE + ms_id, params={'viewId': 'MFsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
                                                    'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
         r.raise_for_status()
         fecha, datos = leer_composicion(r.json())
         if datos:  # todas las posiciones, en lugar de las 10 mayores; si falla, se quedan las 10
-            time.sleep(self.pausa)
             try:
                 p = self.http.get(POSICIONES.format(ms_id), headers={'apikey': CLAVE_WEB}, timeout=120,
                                   params={'clientId': 'MDC', 'version': '4.71.0', 'premiumNum': 10000, 'freeNum': 10000})
@@ -254,7 +281,6 @@ class Morningstar:
             if len(filas) < tam:
                 return
             pagina += 1
-            time.sleep(self.pausa)
 
     def historico(self, isin: str, ms_id: str | None, desde: dt.date, hasta: dt.date, divisa: str | None = None) -> Serie:
         if not ms_id:

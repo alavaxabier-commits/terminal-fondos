@@ -1,7 +1,7 @@
 name: Ingesta diaria
 on:
   schedule:
-    - cron: '17 6 * * *'   # cada día, 7:17 en Madrid (8:17 en verano)
+    - cron: '17 6 * * 2-6'   # de martes a sábado (traen los valores de lunes a viernes), 7:17 en Madrid (8:17 en verano)
   workflow_dispatch:
     inputs:
       orden:
