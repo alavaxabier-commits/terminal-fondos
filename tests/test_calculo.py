@@ -92,7 +92,7 @@ def test_indice_propio_manda_sobre_la_categoria():
 
 def test_series_de_referencia_para_la_web():
     d = datos_base()
-    _, refs = calculo.calcular(d, HOY)
+    _, refs, _ = calculo.calcular(d, HOY)
     lunes, sem, meses, mes = refs['indice:msci-world']
     assert all(f.weekday() == 0 for f in lunes) and len(lunes) == len(sem)
     assert all(f.day == 1 for f in meses) and len(meses) == len(mes)
@@ -115,3 +115,16 @@ def test_una_clase_por_fondo_en_los_percentiles():
     pct = {i: filas[(i, '5a', 'rentabilidad')][1] for i in [f'TECNO000000{k}' for k in range(5)] + ['TECNO000003B']}
     assert [pct[f'TECNO000000{k}'] for k in range(5)] == [0, 25, 50, 75, 100]  # como sin la clase de más
     assert 50 < pct['TECNO000003B'] < 75   # situada en la misma distribución, entre el 2 y el 3
+
+
+def test_notas_con_percentil_en_la_categoria():
+    d = datos_base()
+    for k in range(5):
+        d['fondos'][f'TECNO000000{k}']['ter'] = 1.0 - k * 0.1  # los mejores, también los más baratos
+    filas = por_clave(calculo.calcular(d, HOY)[0])
+    assert filas[('TECNO0000004', 'hoy', 'ter')] == (pytest.approx(0.6), 100)  # menos TER, mejor percentil
+    notas = {i: (n, p, solo3) for i, n, p, solo3 in calculo.calcular(d, HOY)[2]}
+    tecno = [notas[f'TECNO000000{k}'] for k in range(5)]
+    assert [p for _, p, _ in tecno] == [0, 25, 50, 75, 100]
+    assert all(0 <= n <= 100 and not solo3 for n, _, solo3 in tecno)
+    assert 'PROXYWORLD01' not in notas  # fuera del universo y sin percentiles: sin nota

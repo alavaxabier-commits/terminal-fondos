@@ -182,9 +182,10 @@ class Repo:
     def datos_metricas(self) -> dict:
         """Todo lo que necesita calculo.calcular: fondos (universo, diarios y sustitutos), valores, tipos, €STR…"""
         fondos = {isin: {'categoria': cat, 'divisa': div, 'indice_id': iid, 'en_universo': uni, 'fund_id': fid,
-                         'ter': None if ter is None else float(ter)}
-                  for isin, cat, div, iid, uni, fid, ter in self._filas("""
-            select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo, f.fund_id, f.ter from fondos.fondo f
+                         'ter': None if ter is None else float(ter), 'gestion': ges}
+                  for isin, cat, div, iid, uni, fid, ter, ges in self._filas("""
+            select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo, f.fund_id, f.ter, f.gestion
+            from fondos.fondo f
             where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")}
         valores: dict[str, dict] = {}
         # Paquetes anuales en streaming (cursor con nombre): cada fondo se reduce a su último dato de cada semana y de
@@ -268,6 +269,15 @@ class Repo:
         f = self._filas("""select mensaje from fondos.registro_descarga where fuente = %s and mensaje like %s
                            order by ts desc limit 1""", (fuente, prefijo + '%'))
         return f[0][0] if f else None
+
+    def guardar_notas(self, lunes: dt.date, notas: list[tuple]):
+        """Las notas de la semana del lunes dado (sustituye las que hubiera); se guardan 13 meses."""
+        with self.cx.transaction(), self.cx.cursor() as c:
+            c.execute('delete from fondos.nota_semanal where fecha = %s or fecha < %s',
+                      (lunes, lunes - dt.timedelta(days=400)))
+            with c.copy('copy fondos.nota_semanal (fecha, isin, nota, percentil, solo_3a) from stdin') as cp:
+                for fila in notas:
+                    cp.write_row((lunes, *fila))
 
     def n_metricas(self) -> int:
         return self._filas('select count(*)::int from fondos.metrica')[0][0]

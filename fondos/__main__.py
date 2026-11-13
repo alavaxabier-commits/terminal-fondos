@@ -7,7 +7,8 @@
   python -m fondos universo             fichas de Morningstar España y catálogo de MyInvestor; universo = ≥ 50 M€,
                                         ≥ 3 años, ≤ 100 por categoría, con preferencia por las clases de MyInvestor
   python -m fondos myinvestor           solo el catálogo de MyInvestor (sin marcar el universo)
-  python -m fondos metricas             calcula las métricas y percentiles de todos los fondos
+  python -m fondos metricas             calcula las métricas y percentiles de todos los fondos (y la nota de la semana)
+  python -m fondos notas --semanas 52   carga inicial de nota_semanal: las notas de las semanas anteriores
   python -m fondos estado               resumen para cerrar la fase 0: valores, huecos y errores recientes
   python -m fondos composicion [--tanda N]   desglose de cartera (X-Ray) de los fondos que toca
   python -m fondos prueba-red ISIN      prueba cada fuente con un fondo, sin base de datos
@@ -21,6 +22,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 from . import ingesta, vigilancia
+from .validacion import lunes
 from .proveedores import BCE, FT, Morningstar, MyInvestor, Yahoo
 
 
@@ -105,16 +107,34 @@ def orden_metricas(repo) -> int:
     t0 = time.time()
     datos = repo.datos_metricas()
     t1 = time.time()
-    filas, refs = calculo.calcular(datos, hoy())
+    filas, refs, notas = calculo.calcular(datos, hoy())
     t2 = time.time()
     anterior = repo.n_metricas()
     repo.guardar_metricas(filas, refs)
+    repo.guardar_notas(lunes(hoy()), notas)
     fondos = len({f[0] for f in filas})
-    texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos y {len(refs)} referencias · '
+    texto = (f'### Métricas · {hoy()}\n\n{len(filas)} métricas de {fondos} fondos, {len(notas)} notas '
+             f'y {len(refs)} referencias · '
              f'carga {t1 - t0:.0f} s, cálculo {t2 - t1:.0f} s, guardado {time.time() - t2:.0f} s')
     print(texto)
     resumen_github(texto)
     return avisar(repo, 'métricas', vigilancia.metricas(len(filas), anterior))
+
+
+def orden_notas(repo, semanas: int) -> int:
+    """Notas de las semanas anteriores (carga inicial de nota_semanal), con el TER y la gestión de hoy: para cada
+    semana se recortan las series a su domingo y se calcula todo como si fuera ese día."""
+    from . import calculo
+    datos = repo.datos_metricas()
+    for k in range(1, semanas + 1):
+        dia = lunes(hoy()) - dt.timedelta(weeks=k)
+        corte = dia + dt.timedelta(days=6)
+        recortados = {**datos, 'valores': {i: {d: v for d, v in s.items() if d <= corte} for i, s in datos['valores'].items()}}
+        notas = calculo.calcular(recortados, corte)[2]
+        repo.guardar_notas(dia, notas)
+        print(f'{dia}: {len(notas)} notas', flush=True)
+    resumen_github(f'### Notas · {hoy()}\n\n{semanas} semanas anteriores calculadas')
+    return 0
 
 
 def orden_estado(repo) -> int:
@@ -176,12 +196,45 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
     return avisar(repo, 'universo', alarmas)
 
 
+def prueba_gestion_srri(ms, isin: str, f: dict | None) -> None:
+    """Prueba temporal (fase 3): ¿dan Morningstar o MyInvestor la gestión indexada/activa y el SRRI?"""
+    import json
+    import re
+    from .proveedores import morningstar as mod, myinvestor
+    for campo in ('IndexFund', 'IsIndexFund', 'Index', 'SRRI', 'CollectedSRRI', 'RiskRating', 'KIIDSRRI',
+                  'ManagementApproachActive', 'ManagementApproachPassive', 'ETFIndexFund'):
+        try:
+            r = ms.http.get(mod.SCREENER, params={'outputType': 'json', 'universeIds': mod.UNIVERSO, 'term': isin,
+                                                  'securityDataPoints': 'Isin|' + campo}, timeout=60)
+            print(f'Morningstar campo {campo}: {r.status_code} {r.text[:300]}')
+        except Exception as e:
+            print(f'Morningstar campo {campo}: {e}')
+    if f and f.get('ms_id'):
+        try:
+            r = ms.http.get(mod.DETALLE + f['ms_id'], params={'viewId': 'MFsnapshot', 'idtype': 'msid',
+                                                             'responseViewFormat': 'json', 'languageId': 'es-ES'}, timeout=60)
+            texto = r.text
+            for m in re.finditer(r'"([^"]*(?:[Ss][Rr][Rr][Ii]|[Ii]ndex|[Rr]isk|[Pp]assive)[^"]*)"\s*:\s*("[^"]{0,80}"|[^,}{\[]{0,40}|\{|\[)', texto):
+                print(f'Ficha de detalle: {m.group(1)} = {m.group(2)}')
+        except Exception as e:
+            print(f'Ficha de detalle: {e}')
+    try:
+        mi = MyInvestor()
+        r = mi.s.get(myinvestor.API, params={'tipo': 'TODOS', 'token': mi._token()}, timeout=60)
+        catalogo = r.json()
+        fila = next((x for x in catalogo if x.get('codigoIsin') == isin), catalogo[0] if catalogo else {})
+        print(f'MyInvestor, campos: {json.dumps(fila, ensure_ascii=False)[:3000]}')
+    except Exception as e:
+        print(f'MyInvestor: {e}')
+
+
 def orden_prueba_red(isin: str) -> int:
     """Comprueba cada fuente con un fondo y lo cuenta; no toca la base de datos."""
     d, ok = hoy(), True
     ms = Morningstar()
     f = ms.buscar(isin)
     print(f'Buscador Morningstar: {f}')
+    prueba_gestion_srri(ms, isin, f)
     try:
         s = ms.historico(isin, f and f['ms_id'], d - dt.timedelta(days=30), d, f and f['divisa'])
         print(f'Morningstar (series): {len(s)} valores; últimos {sorted(s.items())[-3:]}')
@@ -219,6 +272,8 @@ def main(argv=None) -> int:
     s.add_argument('--tanda', type=int, default=1200, help='fondos como mucho (1200: el universo entero en un mes)')
     sub.add_parser('macro')
     sub.add_parser('metricas')
+    n = sub.add_parser('notas')
+    n.add_argument('--semanas', type=int, default=52, help='semanas anteriores a calcular (52)')
     sub.add_parser('estado')
     sub.add_parser('myinvestor')
     u = sub.add_parser('universo')
@@ -251,6 +306,8 @@ def main(argv=None) -> int:
         return codigo
     if args.orden == 'metricas':
         return orden_metricas(repo)
+    if args.orden == 'notas':
+        return orden_notas(repo, args.semanas)
     if args.orden == 'universo':
         return orden_universo(repo, args.limite, args.min_patrimonio, args.min_anos, args.tope, args.max_minima)
     if args.orden == 'estado':

@@ -357,7 +357,7 @@ def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[S
 
 # ------------------------------------------------------------------ percentiles
 # Dónde menos es mejor: el percentil se invierte. La beta no lleva percentil (ni mejor ni peor).
-MENOS_ES_MEJOR = {'volatilidad', 'volatilidad_mensual', 'tracking_error', 'captura_bajista', 'recuperacion_semanas'}
+MENOS_ES_MEJOR = {'ter', 'volatilidad', 'volatilidad_mensual', 'tracking_error', 'captura_bajista', 'recuperacion_semanas'}
 SIN_PERCENTIL = {'beta', 'acumulada', 'r2'}
 
 
@@ -386,3 +386,38 @@ def percentiles(valores: dict[str, float], nombre: str) -> dict[str, float]:
         i = j + 1
     return out
 
+
+
+# ------------------------------------------------------------------ nota del screener
+# Pesos por defecto sin Diversificación (que depende de la cartera elegida): la nota de nota_semanal y de las señales.
+PESOS_NOTA = {'riesgo': 25, 'consistencia': 20, 'coste': 20, 'proteccion': 15, 'rentabilidad': 10}
+
+
+def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, float] = PESOS_NOTA
+         ) -> tuple[float, bool] | None:
+    """Percentiles de un fondo {(ventana, nombre): percentil} → (nota 0–100, solo con 3A), o None sin 3 años.
+
+    Cada bloque promedia los percentiles de sus métricas; la nota es la media ponderada de los bloques con datos
+    (el peso de un bloque sin datos se reparte entre los demás). Con menos de 5 años, las métricas de 5A pasan a 3A
+    y no hay consistencia: los activos usan solo el ratio de información a 3A.
+    """
+    v = '5a' if ('5a', 'rentabilidad') in pct else '3a' if ('3a', 'rentabilidad') in pct else None
+    if v is None:
+        return None
+
+    def media(*claves):
+        xs = [pct[k] for k in claves if k in pct]
+        return fmean(xs) if xs else None
+
+    if indexada:
+        consistencia_ = media((v, 'tracking_error'))
+    else:
+        consistencia_ = media(*([('hist', 'consistencia')] if v == '5a' else []), ('3a', 'ratio_informacion'))
+    bloques = {'riesgo': media((v, 'sharpe'), (v, 'sortino')), 'consistencia': consistencia_,
+               'coste': media(('hoy', 'ter')), 'proteccion': media((v, 'max_caida'), (v, 'captura_bajista')),
+               'rentabilidad': media((v, 'rentabilidad'))}
+    con = {b: x for b, x in bloques.items() if x is not None and pesos.get(b)}
+    total = sum(pesos[b] for b in con)
+    if not total:
+        return None
+    return sum(pesos[b] * x for b, x in con.items()) / total, v == '3a'

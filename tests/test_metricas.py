@@ -4,7 +4,7 @@ import math
 import pytest
 
 from fondos.nucleo.metricas import (a_eur, anualizada, captura, combinar, consistencia, desviacion_bajista,
-                                    maxima_caida, media_rendimientos, metricas_fondo, percentiles, regresion,
+                                    maxima_caida, media_rendimientos, metricas_fondo, nota, percentiles, regresion,
                                     rendimientos, semanal, serie_de_rendimientos, tasa_semanal, ventana_completa,
                                     volatilidad)
 
@@ -175,3 +175,21 @@ def test_caso_comun_con_la_web():
     assert obtenido.keys() == caso['esperado'].keys()
     for k, x in caso['esperado'].items():
         assert obtenido[k] == pytest.approx(x, rel=1e-9), k
+
+
+def test_nota_media_ponderada_de_bloques():
+    pct = {('5a', 'sharpe'): 80, ('5a', 'sortino'): 60,          # riesgo 70 × 25
+           ('hist', 'consistencia'): 40, ('3a', 'ratio_informacion'): 60,  # consistencia 50 × 20
+           ('hoy', 'ter'): 90,                                     # coste 90 × 20
+           ('5a', 'max_caida'): 30, ('5a', 'captura_bajista'): 50,  # protección 40 × 15
+           ('5a', 'rentabilidad'): 100, ('5a', 'tracking_error'): 0}  # rentabilidad 100 × 10
+    assert nota(pct, indexada=False) == (pytest.approx((70 * 25 + 50 * 20 + 90 * 20 + 40 * 15 + 100 * 10) / 90), False)
+    # indexada: consistencia = tracking error (0)
+    assert nota(pct, indexada=True)[0] == pytest.approx((70 * 25 + 0 * 20 + 90 * 20 + 40 * 15 + 100 * 10) / 90)
+
+
+def test_nota_con_3a_y_bloques_sin_datos():
+    pct = {('3a', 'rentabilidad'): 50, ('3a', 'sharpe'): 50, ('hist', 'consistencia'): 0, ('3a', 'ratio_informacion'): 100}
+    # sin TER ni protección: su peso se reparte; con 3A no cuenta la consistencia, solo el ratio de información
+    assert nota(pct, indexada=False) == (pytest.approx((50 * 25 + 100 * 20 + 50 * 10) / 55), True)
+    assert nota({('1a', 'rentabilidad'): 50}, indexada=False) is None  # menos de 3 años: sin nota
