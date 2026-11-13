@@ -27,8 +27,6 @@ BLOQUES = ('riesgo', 'consistencia', 'coste', 'proteccion', 'rentabilidad')
 REPARTOS = {
     'anterior': {'riesgo': 25, 'consistencia': 20, 'coste': 20, 'proteccion': 15, 'rentabilidad': 10},
     'actual': m.PESOS_NOTA,  # el antiguo «más coste»
-    'coste + riesgo': {'riesgo': 50, 'consistencia': 0, 'coste': 50, 'proteccion': 0, 'rentabilidad': 0},
-    'propuesta': {'riesgo': 30, 'consistencia': 10, 'coste': 40, 'proteccion': 10, 'rentabilidad': 10},
     'por tipo': {  # salido de la primera pasada: hay que leerlo con cuidado (mismos datos con los que se eligió)
         'renta variable': {'riesgo': 15, 'consistencia': 0, 'coste': 60, 'proteccion': 15, 'rentabilidad': 10},
         'renta fija': {'riesgo': 30, 'consistencia': 20, 'coste': 30, 'proteccion': 0, 'rentabilidad': 20},
@@ -37,6 +35,7 @@ REPARTOS = {
 }
 TIPOS = ('renta variable', 'renta fija', 'mixto')
 NOMBRE = {'rentabilidad': 'Rentabilidad', 'sharpe': 'Sharpe', 'max_caida': 'Caída máxima (percentil alto = cayó menos)'}
+VENTANAS = ('1a', '3a', '5a')  # plazos de la nota que se comparan (10 años: aún no hay historia para probarlo)
 MIN_CATEGORIA = 5  # fondos de la categoría en la muestra para que cuente
 
 
@@ -74,13 +73,17 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
             valores[isin][(ventana, nombre)] = valor
     out = {}
     for isin in set(pct) | set(valores):
-        b = m.bloques_nota(pct.get(isin, {}), datos['fondos'][isin].get('gestion') == 'indexada')
-        out[isin] = {'bloques': b[0] if b else {}, 'valores': valores.get(isin, {})}
+        b = m.bloques_nota(pct.get(isin, {}), datos['fondos'][isin].get('gestion') == 'indexada')  # la nota de verdad
+        indexada = datos['fondos'][isin].get('gestion') == 'indexada'
+        por_plazo = {v: x[0] for v in VENTANAS if (x := m.bloques_nota(pct.get(isin, {}), indexada, v))}
+        out[isin] = {'bloques': b[0] if b else {}, 'valores': valores.get(isin, {}),
+                     'ventanas': por_plazo if len(por_plazo) == len(VENTANAS) else {}}  # solo con todos: misma muestra
     return out
 
 
-def puntuaciones(bloques: dict[str, float], tipo_: str) -> dict[str, float]:
-    """Lo que se evalúa de un fondo: cada bloque solo y la nota de cada reparto."""
+def puntuaciones(bloques: dict[str, float], tipo_: str, ventanas: dict[str, dict] | None = None) -> dict[str, float]:
+    """Lo que se evalúa de un fondo: cada bloque solo, la nota de cada reparto y, si tiene todos los plazos, la nota
+    actual con cada plazo y con la media de varios."""
     out = {f'bloque {b}': x for b, x in bloques.items()}
     for nombre, pesos in REPARTOS.items():
         if set(pesos) & set(TIPOS):
@@ -88,6 +91,11 @@ def puntuaciones(bloques: dict[str, float], tipo_: str) -> dict[str, float]:
         n = m.ponderar(bloques, pesos)
         if n is not None:
             out[nombre] = n
+    notas = {v: m.ponderar(b, m.PESOS_NOTA) for v, b in (ventanas or {}).items()}
+    if notas and None not in notas.values():
+        out |= {f'plazo {v}': n for v, n in notas.items()}
+        out['plazo 3a+5a'] = (notas['3a'] + notas['5a']) / 2
+        out['plazo 1a+3a+5a'] = fmean(notas.values())
     return out
 
 
@@ -115,7 +123,7 @@ def evaluar(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str, 
     top: dict[tuple[str, str], list[float]] = defaultdict(list)
     for cat, isins in por_cat.items():
         t = tipo(cat)
-        punt = {i: puntuaciones(antes[i]['bloques'], t) for i in isins}
+        punt = {i: puntuaciones(antes[i]['bloques'], t, antes[i].get('ventanas')) for i in isins}
         for nombre in {k for p in punt.values() for k in p}:
             con = [(punt[i][nombre], futuro[i][clave]) for i in isins if nombre in punt[i]]
             if len(con) < MIN_CATEGORIA:
@@ -138,14 +146,15 @@ def informe(resultados: dict[tuple[dt.date, int, str], dict]) -> str:
     lineas = ['## Análisis de los pesos de la nota', '',
               'Correlación: entre la puntuación del fondo en el corte y su percentil futuro en la categoría (0 = nada). '
               'Top 20 %: percentil futuro medio del 20 % mejor de cada categoría según esa puntuación (50 = azar). '
-              'A favor: cortes en los que el top 20 % acaba por encima de 50.', '']
+              'A favor: cortes en los que el top 20 % acaba por encima de 50. '
+              'Las filas «plazo» usan los pesos actuales con métricas de ese plazo y solo los fondos con 5 años o más.', '']
     for h in HORIZONTES:
         for r in RESULTADOS:
             cs = sorted(c for (c, hh, rr) in resultados if hh == h and rr == r)
             if not cs:
                 continue
             res = [resultados[(c, h, r)] for c in cs]
-            nombres = sorted({k[0] for x in res for k in x}, key=lambda n: (not n.startswith('bloque'), n))
+            nombres = sorted({k[0] for x in res for k in x}, key=lambda n: (n.startswith('plazo'), not n.startswith('bloque'), n))
             lineas += [f'### {NOMBRE[r]} a {h} año{"s" if h > 1 else ""} · {len(cs)} cortes ({cs[0]} a {cs[-1]})', '',
                        '| Puntuación | Correlación | Top 20 % | A favor | ' + ' | '.join(f'Top 20 % {t}' for t in TIPOS) + ' | Fondos/corte |',
                        '|---|---:|---:|---:|' + '---:|' * len(TIPOS) + '---:|']

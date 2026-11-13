@@ -426,11 +426,16 @@ def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, flo
     return None if n is None else (n, b[1])
 
 
-def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool) -> tuple[dict[str, float], bool] | None:
-    """Percentil de cada bloque de la nota (solo los que tienen datos) y si va con 3A; None sin 3 años."""
-    v = '5a' if ('5a', 'rentabilidad') in pct else '3a' if ('3a', 'rentabilidad') in pct else None
-    if v is None:
+def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool, ventana: str | None = None
+                 ) -> tuple[dict[str, float], bool] | None:
+    """Percentil de cada bloque de la nota (solo los que tienen datos) y si va con 3A; None sin 3 años.
+
+    `ventana` ('1a', '3a', '5a' o '10a') obliga a usar ese plazo (para el análisis); None si el fondo no lo tiene.
+    En 5 y 10 años, la consistencia es la histórica más el ratio de información a 3; en 1 y 3, el ratio de ese plazo."""
+    v = ventana or ('5a' if ('5a', 'rentabilidad') in pct else '3a' if ('3a', 'rentabilidad') in pct else None)
+    if v is None or (v, 'rentabilidad') not in pct:
         return None
+    largo = v in ('5a', '10a')
 
     def media(*claves):
         xs = [pct[k] for k in claves if k in pct]
@@ -439,7 +444,7 @@ def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool) -> tuple[dic
     if indexada:
         consistencia_ = media((v, 'tracking_error'))
     else:
-        consistencia_ = media(*([('hist', 'consistencia')] if v == '5a' else []), ('3a', 'ratio_informacion'))
+        consistencia_ = media(*([('hist', 'consistencia')] if largo else []), ('3a' if largo else v, 'ratio_informacion'))
     bloques = {'riesgo': media((v, 'sharpe'), (v, 'sortino')), 'consistencia': consistencia_,
                'coste': media(('hoy', 'ter')), 'proteccion': media((v, 'max_caida'), (v, 'captura_bajista')),
                'rentabilidad': media((v, 'rentabilidad'))}

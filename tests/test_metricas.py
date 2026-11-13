@@ -204,3 +204,12 @@ def test_correlacion_media_con_la_cartera():
     assert correlacion_media(r, [igual, contraria, corta]) == pytest.approx(0.0)
     assert correlacion_media(r, [igual]) == pytest.approx(1.0)
     assert correlacion_media(r, [corta]) is None
+
+
+def test_bloques_nota_con_plazo_obligado():
+    from fondos.nucleo.metricas import bloques_nota
+    pct = {('5a', 'rentabilidad'): 80, ('1a', 'rentabilidad'): 20, ('1a', 'sharpe'): 40, ('1a', 'ratio_informacion'): 60,
+           ('hist', 'consistencia'): 0, ('3a', 'ratio_informacion'): 10}
+    assert bloques_nota(pct, False, '1a') == ({'rentabilidad': 20, 'riesgo': 40, 'consistencia': 60}, False)
+    assert bloques_nota(pct, False)[0] == {'rentabilidad': 80, 'consistencia': 5}  # sin plazo: 5 años
+    assert bloques_nota(pct, False, '3a') is None

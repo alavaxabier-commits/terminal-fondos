@@ -29,3 +29,11 @@ def test_reparto_por_tipo():
     assert puntuaciones(b, 'renta variable')['por tipo'] == 60
     assert puntuaciones(b, 'renta fija')['por tipo'] == 30
     assert puntuaciones(b, 'otros')['por tipo'] == puntuaciones(b, 'otros')['actual']
+
+
+def test_plazos():
+    from fondos.analisis import puntuaciones
+    v = {'1a': {'coste': 10}, '3a': {'coste': 40}, '5a': {'coste': 70}}
+    p = puntuaciones({'coste': 70}, 'renta variable', v)
+    assert (p['plazo 1a'], p['plazo 3a+5a'], p['plazo 1a+3a+5a']) == (10, 55, 40)
+    assert 'plazo 1a' not in puntuaciones({'coste': 70}, 'renta variable', {})
