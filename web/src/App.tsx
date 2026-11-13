@@ -6,6 +6,7 @@ import Cartera from './pantallas/Cartera'
 import Entrar from './pantallas/Entrar'
 import Ficha from './pantallas/Ficha'
 import Inicio from './pantallas/Inicio'
+import Revision from './pantallas/Revision'
 import Screener from './pantallas/Screener'
 import Seguimiento from './pantallas/Seguimiento'
 
@@ -41,12 +42,12 @@ export default function App() {
   const cartera = ruta.match(/^#\/cartera\/(\d+)$/)?.[1]
   return (
     <div className="mx-auto flex min-h-full max-w-7xl flex-col">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-borde bg-fondo/95 px-4 py-2 backdrop-blur">
+      <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-borde bg-fondo/95 px-4 py-2 backdrop-blur">
         <a href="#/" className="shrink-0 font-bold tracking-widest text-acento">
           TERMINAL<span className="hidden sm:inline"> DE FONDOS</span>
         </a>
         <nav aria-label="Pantallas" className="flex shrink-0 gap-1">
-          {([['#/', 'inicio'], ['#/screener', 'screener'], ['#/seguimiento', 'seguimiento']] as const).map(([h, t]) => (
+          {([['#/', 'inicio'], ['#/screener', 'screener'], ['#/seguimiento', 'seguimiento'], ['#/revision', 'revisión']] as const).map(([h, t]) => (
             <a key={h} href={h} aria-current={(ruta || '#/') === h ? 'page' : undefined}
               className={`px-2 py-1 ${(ruta || '#/') === h ? 'border border-borde bg-panel text-acento' : 'text-suave hover:text-texto'}`}>{t}</a>
           ))}
@@ -61,7 +62,7 @@ export default function App() {
         </button>
       </header>
       <main className="flex-1 px-4 py-4">
-        {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : <Inicio />}
+        {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio />}
       </main>
     </div>
   )

@@ -16,6 +16,7 @@ export type Fondo = {
   fecha_lanzamiento: string | null
   indice_id: string | null
   en_universo: boolean
+  fund_id?: string | null
 }
 
 export type Indice = { id: string; nombre: string; proxy_isin: string | null; componentes: { id: string; peso: number }[] | null }
@@ -297,4 +298,42 @@ export async function cambiarSeguimiento(isin: string, cambios: Partial<Pick<Seg
 
 export async function dejarDeSeguir(isin: string) {
   error((await supabase.from('seguimiento').delete().eq('isin', isin)).error)
+}
+
+/** Umbrales de las señales (tabla ajuste). */
+export async function umbrales(): Promise<{ clave: string; valor: number; descripcion: string }[]> {
+  const { data, error: e } = await supabase.from('ajuste').select('clave,valor,descripcion').order('clave')
+  error(e)
+  return ((data ?? []) as { clave: string; valor: string; descripcion: string }[]).map((r) => ({ ...r, valor: Number(r.valor) }))
+}
+
+export async function guardarUmbral(clave: string, valor: number) {
+  error((await supabase.from('ajuste').update({ valor }).eq('clave', clave)).error)
+}
+
+/** Fondos de unas categorías con su nota de la última semana guardada (para comparar y buscar alternativas). */
+export async function pares(categorias: string[]): Promise<import('../calculo/senales').Par[]> {
+  if (!categorias.length) return []
+  const { data: ult, error: e } = await supabase.from('nota_semanal').select('fecha').order('fecha', { ascending: false }).limit(1)
+  error(e)
+  const fecha = (ult as { fecha: string }[] | null)?.[0]?.fecha
+  if (!fecha) return []
+  type Fila = { isin: string; nota: string; percentil: string | null; fondo: { nombre: string; categoria: string | null; ter: number | null; fund_id: string | null } }
+  const out: import('../calculo/senales').Par[] = []
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error: e2 } = await supabase.from('nota_semanal').select('isin,nota,percentil,fondo!inner(nombre,categoria,ter,fund_id)')
+      .eq('fecha', fecha).in('fondo.categoria', categorias).order('isin').range(desde, desde + 999)
+    error(e2)
+    const filas = (data ?? []) as unknown as Fila[]
+    out.push(...filas.map((r) => ({ isin: r.isin, ...r.fondo, ter: r.fondo.ter == null ? null : Number(r.fondo.ter), nota: Number(r.nota), percentil: r.percentil == null ? null : Number(r.percentil) })))
+    if (filas.length < 1000) return out
+  }
+}
+
+/** De unos ISIN, los que se pueden comprar en MyInvestor (catálogo, clase abierta). */
+export async function enMyinvestor(isins: string[]): Promise<Set<string>> {
+  if (!isins.length) return new Set()
+  const { data, error: e } = await supabase.from('myinvestor').select('isin').eq('abierto', true).in('isin', isins)
+  error(e)
+  return new Set(((data ?? []) as { isin: string }[]).map((r) => r.isin))
 }

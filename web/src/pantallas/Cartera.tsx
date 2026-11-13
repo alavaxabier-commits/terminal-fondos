@@ -9,6 +9,7 @@ import EstadisticasCartera from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
+import { revisar, type FondoRevisado } from '../datos/revision'
 import { serieEur } from './Ficha'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
@@ -49,6 +50,7 @@ export default function Cartera({ id }: { id: number }) {
   const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [error, setError] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  const [revision, setRevision] = useState<Map<string, FondoRevisado>>(new Map())
 
   async function leer() {
     const [c, cs, estr, h] = await Promise.all([q.cartera(id), q.categoriasReferencia(), q.referenciaSeries(['indice:estr']), q.cambios(id)])
@@ -56,6 +58,7 @@ export default function Cartera({ id }: { id: number }) {
     setRf(rendimientos(estr.get('indice:estr')?.semanal ?? new Map()))
     setHistorial(h)
     setGuardada(c)
+    revisar([id]).then((r) => setRevision(new Map(r.carteras[0]?.fondos.map((f) => [f.fondo.isin, f])))).catch((e: Error) => setError(e.message))
     if (c && !c.fondos.length) setBorrador({ ...c.cartera, fondos: [], motivo: '' }) // cartera nueva: directa a editar
   }
   useEffect(() => {
@@ -221,7 +224,7 @@ export default function Cartera({ id }: { id: number }) {
       {!borrador && Math.abs(suma - 100) > 0.01 && <p className="text-baja">Los pesos suman {suma} %, no 100 %.</p>}
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[34rem] whitespace-nowrap text-right [&_tr>*+*]:pl-3">
+        <table className="w-full min-w-[48rem] whitespace-nowrap text-right [&_tr>*+*]:pl-3">
           <thead className="text-[11px] uppercase tracking-widest text-suave">
             <tr className="border-b border-borde">
               <th className="py-1 text-left font-normal">Fondo</th>
@@ -229,14 +232,17 @@ export default function Cartera({ id }: { id: number }) {
               <th className="font-normal">TER</th>
               <th className="font-normal">3A anual</th>
               <th className="font-normal">5A anual</th>
+              <th className="font-normal">Nota</th>
+              <th className="text-left font-normal">Señales</th>
               {borrador && <th />}
             </tr>
           </thead>
           <tbody>
             {lineas.map(({ fondo: f, peso }, k) => {
               const m = datos.get(f.isin)?.metricas
+              const r = revision.get(f.isin)
               return (
-                <tr key={f.isin} className="border-b border-borde/50">
+                <tr key={f.isin} className={`border-b border-borde/50 ${r?.senales.length ? 'bg-aviso/5' : ''}`}>
                   <td className="whitespace-normal py-1 text-left">
                     <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a>
                     <span className="text-suave"> · {f.isin}</span>
@@ -251,6 +257,10 @@ export default function Cartera({ id }: { id: number }) {
                   <td>{pct((f.ter ?? NaN) / 100, 2, false)}</td>
                   <td>{pct(m?.get('3a|rentabilidad'))}</td>
                   <td>{pct(m?.get('5a|rentabilidad'))}</td>
+                  <td>{r?.nota ? <>{Math.round(r.nota.nota)}{r.nota.percentil != null && <span className="text-suave"> p{Math.round(r.nota.percentil)}</span>}</> : <span className="text-suave">—</span>}</td>
+                  <td className="whitespace-normal text-left">
+                    {r?.senales.map((s) => <a key={s.tipo} href="#/revision" title={s.motivo} className="mr-1 inline-block border border-aviso px-1.5 text-aviso">{s.tipo}</a>)}
+                  </td>
                   {borrador && (
                     <td>
                       <button onClick={() => editar({ fondos: lineas.filter((_, j) => j !== k) })} aria-label={`Quitar ${f.nombre}`}
