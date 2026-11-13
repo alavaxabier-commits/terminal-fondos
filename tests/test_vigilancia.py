@@ -31,3 +31,9 @@ def test_composicion_y_metricas():
     assert v.composicion({'ok': 100, 'aviso': 0, 'error': 0}, 0) == ['composición: ningún fondo con todas sus posiciones (de 100 descargados)']
     assert v.metricas(200000, 210000) == [] and v.metricas(100000, 210000) == ['métricas: 100000, frente a 210000 la vez anterior']
     assert v.metricas(5, 0) == []
+
+
+def test_myinvestor():
+    assert v.myinvestor(2483, None) == []
+    assert 'solo 12 fondos' in v.myinvestor(12, None)[0]
+    assert 'no se ha podido descargar el catálogo (HTTPError: 403)' in v.myinvestor(0, 'HTTPError: 403')[0]

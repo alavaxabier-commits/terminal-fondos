@@ -13,6 +13,7 @@ MAX_DIAS_SIN_PRECIO = 4    # días hábiles sin precio de un fondo de mis carter
 MIN_FICHAS = 0.90          # fichas del universo frente a la semana anterior
 MAX_SIN_DATO = 0.20        # parte del universo sin TER o sin categoría
 MIN_METRICAS = 0.90        # métricas frente a la ejecución anterior
+MIN_MYINVESTOR = 2000      # fondos del catálogo de MyInvestor (2.483 en noviembre de 2026)
 
 
 def _pct(x: float) -> str:
@@ -47,6 +48,15 @@ def universo(fichas: int, anteriores: int | None, sin_ter: float, sin_categoria:
     if sin_categoria > MAX_SIN_DATO:
         out.append(f'universo: el {_pct(sin_categoria)} del universo sin categoría')
     return out
+
+
+def myinvestor(fondos: int, fallo: str | None) -> list[str]:
+    """fondos: del catálogo descargado · fallo: el error si no se ha podido descargar. Con alarma no se guarda."""
+    if fallo:
+        return [f'MyInvestor: no se ha podido descargar el catálogo ({fallo}); el universo usa el anterior']
+    if fondos < MIN_MYINVESTOR:
+        return [f'MyInvestor: solo {fondos} fondos en el catálogo (se esperan ≥ {MIN_MYINVESTOR}); el universo usa el anterior']
+    return []
 
 
 def composicion(cuenta: dict[str, int], completas: int) -> list[str]:

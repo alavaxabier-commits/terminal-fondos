@@ -110,3 +110,18 @@ def test_completas_si_trae_casi_todas():
     assert completas(diez, {'total': 10})
     assert completas([{'peso': 1}] * 8, {'total': 9})          # alguna línea sin peso descartada
     assert completas(diez, None) and completas(diez, {})        # sin recuento: se da por buena
+
+
+def test_myinvestor_token_y_filas():
+    from fondos.proveedores.myinvestor import filas, token
+    js = 'let e={tipo:t,token:"a2e8e18ad26a079c576038f0ad4fa18ce0d9__"};get("/cperf-server/rest/public/fondos/find-fondos",{query:e})'
+    assert token(js) == 'a2e8e18ad26a079c576038f0ad4fa18ce0d9__'
+    assert token('const token:"a2e8e18ad26a079c576038f0ad4fa18ce0d9__"') is None  # otro script, sin find-fondos
+    cat = [{'codigoIsin': 'LU0826452848', 'nombre': 'DWS Hi Conv LC', 'entidadGestora': 'DWS', 'ter': 1.6,
+            'impMinPrimeraSubs': '1 EUR', 'sinRetrocesion': False, 'status': 'OPEN', 'tipoProductoEnum': 'FONDOS_INVERSION'},
+           {'codigoIsin': 'X1', 'nombre': 'Cerrado', 'status': 'SOFT_CLOSED', 'tipoProductoEnum': 'FONDOS_INDEXADOS'},
+           {'codigoIsin': 'N5572', 'nombre': 'Plan', 'status': 'OPEN', 'tipoProductoEnum': 'PENSIONES'}]
+    assert filas(cat) == [{'isin': 'LU0826452848', 'nombre': 'DWS Hi Conv LC', 'gestora': 'DWS', 'ter': 1.6, 'minimo': '1 EUR',
+                           'sin_retrocesion': False, 'abierto': True},
+                          {'isin': 'X1', 'nombre': 'Cerrado', 'gestora': None, 'ter': None, 'minimo': None,
+                           'sin_retrocesion': None, 'abierto': False}]

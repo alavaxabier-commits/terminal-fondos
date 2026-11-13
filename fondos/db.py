@@ -106,6 +106,19 @@ class Repo:
             on conflict (isin) do update set fecha_cartera = excluded.fecha_cartera, datos = excluded.datos,
                                              descargada_en = now()""", (isin, fecha, Jsonb(datos)))
 
+    def guardar_myinvestor(self, filas: list[dict]):
+        """Sustituye el catálogo de MyInvestor entero, en una transacción."""
+        with self.cx.transaction(), self.cx.cursor() as c:
+            c.execute('delete from fondos.myinvestor')
+            c.executemany('insert into fondos.myinvestor (isin, nombre, gestora, ter, minimo, sin_retrocesion, abierto) '
+                          'values (%(isin)s, %(nombre)s, %(gestora)s, %(ter)s, %(minimo)s, %(sin_retrocesion)s, %(abierto)s)',
+                          filas)
+
+    def resumen_myinvestor(self) -> tuple[int, int]:
+        """(fondos del catálogo de MyInvestor con ficha de Morningstar, de ellos en el universo)."""
+        return self._filas('select count(f.isin), count(*) filter (where f.en_universo) '
+                           'from fondos.myinvestor m left join fondos.fondo f using (isin)')[0]
+
     def marcar_universo(self, min_patrimonio_meur: float, min_anos: int, tope: int, max_minima: float) -> int:
         return self._filas('select fondos.marcar_universo(%s, %s, %s, %s)',
                            (min_patrimonio_meur, min_anos, tope, max_minima))[0][0]

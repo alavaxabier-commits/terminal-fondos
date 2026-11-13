@@ -4,7 +4,9 @@
   python -m fondos precios [--tanda N]  descarga valores liquidativos de lo que toque hoy
   python -m fondos macro                tipos de cambio y €STR del BCE
   python -m fondos diario               macro + precios (lo que lanza GitHub Actions cada mañana)
-  python -m fondos universo             fichas de Morningstar España; universo = ≥ 50 M€, ≥ 3 años, ≤ 100 por categoría
+  python -m fondos universo             fichas de Morningstar España y catálogo de MyInvestor; universo = ≥ 50 M€,
+                                        ≥ 3 años, ≤ 100 por categoría, con preferencia por las clases de MyInvestor
+  python -m fondos myinvestor           solo el catálogo de MyInvestor (sin marcar el universo)
   python -m fondos metricas             calcula las métricas y percentiles de todos los fondos
   python -m fondos estado               resumen para cerrar la fase 0: valores, huecos y errores recientes
   python -m fondos composicion [--tanda N]   desglose de cartera (X-Ray) de los fondos que toca
@@ -19,7 +21,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 from . import ingesta, vigilancia
-from .proveedores import BCE, FT, Morningstar, Yahoo
+from .proveedores import BCE, FT, Morningstar, MyInvestor, Yahoo
 
 
 def hoy() -> dt.date:
@@ -129,6 +131,19 @@ def orden_estado(repo) -> int:
     return 0
 
 
+def descargar_myinvestor(repo) -> tuple[list[dict], list[str]]:
+    """Catálogo de MyInvestor; con un catálogo raro o sin él no se guarda y el universo usa el anterior."""
+    try:
+        mi, fallo = MyInvestor().catalogo(), None
+    except Exception as e:  # noqa: BLE001
+        mi, fallo = [], f'{type(e).__name__}: {e}'[:300]
+    alarmas = vigilancia.myinvestor(len(mi), fallo)
+    if not alarmas:
+        repo.guardar_myinvestor(mi)
+        repo.registrar('myinvestor', None, 'ok', f'catálogo: {len(mi)} fondos')
+    return mi, alarmas
+
+
 def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: int, tope: int, max_minima: float) -> int:
     n, lote = 0, []
     for f in Morningstar().universo(limite=limite):
@@ -142,16 +157,20 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
     anteriores = repo.ultimo_mensaje('universo', 'fichas: ')
     if not limite:  # una prueba con pocas fichas no cuenta como referencia para la semana siguiente
         repo.registrar('universo', None, 'ok', f'fichas: {n}')
+    mi, alarmas_mi = descargar_myinvestor(repo)
     dentro = repo.marcar_universo(min_patrimonio, min_anos, tope, max_minima)
+    mi_ficha, mi_dentro = repo.resumen_myinvestor()
     borrados = repo.limpiar_valores()
     con_minima, fichas = repo.resumen_minimas()
     texto = (f'### Universo · {hoy()}\n\n{n} fichas de Morningstar España · {dentro} fondos en el universo '
-             f'(patrimonio ≥ {min_patrimonio:g} M€, ≥ {min_anos} años, como mucho {tope} por categoría, una clase por fondo) · '
+             f'(patrimonio ≥ {min_patrimonio:g} M€, ≥ {min_anos} años, como mucho {tope} por categoría; '
+             f'una clase por fondo, o todas las de MyInvestor si vende alguna) · '
+             f'MyInvestor: {len(mi) or "sin descargar"} fondos, {mi_ficha} con ficha, {mi_dentro} en el universo · '
              f'inversión mínima conocida en {con_minima} de {fichas} fichas · '
              f'{borrados} valores borrados de fondos que salen')
     print(texto)
     resumen_github(texto)
-    alarmas = vigilancia.universo(n, int(anteriores.split()[-1]) if anteriores else None, *repo.sin_dato_universo())
+    alarmas = alarmas_mi + vigilancia.universo(n, int(anteriores.split()[-1]) if anteriores else None, *repo.sin_dato_universo())
     if limite:  # una prueba con pocas fichas no se compara con la semana anterior
         alarmas = [a for a in alarmas if 'fichas' not in a]
     return avisar(repo, 'universo', alarmas)
@@ -201,6 +220,7 @@ def main(argv=None) -> int:
     sub.add_parser('macro')
     sub.add_parser('metricas')
     sub.add_parser('estado')
+    sub.add_parser('myinvestor')
     u = sub.add_parser('universo')
     u.add_argument('--limite', type=int, help='solo las primeras N fichas (pruebas)')
     u.add_argument('--min-patrimonio', type=float, default=50, help='patrimonio mínimo, millones (50)')
@@ -235,6 +255,10 @@ def main(argv=None) -> int:
         return orden_universo(repo, args.limite, args.min_patrimonio, args.min_anos, args.tope, args.max_minima)
     if args.orden == 'estado':
         return orden_estado(repo)
+    if args.orden == 'myinvestor':
+        mi, alarmas = descargar_myinvestor(repo)
+        print(f'MyInvestor: {len(mi)} fondos en el catálogo')
+        return avisar(repo, 'myinvestor', alarmas)
     if args.orden == 'composicion':
         return orden_composicion(repo, args.tanda)
     return 2
