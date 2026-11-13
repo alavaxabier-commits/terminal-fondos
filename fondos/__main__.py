@@ -196,45 +196,12 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
     return avisar(repo, 'universo', alarmas)
 
 
-def prueba_gestion_srri(ms, isin: str, f: dict | None) -> None:
-    """Prueba temporal (fase 3): ¿dan Morningstar o MyInvestor la gestión indexada/activa y el SRRI?"""
-    import json
-    import re
-    from .proveedores import morningstar as mod, myinvestor
-    for campo in ('IndexFund', 'IsIndexFund', 'Index', 'SRRI', 'CollectedSRRI', 'RiskRating', 'KIIDSRRI',
-                  'ManagementApproachActive', 'ManagementApproachPassive', 'ETFIndexFund'):
-        try:
-            r = ms.http.get(mod.SCREENER, params={'outputType': 'json', 'universeIds': mod.UNIVERSO, 'term': isin,
-                                                  'securityDataPoints': 'Isin|' + campo}, timeout=60)
-            print(f'Morningstar campo {campo}: {r.status_code} {r.text[:300]}')
-        except Exception as e:
-            print(f'Morningstar campo {campo}: {e}')
-    if f and f.get('ms_id'):
-        try:
-            r = ms.http.get(mod.DETALLE + f['ms_id'], params={'viewId': 'MFsnapshot', 'idtype': 'msid',
-                                                             'responseViewFormat': 'json', 'languageId': 'es-ES'}, timeout=60)
-            texto = r.text
-            for m in re.finditer(r'"([^"]*(?:[Ss][Rr][Rr][Ii]|[Ii]ndex|[Rr]isk|[Pp]assive)[^"]*)"\s*:\s*("[^"]{0,80}"|[^,}{\[]{0,40}|\{|\[)', texto):
-                print(f'Ficha de detalle: {m.group(1)} = {m.group(2)}')
-        except Exception as e:
-            print(f'Ficha de detalle: {e}')
-    try:
-        mi = MyInvestor()
-        r = mi.s.get(myinvestor.API, params={'tipo': 'TODOS', 'token': mi._token()}, timeout=60)
-        catalogo = r.json()
-        fila = next((x for x in catalogo if x.get('codigoIsin') == isin), catalogo[0] if catalogo else {})
-        print(f'MyInvestor, campos: {json.dumps(fila, ensure_ascii=False)[:3000]}')
-    except Exception as e:
-        print(f'MyInvestor: {e}')
-
-
 def orden_prueba_red(isin: str) -> int:
     """Comprueba cada fuente con un fondo y lo cuenta; no toca la base de datos."""
     d, ok = hoy(), True
     ms = Morningstar()
     f = ms.buscar(isin)
     print(f'Buscador Morningstar: {f}')
-    prueba_gestion_srri(ms, isin, f)
     try:
         s = ms.historico(isin, f and f['ms_id'], d - dt.timedelta(days=30), d, f and f['divisa'])
         print(f'Morningstar (series): {len(s)} valores; últimos {sorted(s.items())[-3:]}')

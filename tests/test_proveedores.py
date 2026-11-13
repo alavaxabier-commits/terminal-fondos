@@ -12,11 +12,15 @@ def test_ficha_del_buscador():
     f = ficha({'SecId': 'F00000T4KE', 'Name': 'iShares Developed World Index Fund (IE) D Acc EUR', 'Isin': 'ie00bd0ncm55',
                'CategoryName': 'RV Global Cap. Grande Blend', 'PriceCurrency': 'EUR', 'OngoingCharge': '0.17',
                'InceptionDate': '2016-11-01T00:00:00', 'FundId': 'FS0000A1B2', 'FundTNAV': 8123456789.0,
-               'InitialPurchase': '1000', 'EquityStyleBox': 2, 'AverageMarketCapital': 231738.98})
+               'InitialPurchase': '1000', 'EquityStyleBox': 2, 'AverageMarketCapital': 231738.98,
+               'IndexFund': True, 'SRRI': 5})
     assert f == {'isin': 'IE00BD0NCM55', 'nombre': 'iShares Developed World Index Fund (IE) D Acc EUR', 'ms_id': 'F00000T4KE',
                  'fund_id': 'FS0000A1B2', 'patrimonio_meur': 8123.46, 'categoria':'RV Global Cap. Grande Blend', 'divisa': 'EUR', 'ter': 0.17, 'fecha_lanzamiento': D(2016, 11, 1),
                  'inversion_minima': 1000.0, 'estilo_rv': 2, 'estilo_rf': None, 'capitalizacion_media': 231738.98,
-                 'duracion_efectiva': None, 'vencimiento_efectivo': None, 'calidad_media': None}
+                 'duracion_efectiva': None, 'vencimiento_efectivo': None, 'calidad_media': None,
+                 'gestion': 'indexada', 'srri': 5}
+    assert ficha({'Isin': 'IE00BD0NCM55', 'IndexFund': False, 'SRRI': 9})['gestion'] == 'activa'
+    assert ficha({'Isin': 'IE00BD0NCM55', 'SRRI': 9})['srri'] is None and ficha({'Isin': 'IE00BD0NCM55'})['gestion'] is None
     assert ficha({'Isin': 'corto'}) is None
     assert ficha({'Isin': 'IE00BD0NCM55'})['ter'] is None
 

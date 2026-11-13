@@ -21,7 +21,7 @@ CAMPOS_BASICOS = 'SecId|Name|Isin|CategoryName|PriceCurrency|OngoingCharge|Incep
 CAMPOS_PATRIMONIO = CAMPOS_BASICOS + '|FundId|FundTNAV'  # FundTNAV: patrimonio del fondo, en su divisa
 CAMPOS_MINIMA = CAMPOS_PATRIMONIO + '|InitialPurchase'    # inversión mínima de la clase, en su divisa
 # Estadísticas de cartera que la ficha de detalle no trae (duración, calidad media, cajas de estilo)
-CAMPOS = CAMPOS_MINIMA + '|EquityStyleBox|BondStyleBox|AverageMarketCapital|EffectiveDuration|EffectiveMaturity|AverageCreditQualityCode'
+CAMPOS = CAMPOS_MINIMA + '|EquityStyleBox|BondStyleBox|AverageMarketCapital|EffectiveDuration|EffectiveMaturity|AverageCreditQualityCode|IndexFund|SRRI'
 DETALLE = SCREENER.rsplit('/security/', 1)[0] + '/security_details/'
 # Posiciones completas: API de la web de Morningstar, con su clave pública (la misma que publica mstarpy 10)
 POSICIONES = 'https://api-global.morningstar.com/sal-service/v1/fund/portfolio/holding/v2/{}/data'
@@ -73,6 +73,8 @@ def ficha(fila: dict) -> dict | None:
         'duracion_efectiva': _num(fila.get('EffectiveDuration')),
         'vencimiento_efectivo': _num(fila.get('EffectiveMaturity')),
         'calidad_media': fila.get('AverageCreditQualityCode') or None,
+        'gestion': {True: 'indexada', False: 'activa'}.get(fila.get('IndexFund')),
+        'srri': srri if (srri := _entero(fila.get('SRRI'))) in range(1, 8) else None,
     }
 
 

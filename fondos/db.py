@@ -63,10 +63,10 @@ class Repo:
     _SQL_FONDO = ("""
             insert into fondos.fondo (isin, nombre, ms_id, fund_id, categoria, divisa, ter, fecha_lanzamiento, patrimonio_meur,
                                       inversion_minima, estilo_rv, estilo_rf, capitalizacion_media, duracion_efectiva,
-                                      vencimiento_efectivo, calidad_media)
+                                      vencimiento_efectivo, calidad_media, gestion, srri)
             values (%(isin)s, %(nombre)s, %(ms_id)s, %(fund_id)s, %(categoria)s, %(divisa)s, %(ter)s,
                     %(fecha_lanzamiento)s, %(patrimonio_meur)s, %(inversion_minima)s, %(estilo_rv)s, %(estilo_rf)s,
-                    %(capitalizacion_media)s, %(duracion_efectiva)s, %(vencimiento_efectivo)s, %(calidad_media)s)
+                    %(capitalizacion_media)s, %(duracion_efectiva)s, %(vencimiento_efectivo)s, %(calidad_media)s, %(gestion)s, %(srri)s)
             on conflict (isin) do update set
               nombre = excluded.nombre,
               ms_id = coalesce(excluded.ms_id, fondo.ms_id),
@@ -83,6 +83,8 @@ class Repo:
               duracion_efectiva = coalesce(excluded.duracion_efectiva, fondo.duracion_efectiva),
               vencimiento_efectivo = coalesce(excluded.vencimiento_efectivo, fondo.vencimiento_efectivo),
               calidad_media = coalesce(excluded.calidad_media, fondo.calidad_media),
+              gestion = coalesce(excluded.gestion, fondo.gestion),
+              srri = coalesce(excluded.srri, fondo.srri),
               actualizado_en = now()""")
 
     # ------------------------------------------------------------ composición (X-Ray)
