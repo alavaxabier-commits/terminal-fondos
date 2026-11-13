@@ -28,10 +28,10 @@ export function evolucion(notas: NotaSemanal[], meses = 12) {
 // ------------------------------------------------------------------ señales de revisión
 export type Umbrales = {
   nota_baja_percentil: number; empeora_puntos: number; empeora_meses: number
-  mejor_puntos: number; caro_puntos_ter: number; redundante_correlacion: number; solo_myinvestor?: number
+  mejor_puntos: number; caro_puntos_ter: number; redundante_correlacion: number; solo_myinvestor?: number; misma_divisa?: number
 }
 /** Un fondo con su nota de la última semana (los de su categoría son los «pares»). */
-export type Par = { isin: string; nombre: string; categoria: string | null; ter: number | null; fund_id: string | null; nota: number; percentil: number | null }
+export type Par = { isin: string; nombre: string; categoria: string | null; divisa?: string | null; ter: number | null; fund_id: string | null; nota: number; percentil: number | null }
 export type Senal = { tipo: 'Nota baja' | 'Empeora' | 'Hay algo claramente mejor' | 'Caro' | 'Redundante'; motivo: string }
 
 const n0 = (x: number) => Math.round(x)

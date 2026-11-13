@@ -318,10 +318,10 @@ export async function pares(categorias: string[]): Promise<import('../calculo/se
   error(e)
   const fecha = (ult as { fecha: string }[] | null)?.[0]?.fecha
   if (!fecha) return []
-  type Fila = { isin: string; nota: string; percentil: string | null; fondo: { nombre: string; categoria: string | null; ter: number | null; fund_id: string | null } }
+  type Fila = { isin: string; nota: string; percentil: string | null; fondo: { nombre: string; categoria: string | null; divisa: string | null; ter: number | null; fund_id: string | null } }
   const out: import('../calculo/senales').Par[] = []
   for (let desde = 0; ; desde += 1000) {
-    const { data, error: e2 } = await supabase.from('nota_semanal').select('isin,nota,percentil,fondo!inner(nombre,categoria,ter,fund_id)')
+    const { data, error: e2 } = await supabase.from('nota_semanal').select('isin,nota,percentil,fondo!inner(nombre,categoria,divisa,ter,fund_id)')
       .eq('fecha', fecha).in('fondo.categoria', categorias).order('isin').range(desde, desde + 999)
     error(e2)
     const filas = (data ?? []) as unknown as Fila[]

@@ -36,7 +36,7 @@ export async function revisar(ids?: number[]): Promise<Revision> {
       cartera,
       fondos: fs.map(({ fondo, peso }, i): FondoRevisado => {
         const pares = todosPares.filter((p) => p.categoria === fondo.categoria)
-        const candidatos = u.solo_myinvestor ? pares.filter((p) => mi.has(p.isin)) : pares
+        const candidatos = pares.filter((p) => (!u.solo_myinvestor || mi.has(p.isin)) && (!(u.misma_divisa ?? 1) || p.divisa === fondo.divisa))
         const suyas = notas.filter((n) => n.isin === fondo.isin)
         const corr = fs.map((x, j) => ({ nombre: x.fondo.nombre, c: j === i ? null : r?.matriz[i][j] ?? null }))
         const s = senales({ isin: fondo.isin, ter: fondo.ter == null ? null : Number(fondo.ter), fund_id: fondo.fund_id ?? null }, suyas, pares, u, corr, candidatos)

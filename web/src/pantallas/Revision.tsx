@@ -11,7 +11,9 @@ const REGLA: Record<string, string> = {
   caro_puntos_ter: 'Caro: puntos de TER sobre la mediana de su categoría',
   redundante_correlacion: 'Redundante: correlación con otro fondo de la misma cartera desde',
   solo_myinvestor: 'Alternativas y «algo claramente mejor» solo entre fondos de MyInvestor',
+  misma_divisa: 'Alternativas y «algo claramente mejor» solo entre fondos de la misma divisa',
 }
+const SI_NO = ['solo_myinvestor', 'misma_divisa']
 
 /** Revisión: los fondos de mis carteras con alguna señal, por qué y sus 3 mejores alternativas; umbrales editables. */
 export default function Revision() {
@@ -38,6 +40,7 @@ export default function Revision() {
           {marcados.length} fondos marcados en {new Set(marcados.map((m) => m.cartera.id)).size} de {datos.carteras.length} carteras
           {semana && ` · nota de la semana del ${fecha(semana)} (pesos por defecto, sin Diversificación)`}
           {datos.umbrales.find((u) => u.clave === 'solo_myinvestor')?.valor ? ' · alternativas solo de MyInvestor' : ''}
+          {(datos.umbrales.find((u) => u.clave === 'misma_divisa')?.valor ?? 1) ? ' · en la misma divisa' : ''}
         </p>
       </div>
       {error && <p className="text-baja">{error}</p>}
@@ -101,7 +104,7 @@ export default function Revision() {
                 <tr key={u.clave} className="border-b border-borde/50">
                   <td className="py-1">{REGLA[u.clave] ?? u.descripcion}</td>
                   <td className="w-24 text-right">
-                    {u.clave === 'solo_myinvestor' ? (
+                    {SI_NO.includes(u.clave) ? (
                       <input type="checkbox" checked={!!u.valor} aria-label={REGLA[u.clave]} onChange={(e) => guardar(u.clave, e.target.checked ? '1' : '0')} className="accent-acento" />
                     ) : <input key={u.valor} defaultValue={String(u.valor).replace('.', ',')} inputMode="decimal" aria-label={REGLA[u.clave] ?? u.clave}
                       onBlur={(e) => e.target.value !== String(u.valor).replace('.', ',') && guardar(u.clave, e.target.value)}
