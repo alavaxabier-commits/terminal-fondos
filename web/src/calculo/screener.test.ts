@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_DEFECTO } from './nota'
-import { pasa, puntuar } from './screener'
+import { pasa, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
@@ -18,6 +18,13 @@ describe('screener', () => {
     expect(pasa(f, { gestion: 'activa' }, '2026-11-13', new Set())).toBe(true) // sin gestión cuenta como activa
     expect(pasa(f, { gestion: 'indexada' }, '2026-11-13', new Set())).toBe(false)
     expect(pasa(f, {}, '2026-11-13', new Set(['X']))).toBe(false)
+    expect(pasa(fila({ categoria: 'EUR Diversified Bond' }), { tipo: 'renta fija' }, '2026-11-13', new Set())).toBe(true)
+    expect(pasa(fila({ categoria: 'EUR Diversified Bond' }), { tipo: 'renta variable' }, '2026-11-13', new Set())).toBe(false)
+  })
+
+  it('tipo de activo por la categoría', () => {
+    expect(['Global Large-Cap Blend Equity', 'EUR Corporate Bond', 'EUR Moderate Allocation - Global', 'EUR Money Market - Short Term', 'Commodities - Precious Metals']
+      .map(tipoActivo)).toEqual(['renta variable', 'renta fija', 'mixto', 'monetario', 'otros'])
   })
 
   it('ordena por nota y deja al final los que no la tienen', () => {

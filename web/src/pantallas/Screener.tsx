@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, millones, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, pesosEfectivos, type Pesos } from '../calculo/nota'
-import { indexada, pasa, puntuar, type Filtros, type Modo, type Puntuado } from '../calculo/screener'
+import { indexada, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Puntuado, type Tipo } from '../calculo/screener'
 import * as q from '../datos/consultas'
 
 const POR_PAGINA = 100
@@ -43,10 +43,13 @@ export default function Screener() {
     ? [['Indexados', puntuados.filter(indexada)], ['Activos', puntuados.filter((f) => !indexada(f))]]
     : [['', modo === 'juntos' ? puntuados : puntuados.filter((f) => indexada(f) === (modo === 'indexados'))]]
   const elegido = puntuados.find((f) => f.isin === sel) ?? null
-  const categorias = useMemo(() => [...new Set((datos ?? []).map((f) => f.categoria).filter(Boolean) as string[])].sort(), [datos])
+  const categorias = useMemo(() => {
+    const n = new Map<string, number>()
+    for (const f of datos ?? []) if (f.categoria && (!filtros.tipo || tipoActivo(f.categoria) === filtros.tipo)) n.set(f.categoria, (n.get(f.categoria) ?? 0) + 1)
+    return [...n].sort(([a], [b]) => a.localeCompare(b))
+  }, [datos, filtros.tipo])
   const divisas = useMemo(() => [...new Set((datos ?? []).map((f) => f.divisa).filter(Boolean) as string[])].sort(), [datos])
   const filtrar = (x: Partial<Filtros>) => { setFiltros((f) => ({ ...f, ...x })); setMostrar(POR_PAGINA) }
-  const numero = (v: string) => (v.trim() === '' ? undefined : Number(v.replace(',', '.')))
 
   const aplicarPerfil = (id: string) => {
     const p = perfiles.find((x) => String(x.id) === id)
@@ -75,10 +78,16 @@ export default function Screener() {
             {perfiles.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-suave">categoría
+        <label className="flex flex-col gap-1 text-suave">tipo de activo
+          <select value={filtros.tipo ?? ''} onChange={(e) => filtrar({ tipo: (e.target.value || undefined) as Tipo | undefined, categoria: undefined })} className={control}>
+            <option value="">todos</option>
+            {TIPOS.map((x) => <option key={x}>{x}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-suave">categoría ({categorias.length})
           <select value={filtros.categoria ?? ''} onChange={(e) => filtrar({ categoria: e.target.value || undefined })} className={control}>
             <option value="">todas</option>
-            {categorias.map((c) => <option key={c}>{c}</option>)}
+            {categorias.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-suave">gestión
@@ -91,7 +100,7 @@ export default function Screener() {
         {([['terMax', 'TER máximo (%)', '0,05'], ['srriMax', 'SRRI máximo (1–7)', '1'], ['anosMin', 'antigüedad mínima (años)', '1'],
           ['patrimonioMin', 'patrimonio mínimo (M€)', '10']] as const).map(([k, etiqueta]) => (
           <label key={k} className="flex flex-col gap-1 text-suave">{etiqueta}
-            <input inputMode="decimal" value={filtros[k] ?? ''} onChange={(e) => filtrar({ [k]: numero(e.target.value) })} className={control} />
+            <CampoNumero valor={filtros[k]} cambiar={(v) => filtrar({ [k]: v })} />
           </label>
         ))}
         <label className="flex flex-col gap-1 text-suave">divisa
@@ -161,6 +170,20 @@ export default function Screener() {
       </aside>
     </div>
   )
+}
+
+const numero = (v: string) => {
+  const x = Number(v.replace(',', '.'))
+  return v.trim() === '' || !isFinite(x) ? undefined : x
+}
+
+/** Campo numérico que guarda lo escrito tal cual («0,» mientras se teclea «0,5») y avisa con el número. */
+function CampoNumero({ valor, cambiar }: { valor: number | undefined; cambiar: (v: number | undefined) => void }) {
+  const [texto, setTexto] = useState(valor == null ? '' : String(valor).replace('.', ','))
+  useEffect(() => { // cambio desde fuera (perfil, quitar filtros)
+    if (numero(texto) !== valor) setTexto(valor == null ? '' : String(valor).replace('.', ','))
+  }, [valor]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <input inputMode="decimal" value={texto} onChange={(e) => { setTexto(e.target.value); cambiar(numero(e.target.value)) }} className={control} />
 }
 
 function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria }: {
