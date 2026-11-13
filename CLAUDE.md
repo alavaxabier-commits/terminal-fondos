@@ -6,7 +6,7 @@ El código manda: esta nota solo dice dónde está cada cosa y qué no se puede 
 
 ## Fases
 
-0 datos ✔ · 1 ficha y métricas (falta comprobar 5 fondos frente a Morningstar) · 2 carteras modelo · 3 screener, seguimiento y señales de revisión · 4 comparador, simulador y portada.
+0 datos ✔ · 1 ficha y métricas (falta comprobar 5 fondos frente a Morningstar) · 2 carteras modelo ✔ · 3 screener, seguimiento y señales de revisión · 4 comparador, simulador y portada.
 Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondos y pesos, simuladas).
 
 ## Piezas
