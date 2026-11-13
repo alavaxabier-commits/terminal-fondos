@@ -110,11 +110,11 @@ export async function sustitutos(): Promise<{ indice: string; isin: string; nomb
 
 export type { Rebalanceo } from '../calculo/metricas'
 import type { Rebalanceo } from '../calculo/metricas'
-export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo }
+export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo; banda: number } // banda: puntos, para 'bandas'
 export type CarteraFondo = { peso: number; fondo: Fondo }
 
 export async function carteras(): Promise<Cartera[]> {
-  const { data, error: e } = await supabase.from('cartera').select('id,nombre,objetivo,rebalanceo').eq('archivada', false).order('nombre')
+  const { data, error: e } = await supabase.from('cartera').select('id,nombre,objetivo,rebalanceo,banda').eq('archivada', false).order('nombre')
   error(e)
   return (data ?? []) as Cartera[]
 }
@@ -123,14 +123,14 @@ export async function carteras(): Promise<Cartera[]> {
 export async function cartera(id: number): Promise<{ cartera: Cartera; fondos: CarteraFondo[] } | null> {
   const { data, error: e } = await supabase
     .from('cartera')
-    .select('id,nombre,objetivo,rebalanceo,cartera_fondo(peso,fondo(*))')
+    .select('id,nombre,objetivo,rebalanceo,banda,cartera_fondo(peso,fondo(*))')
     .eq('id', id)
     .maybeSingle()
   error(e)
   if (!data) return null
   const { cartera_fondo, ...c } = data as unknown as Cartera & { cartera_fondo: { peso: string; fondo: Fondo }[] }
   const fondos = cartera_fondo.map((x) => ({ peso: Number(x.peso), fondo: x.fondo })).sort((a, b) => b.peso - a.peso)
-  return { cartera: c, fondos }
+  return { cartera: { ...c, banda: Number(c.banda) }, fondos }
 }
 
 /** Métricas de varios fondos a la vez (la tabla de una cartera). */
@@ -176,7 +176,7 @@ export async function referenciaSeries(claves: string[]): Promise<Map<string, Re
 }
 
 // ------------------------------------------------------------------ edición de carteras (solo el propietario, por RLS)
-export type CarteraEditable = { nombre: string; objetivo: string | null; rebalanceo: Rebalanceo }
+export type CarteraEditable = { nombre: string; objetivo: string | null; rebalanceo: Rebalanceo; banda: number }
 export type Cambio = { fecha: string; sale: string | null; entra: string | null; motivo: string | null }
 
 /** Crea una cartera (con un número al final si el nombre ya existe) y devuelve su id. */

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { calcularCartera, type RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
-import { fecha, pct } from '../calculo/formato'
-import { rendimientos } from '../calculo/metricas'
-import { simular, type Punto } from '../calculo/series'
+import { cifra, fecha, pct } from '../calculo/formato'
+import { rendimientos, simularCartera } from '../calculo/metricas'
+import type { Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import EstadisticasCartera from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
@@ -79,8 +79,10 @@ export default function Cartera({ id }: { id: number }) {
     [listos, datos, JSON.stringify(conPeso.map((l) => [l.fondo.isin, l.peso]))], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const reb = cartera?.rebalanceo ?? 'anual'
-  const sim = useMemo(() => simular(fondosCalc, reb), [fondosCalc, reb])
-  const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy()) : null), [fondosCalc, reb, rf])
+  const banda = cartera?.banda || 5
+  const simulacion = useMemo(() => simularCartera(fondosCalc, reb, banda), [fondosCalc, reb, banda])
+  const sim = simulacion.valor
+  const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy(), banda) : null), [fondosCalc, reb, rf, banda])
 
   if (error) return <p className="text-baja">No se ha podido leer o guardar la cartera: {error}</p>
   if (guardada === undefined) return <p className="text-suave">Cargando…</p>
@@ -91,7 +93,7 @@ export default function Cartera({ id }: { id: number }) {
   const limita = [...fondosCalc].filter((f) => f.serie.length).sort((a, b) => b.serie[0].fecha.localeCompare(a.serie[0].fecha))[0]
   const nombreDe = (isin: string) => lineas.find((l) => l.fondo.isin === isin)?.fondo.nombre ?? guardada.fondos.find((l) => l.fondo.isin === isin)?.fondo.nombre ?? isin
   const editar = (cambio: Partial<Borrador>) => setBorrador((b) => (b ? { ...b, ...cambio } : b))
-  const puedeGuardar = borrador && borrador.nombre.trim() && lineas.length > 0 && Math.abs(suma - 100) < 0.01 && lineas.every((l) => l.peso > 0)
+  const puedeGuardar = borrador && borrador.nombre.trim() && borrador.banda > 0 && borrador.banda <= 50 && lineas.length > 0 && Math.abs(suma - 100) < 0.01 && lineas.every((l) => l.peso > 0)
 
   async function hacer(accion: () => Promise<void>) {
     setOcupado(true)
@@ -111,15 +113,15 @@ export default function Cartera({ id }: { id: number }) {
       ...entra.map((i) => ({ sale: null, entra: i, motivo: [motivo, `peso ${ahora.get(i)} %`].filter(Boolean).join(' · ') })),
       ...(pesos.length ? [{ sale: null, entra: null, motivo: [motivo, `Pesos: ${pesos.join(', ')}`].filter(Boolean).join(' · ') }] : []),
     ]
-    await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo },
+    await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo, banda: borrador.banda },
       borrador.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })), cambios)
     setBorrador(null)
     await leer()
   }
 
   async function duplicar() {
-    const { nombre, objetivo, rebalanceo } = guardada!.cartera
-    const nuevo = await q.crearCartera({ nombre: `${nombre} (copia)`, objetivo, rebalanceo },
+    const { nombre, objetivo, rebalanceo, banda } = guardada!.cartera
+    const nuevo = await q.crearCartera({ nombre: `${nombre} (copia)`, objetivo, rebalanceo, banda },
       guardada!.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })))
     location.hash = `#/cartera/${nuevo}`
   }
@@ -146,9 +148,19 @@ export default function Cartera({ id }: { id: number }) {
                   <option value="trimestral">trimestral</option>
                   <option value="semestral">semestral</option>
                   <option value="anual">anual</option>
+                  <option value="bandas">por bandas</option>
                   <option value="ninguno">ninguno (los pesos derivan)</option>
                 </select>
               </label>
+              {borrador.rebalanceo === 'bandas' && (
+                <label className="flex items-center gap-2 text-suave">
+                  ±
+                  <input type="number" min={0.5} max={50} step={0.5} value={borrador.banda} aria-label="Banda en puntos"
+                    onChange={(e) => editar({ banda: Number(e.target.value) })}
+                    className="w-16 border border-borde bg-panel px-1 py-1 text-right text-texto outline-none focus:border-acento" />
+                  puntos
+                </label>
+              )}
               <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="objetivo (opcional)"
                 aria-label="Objetivo" className="min-w-0 flex-1 border border-borde bg-panel px-2 py-1 outline-none focus:border-acento" />
             </div>
@@ -157,7 +169,7 @@ export default function Cartera({ id }: { id: number }) {
           <div>
             <h1 className="text-lg font-bold text-acento">{cartera.nombre}</h1>
             <p className="text-suave">
-              {lineas.length} fondos · rebalanceo {cartera.rebalanceo}
+              {lineas.length} fondos · rebalanceo {cartera.rebalanceo === 'bandas' ? `por bandas de ±${cifra(cartera.banda, 1)} puntos` : cartera.rebalanceo}
               {cartera.objetivo && ` · ${cartera.objetivo}`}
             </p>
           </div>
@@ -251,7 +263,7 @@ export default function Cartera({ id }: { id: number }) {
             <p className="text-suave">Sin precios todavía: {sinDatos.map((l) => l.fondo.nombre).join(', ')}. Se cargan en la próxima descarga (los fondos de una cartera se descargan cada día).</p>
           ) : (
             <>
-              <p className="mb-2 text-suave">Desde {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)}.</p>
+              <p className="mb-2 text-suave">Desde {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)} · {simulacion.rebalanceos} rebalanceos.</p>
               <Grafico lineas={[{ nombre: cartera.nombre, serie: sim, color: '#4fd18b' }]} />
             </>
           )}

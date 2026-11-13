@@ -221,24 +221,26 @@ export function anosDeMeses(r: Map<string, number>, hoy: string): Metricas {
   return out
 }
 
-export type Simulacion = { valor: Punto[]; ganancias: number[][]; pesosHoy: number[]; ultimoRebalanceo: string | null }
+export type Simulacion = { valor: Punto[]; ganancias: number[][]; pesosHoy: number[]; ultimoRebalanceo: string | null; rebalanceos: number }
 
 /**
  * Cartera en base 100 sobre las fechas comunes a todos sus fondos: parte de los pesos y vuelve a ellos el último día
- * con dato de cada mes, trimestre, semestre o año ('ninguno': derivan). Da también lo que gana cada fondo cada día y su peso al final.
+ * con dato de cada mes, trimestre, semestre o año; 'bandas': el día que algún fondo se aleja de su peso más de `banda`
+ * puntos; 'ninguno': derivan. Da también lo que gana cada fondo cada día y su peso al final.
  */
-export type Rebalanceo = 'mensual' | 'trimestral' | 'semestral' | 'anual' | 'ninguno'
-const MESES: Record<Rebalanceo, number> = { mensual: 1, trimestral: 3, semestral: 6, anual: 12, ninguno: 12 }
+export type Rebalanceo = 'mensual' | 'trimestral' | 'semestral' | 'anual' | 'bandas' | 'ninguno'
+const MESES: Record<Rebalanceo, number> = { mensual: 1, trimestral: 3, semestral: 6, anual: 12, bandas: 12, ninguno: 12 }
 
-export function simularCartera(fondos: { serie: Punto[]; peso: number }[], rebalanceo: Rebalanceo): Simulacion {
-  if (!fondos.length || fondos.some((f) => !f.serie.length)) return { valor: [], ganancias: [], pesosHoy: [], ultimoRebalanceo: null }
+export function simularCartera(fondos: { serie: Punto[]; peso: number }[], rebalanceo: Rebalanceo, banda = 5): Simulacion {
+  if (!fondos.length || fondos.some((f) => !f.serie.length)) return { valor: [], ganancias: [], pesosHoy: [], ultimoRebalanceo: null, rebalanceos: 0 }
   const mapas = fondos.map((f) => new Map(f.serie.map((p) => [p.fecha, p.valor])))
   const comunes = [...mapas[0].keys()].filter((d) => mapas.every((m) => m.has(d))).sort()
-  if (!comunes.length) return { valor: [], ganancias: [], pesosHoy: [], ultimoRebalanceo: null }
+  if (!comunes.length) return { valor: [], ganancias: [], pesosHoy: [], ultimoRebalanceo: null, rebalanceos: 0 }
   const total = fondos.reduce((s, f) => s + f.peso, 0)
   const periodo = (d: string) => `${d.slice(0, 4)}-${Math.floor((+d.slice(5, 7) - 1) / MESES[rebalanceo])}`
   const ganancias = fondos.map(() => [0])
-  let partes: number[] = [], ultimo = comunes[0]
+  let partes: number[] = [], ultimo = comunes[0], rebalanceos = 0
+  const fuera = (d: string, v: number) => fondos.some((f, k) => Math.abs((partes[k] * mapas[k].get(d)!) / v - f.peso / total) > banda / 100)
   const valor = comunes.map((d, i) => {
     let v = 100
     if (i > 0) {
@@ -246,14 +248,17 @@ export function simularCartera(fondos: { serie: Punto[]; peso: number }[], rebal
       mapas.forEach((m, k) => ganancias[k].push(partes[k] * (m.get(d)! - m.get(prev)!)))
       v = partes.reduce((s, u, k) => s + u * mapas[k].get(d)!, 0)
     }
-    if (i === 0 || (rebalanceo !== 'ninguno' && periodo(d) !== periodo(comunes[i + 1] ?? d))) {
+    const toca = rebalanceo === 'bandas' ? fuera(d, v)
+      : rebalanceo !== 'ninguno' && i < comunes.length - 1 && periodo(d) !== periodo(comunes[i + 1])
+    if (i === 0 || (i > 0 && toca)) {
       partes = fondos.map((f, k) => (v * f.peso) / total / mapas[k].get(d)!)
       ultimo = d
+      if (i > 0) rebalanceos++
     }
     return { fecha: d, valor: v }
   })
   const fin = comunes.at(-1)!, vFin = valor.at(-1)!.valor
-  return { valor, ganancias, pesosHoy: partes.map((u, k) => (u * mapas[k].get(fin)!) / vFin), ultimoRebalanceo: ultimo }
+  return { valor, ganancias, pesosHoy: partes.map((u, k) => (u * mapas[k].get(fin)!) / vFin), ultimoRebalanceo: ultimo, rebalanceos }
 }
 
 /** Puntos de rentabilidad acumulada que aporta cada fondo desde `desde` (suman la de la cartera). null sin historia. */

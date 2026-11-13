@@ -19,7 +19,7 @@ export default function Inicio() {
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className="text-[11px] uppercase tracking-widest text-suave">Carteras modelo</h2>
           <button
-            onClick={() => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual' }).then((id) => (location.hash = `#/cartera/${id}`)).catch((e: Error) => setError(e.message))}
+            onClick={() => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual', banda: 5 }).then((id) => (location.hash = `#/cartera/${id}`)).catch((e: Error) => setError(e.message))}
             className="min-h-8 border border-borde px-3 text-suave hover:text-texto"
           >
             nueva cartera

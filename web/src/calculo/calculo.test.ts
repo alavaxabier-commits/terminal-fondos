@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cifra, colorPercentil, fecha, millones, pct } from './formato'
-import { aEur, base100, combinar, haceAnos, inicioComun, simular } from './series'
+import { simularCartera } from './metricas'
+import { aEur, base100, combinar, haceAnos, inicioComun } from './series'
 
 describe('series', () => {
   it('pasa a EUR con el último tipo disponible', () => {
@@ -32,10 +33,10 @@ describe('series', () => {
     const b = [{ fecha: '2025-06-30', valor: 10 }, { fecha: '2025-12-31', valor: 10 }, { fecha: '2026-06-30', valor: 10 }]
     const fondos = [{ serie: a, peso: 50 }, { serie: b, peso: 50 }]
     // 100 → 150 (a se duplica); en el cierre vuelve a 75/75; a se duplica otra vez → 225
-    expect(simular(fondos, 'anual').map((p) => p.valor)).toEqual([100, 150, 225])
+    expect(simularCartera(fondos, 'anual').valor.map((p) => p.valor)).toEqual([100, 150, 225])
     // sin rebalanceo: 100 → 150 → 250 (a ya pesa 100 de 150)
-    expect(simular(fondos, 'ninguno').map((p) => p.valor)).toEqual([100, 150, 250])
-    expect(simular([{ serie: a, peso: 100 }, { serie: [], peso: 0 }], 'anual')).toEqual([])
+    expect(simularCartera(fondos, 'ninguno').valor.map((p) => p.valor)).toEqual([100, 150, 250])
+    expect(simularCartera([{ serie: a, peso: 100 }, { serie: [], peso: 0 }], 'anual').valor).toEqual([])
   })
 
   it('fechas', () => {

@@ -34,6 +34,13 @@ describe('carteras', () => {
     const d = puntos([['2026-02-27', 100], ['2026-03-31', 100], ['2026-04-30', 100]])
     expect(simularCartera([{ serie: c, peso: 50 }, { serie: d, peso: 50 }], 'semestral').valor.at(-1)!.valor).toBe(250)
     expect(simularCartera([{ serie: c, peso: 50 }, { serie: d, peso: 50 }], 'trimestral').valor.at(-1)!.valor).toBe(225)
+    // bandas: el 31/12 y el 2/1 «a» pesa 66,7 % (+16,7 puntos): con ±5 rebalancea los dos días, con ±20 ninguno
+    const ab = [{ serie: a, peso: 50 }, { serie: b, peso: 50 }]
+    expect(simularCartera(ab, 'bandas', 5)).toMatchObject({ rebalanceos: 2, ultimoRebalanceo: '2026-01-02' })
+    expect(simularCartera(ab, 'bandas', 5).valor.at(-1)!.valor).toBe(225)
+    expect(simularCartera(ab, 'bandas', 20).valor.at(-1)!.valor).toBe(250)
+    expect(simularCartera(ab, 'bandas', 20).rebalanceos).toBe(0)
+    expect(simularCartera(ab, 'anual').rebalanceos).toBe(1)
     expect(contribuciones(sim, '2025-12-30')).toEqual([1.25, 0])
     expect(contribuciones(sim, '2025-01-01')).toBeNull() // sin historia desde esa fecha
   })

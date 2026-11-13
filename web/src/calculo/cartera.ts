@@ -31,9 +31,9 @@ function haceAnos(f: string, n: number): string {
  * La cartera simulada con su rebalanceo y sus métricas (las mismas que las de un fondo) frente a la combinación de las
  * referencias de sus fondos; crisis, aportación y peso de hoy de cada fondo y correlaciones. `rf`: €STR semanal.
  */
-export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, rf: Map<string, number>, hoy: string): CalculoCartera | null {
+export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, rf: Map<string, number>, hoy: string, banda = 5): CalculoCartera | null {
   if (!fondos.length || fondos.some((f) => f.serie.length < 2)) return null
-  const sim = simularCartera(fondos, rebalanceo)
+  const sim = simularCartera(fondos, rebalanceo, banda)
   if (sim.valor.length < 2) return null
   const total = fondos.reduce((s, f) => s + f.peso, 0)
   const s = semanal(sim.valor)
