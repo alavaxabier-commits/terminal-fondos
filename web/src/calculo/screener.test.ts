@@ -34,7 +34,7 @@ describe('screener', () => {
       fila({ isin: 'C', nombre: 'C', pct: { '5a|rentabilidad': 80, 'hoy|ter': 100 } }),
     ], PESOS_DEFECTO)
     expect(r.map((x) => x.isin)).toEqual(['C', 'B', 'A'])
-    expect(r[0].nota).toBeCloseTo((80 * 10 + 100 * 20) / 30)
+    expect(r[0].nota).toBeCloseTo((80 * 10 + 100 * 40) / 50)
     expect(r[2].nota).toBeNull()
   })
 })

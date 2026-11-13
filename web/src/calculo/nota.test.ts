@@ -15,6 +15,6 @@ describe('nota del screener (port de Python)', () => {
   it('reparte el peso de un bloque a 0 entre los demás', () => {
     const b = { riesgo: 100, coste: 0 }
     expect(pesosEfectivos(b, { ...PESOS_DEFECTO, coste: 0 })).toEqual({ riesgo: 1 })
-    expect(nota(b, PESOS_DEFECTO)).toBeCloseTo(100 * 25 / 45)
+    expect(nota(b, PESOS_DEFECTO)).toBeCloseTo(100 * 20 / 60)
   })
 })

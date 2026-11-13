@@ -406,7 +406,9 @@ def correlacion_media(r: dict[Semana, float], cartera: list[dict[Semana, float]]
 
 # ------------------------------------------------------------------ nota del screener
 # Pesos por defecto sin Diversificación (que depende de la cartera elegida): la nota de nota_semanal y de las señales.
-PESOS_NOTA = {'riesgo': 25, 'consistencia': 20, 'coste': 20, 'proteccion': 15, 'rentabilidad': 10}
+# Elegidos con `python -m fondos analisis` (noviembre de 2026): el coste es lo que mejor se repite y la protección
+# predice las caídas; antes, 25/20/20/15/10.
+PESOS_NOTA = {'riesgo': 20, 'consistencia': 10, 'coste': 40, 'proteccion': 20, 'rentabilidad': 10}
 
 
 def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, float] = PESOS_NOTA

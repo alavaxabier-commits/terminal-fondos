@@ -25,8 +25,8 @@ RESULTADOS = ('rentabilidad', 'sharpe', 'max_caida')  # caída: percentil alto =
 BLOQUES = ('riesgo', 'consistencia', 'coste', 'proteccion', 'rentabilidad')
 # Un reparto es {bloque: peso} o, por tipo de activo, {tipo: {bloque: peso}} (lo que no tenga tipo usa el actual).
 REPARTOS = {
-    'actual': m.PESOS_NOTA,
-    'más coste': {'riesgo': 20, 'consistencia': 10, 'coste': 40, 'proteccion': 20, 'rentabilidad': 10},
+    'anterior': {'riesgo': 25, 'consistencia': 20, 'coste': 20, 'proteccion': 15, 'rentabilidad': 10},
+    'actual': m.PESOS_NOTA,  # el antiguo «más coste»
     'coste + riesgo': {'riesgo': 50, 'consistencia': 0, 'coste': 50, 'proteccion': 0, 'rentabilidad': 0},
     'propuesta': {'riesgo': 30, 'consistencia': 10, 'coste': 40, 'proteccion': 10, 'rentabilidad': 10},
     'por tipo': {  # salido de la primera pasada: hay que leerlo con cuidado (mismos datos con los que se eligió)

@@ -10,7 +10,7 @@ export const NOMBRE_BLOQUE: Record<Bloque, string> = {
   riesgo: 'Rentab. ajustada al riesgo', consistencia: 'Consistencia', coste: 'Coste',
   proteccion: 'Protección en caídas', rentabilidad: 'Rentabilidad', diversificacion: 'Diversificación',
 }
-export const PESOS_DEFECTO: Pesos = { riesgo: 25, consistencia: 20, coste: 20, proteccion: 15, rentabilidad: 10, diversificacion: 10 }
+export const PESOS_DEFECTO: Pesos = { riesgo: 20, consistencia: 10, coste: 40, proteccion: 20, rentabilidad: 10, diversificacion: 10 }
 
 /** Percentiles de un fondo {'ventana|nombre': percentil} → percentil de cada bloque y si va con 3A; null sin 3 años. */
 export function bloques(pct: Record<string, number>, indexada: boolean): { bloques: Partial<Record<Bloque, number>>; solo3a: boolean } | null {
