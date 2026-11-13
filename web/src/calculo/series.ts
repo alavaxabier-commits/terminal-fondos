@@ -1,5 +1,5 @@
 // Series de precios para los gráficos (sin red). Fechas en ISO 'AAAA-MM-DD', que se ordenan como texto.
-import { simularCartera } from './metricas'
+import { simularCartera, type Rebalanceo } from './metricas'
 
 export type Punto = { fecha: string; valor: number }
 
@@ -54,6 +54,6 @@ export function inicioComun(series: Punto[][], desde: string): string {
 }
 
 /** Cartera modelo en base 100 (simularCartera en metricas.ts, que da también ganancias y pesos de hoy). */
-export function simular(fondos: { serie: Punto[]; peso: number }[], rebalanceo: 'anual' | 'trimestral' | 'ninguno'): Punto[] {
+export function simular(fondos: { serie: Punto[]; peso: number }[], rebalanceo: Rebalanceo): Punto[] {
   return simularCartera(fondos, rebalanceo).valor
 }

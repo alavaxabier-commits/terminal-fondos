@@ -225,15 +225,18 @@ export type Simulacion = { valor: Punto[]; ganancias: number[][]; pesosHoy: numb
 
 /**
  * Cartera en base 100 sobre las fechas comunes a todos sus fondos: parte de los pesos y vuelve a ellos el último día
- * con dato de cada año o trimestre ('ninguno': derivan). Da también lo que gana cada fondo cada día y su peso al final.
+ * con dato de cada mes, trimestre, semestre o año ('ninguno': derivan). Da también lo que gana cada fondo cada día y su peso al final.
  */
-export function simularCartera(fondos: { serie: Punto[]; peso: number }[], rebalanceo: 'anual' | 'trimestral' | 'ninguno'): Simulacion {
+export type Rebalanceo = 'mensual' | 'trimestral' | 'semestral' | 'anual' | 'ninguno'
+const MESES: Record<Rebalanceo, number> = { mensual: 1, trimestral: 3, semestral: 6, anual: 12, ninguno: 12 }
+
+export function simularCartera(fondos: { serie: Punto[]; peso: number }[], rebalanceo: Rebalanceo): Simulacion {
   if (!fondos.length || fondos.some((f) => !f.serie.length)) return { valor: [], ganancias: [], pesosHoy: [], ultimoRebalanceo: null }
   const mapas = fondos.map((f) => new Map(f.serie.map((p) => [p.fecha, p.valor])))
   const comunes = [...mapas[0].keys()].filter((d) => mapas.every((m) => m.has(d))).sort()
   if (!comunes.length) return { valor: [], ganancias: [], pesosHoy: [], ultimoRebalanceo: null }
   const total = fondos.reduce((s, f) => s + f.peso, 0)
-  const periodo = (d: string) => (rebalanceo === 'anual' ? d.slice(0, 4) : `${d.slice(0, 4)}T${Math.ceil(+d.slice(5, 7) / 3)}`)
+  const periodo = (d: string) => `${d.slice(0, 4)}-${Math.floor((+d.slice(5, 7) - 1) / MESES[rebalanceo])}`
   const ganancias = fondos.map(() => [0])
   let partes: number[] = [], ultimo = comunes[0]
   const valor = comunes.map((d, i) => {

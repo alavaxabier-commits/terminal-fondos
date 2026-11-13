@@ -108,7 +108,8 @@ export async function sustitutos(): Promise<{ indice: string; isin: string; nomb
   return filas.map((r) => ({ indice: r.nombre, isin: r.proxy_isin, nombre: r.nombre }))
 }
 
-export type Rebalanceo = 'anual' | 'trimestral' | 'ninguno'
+export type { Rebalanceo } from '../calculo/metricas'
+import type { Rebalanceo } from '../calculo/metricas'
 export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo }
 export type CarteraFondo = { peso: number; fondo: Fondo }
 

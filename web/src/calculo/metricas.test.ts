@@ -28,6 +28,12 @@ describe('carteras', () => {
     expect(sim.ultimoRebalanceo).toBe('2025-12-31')
     expect(sim.pesosHoy[0]).toBeCloseTo(150 / 225)
     expect(simularCartera([{ serie: a, peso: 50 }, { serie: b, peso: 50 }], 'ninguno').valor.at(-1)!.valor).toBe(250)
+    // mensual: el 31/12 también cierra mes y rebalancea; en un semestre sin cambio de periodo, no
+    expect(simularCartera([{ serie: a, peso: 50 }, { serie: b, peso: 50 }], 'mensual').valor.at(-1)!.valor).toBe(225)
+    const c = puntos([['2026-02-27', 100], ['2026-03-31', 200], ['2026-04-30', 400]])
+    const d = puntos([['2026-02-27', 100], ['2026-03-31', 100], ['2026-04-30', 100]])
+    expect(simularCartera([{ serie: c, peso: 50 }, { serie: d, peso: 50 }], 'semestral').valor.at(-1)!.valor).toBe(250)
+    expect(simularCartera([{ serie: c, peso: 50 }, { serie: d, peso: 50 }], 'trimestral').valor.at(-1)!.valor).toBe(225)
     expect(contribuciones(sim, '2025-12-30')).toEqual([1.25, 0])
     expect(contribuciones(sim, '2025-01-01')).toBeNull() // sin historia desde esa fecha
   })

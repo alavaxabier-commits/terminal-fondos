@@ -142,9 +142,11 @@ export default function Cartera({ id }: { id: number }) {
                 rebalanceo
                 <select value={borrador.rebalanceo} onChange={(e) => editar({ rebalanceo: e.target.value as q.Rebalanceo })}
                   className="border border-borde bg-panel px-2 py-1 text-texto">
-                  <option value="anual">anual</option>
+                  <option value="mensual">mensual</option>
                   <option value="trimestral">trimestral</option>
-                  <option value="ninguno">ninguno</option>
+                  <option value="semestral">semestral</option>
+                  <option value="anual">anual</option>
+                  <option value="ninguno">ninguno (los pesos derivan)</option>
                 </select>
               </label>
               <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="objetivo (opcional)"
