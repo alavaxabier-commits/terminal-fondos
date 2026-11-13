@@ -70,6 +70,8 @@ export default function Screener() {
   const listas: [string, Puntuado[]][] = modo === 'separados'
     ? [['Indexados', puntuados.filter(indexada)], ['Activos', puntuados.filter((f) => !indexada(f))]]
     : [['', modo === 'juntos' ? puntuados : puntuados.filter((f) => indexada(f) === (modo === 'indexados'))]]
+  // lo que pesa de verdad cada bloque: su barra entre la suma de las barras (sin Diversificación si no hay cartera)
+  const totalPesos = BLOQUES.reduce((s, k) => s + (k === 'diversificacion' && !div ? 0 : pesos[k]), 0)
   const elegido = puntuados.find((f) => f.isin === sel) ?? null
   const categorias = useMemo(() => {
     const n = new Map<string, number>()
@@ -198,7 +200,7 @@ export default function Screener() {
           <h2 className="text-[11px] uppercase tracking-widest text-suave">Pesos de la nota</h2>
           {BLOQUES.map((k) => (
             <label key={k} className={`grid grid-cols-[1fr_auto] gap-x-2 ${k === 'diversificacion' && !div ? 'text-suave' : ''}`}>
-              <span>{NOMBRE_BLOQUE[k]}</span><span className="tabular text-right">{pesos[k]} %</span>
+              <span>{NOMBRE_BLOQUE[k]}</span><span className="tabular text-right">{k === 'diversificacion' && !div ? '—' : `${Math.round((100 * pesos[k]) / (totalPesos || 1))} %`}</span>
               <input type="range" min={0} max={50} value={pesos[k]} disabled={k === 'diversificacion' && !div} aria-label={`Peso de ${NOMBRE_BLOQUE[k]}`}
                 onChange={(e) => setPesos((p) => ({ ...p, [k]: +e.target.value }))} className="col-span-2 accent-acento" />
             </label>
