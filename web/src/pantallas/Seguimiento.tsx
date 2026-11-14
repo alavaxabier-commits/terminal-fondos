@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { cifra, fecha } from '../calculo/formato'
+import { TIPOS, tipoActivo } from '../calculo/screener'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
 import * as q from '../datos/consultas'
 
@@ -40,8 +41,9 @@ export default function Seguimiento() {
   if (!filas) return <p className="text-suave">{error || 'Cargando…'}</p>
   const cuenta = (v: Vista) => filas.filter((f) => (v === 'activos' ? f.estado !== 'descartado' : f.estado === v)).length
   const categoria = (f: Fila) => f.fondo.categoria ?? 'Sin categoría'
+  const orden = (f: Fila) => TIPOS.indexOf(tipoActivo(f.fondo.categoria)) // renta variable, renta fija, mixto, monetario, otros
   const visibles = filas.filter((f) => (vista === 'activos' ? f.estado !== 'descartado' : f.estado === vista))
-    .sort((a, b) => (a.fondo.categoria == null ? 1 : 0) - (b.fondo.categoria == null ? 1 : 0) || categoria(a).localeCompare(categoria(b), 'es'))
+    .sort((a, b) => orden(a) - orden(b) || (a.fondo.categoria == null ? 1 : 0) - (b.fondo.categoria == null ? 1 : 0) || categoria(a).localeCompare(categoria(b), 'es'))
   const porCategoria = (c: string) => visibles.filter((f) => categoria(f) === c).length
   const ultimaFecha = [...notas.values()].flat().reduce((m, n) => (n.fecha > m ? n.fecha : m), '')
 
