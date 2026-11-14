@@ -44,8 +44,9 @@ def accion(f: FondoIngesta, hoy: dt.date) -> str | None:
         if f.n_ultimo_anyo < MIN_DIARIOS_ANYO:
             return 'carga'
         return 'actualizar' if f.ultima < ultimo_habil_anterior(hoy) else None
-    # resto del universo: una vez por semana (basta con tener algún dato de la última semana cerrada)
-    return 'actualizar' if f.ultima < lunes(hoy) - dt.timedelta(days=7) else None
+    # resto del universo: una vez por semana, en las dos primeras ejecuciones (martes y miércoles),
+    # si le falta el cierre del viernes anterior (así no se queda con el del lunes ni salta una semana)
+    return 'actualizar' if hoy.weekday() in (1, 2) and f.ultima < lunes(hoy) - dt.timedelta(days=3) else None
 
 
 def planificar(fondos: list[FondoIngesta], hoy: dt.date, tanda: int = TANDA) -> list[tuple[FondoIngesta, str]]:

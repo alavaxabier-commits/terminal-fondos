@@ -215,15 +215,9 @@ export async function crearCartera(c: CarteraEditable, fondos: { isin: string; p
   throw new Error('Ya hay muchas carteras con ese nombre')
 }
 
-/** Guarda nombre, rebalanceo y fondos de una cartera y anota en el historial lo que cambia. */
+/** Guarda nombre, rebalanceo y fondos de una cartera y anota en el historial lo que cambia (en una transacción). */
 export async function guardarCartera(id: number, c: CarteraEditable, fondos: { isin: string; peso: number }[], cambios: Omit<Cambio, 'fecha'>[]) {
-  error((await supabase.from('cartera').update(c).eq('id', id)).error)
-  if (fondos.length) error((await supabase.from('cartera_fondo').upsert(fondos.map((f) => ({ cartera_id: id, ...f })))).error)
-  const quedan = fondos.map((f) => f.isin)
-  let borrar = supabase.from('cartera_fondo').delete().eq('cartera_id', id)
-  if (quedan.length) borrar = borrar.not('isin', 'in', `(${quedan.join(',')})`)
-  error((await borrar).error)
-  if (cambios.length) error((await supabase.from('cartera_cambio').insert(cambios.map((x) => ({ cartera_id: id, ...x })))).error)
+  error((await supabase.rpc('guardar_cartera', { p_id: id, p_cartera: c, p_fondos: fondos, p_cambios: cambios })).error)
 }
 
 export async function archivarCartera(id: number) {

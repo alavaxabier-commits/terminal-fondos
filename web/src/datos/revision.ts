@@ -2,7 +2,7 @@
 // (calculo/senales.ts); lo usan las pantallas Revisión, Cartera e Inicio.
 import { riesgo, rendimientos, semanal } from '../calculo/metricas'
 import { alternativas, evolucion, senales, type Par, type Senal, type Umbrales } from '../calculo/senales'
-import { serieEur } from '../pantallas/Ficha'
+import { serieEur } from './series'
 import * as q from './consultas'
 
 export type Alternativa = Par & { myinvestor: boolean; c: number | null }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { calcularCartera, cambiosCartera, type RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
-import { cifra, fecha, pct } from '../calculo/formato'
+import { cifra, fecha, hoy, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
 import { lineasCartera, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
@@ -10,14 +10,12 @@ import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
 import { revisar, type FondoRevisado } from '../datos/revision'
-import { serieEur } from './Ficha'
+import { serieEur } from '../datos/series'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
 export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
 type Linea = { fondo: q.Fondo; peso: number }
 type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
-
-export const hoy = () => new Date().toISOString().slice(0, 10)
 
 const REVISION = { diaria: 'cada día', mensual: 'cada mes', trimestral: 'cada trimestre', semestral: 'cada semestre', anual: 'cada año' }
 const textoBandas = (b: Bandas) =>

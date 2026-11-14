@@ -8,7 +8,8 @@ import { MatrizCorrelacion, Solapes } from '../componentes/EstadisticasCartera'
 import { Titulo } from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
-import { FILAS, serieEur } from './Ficha'
+import { FILAS } from './Ficha'
+import { serieEur } from '../datos/series'
 
 type Datos = { fondo: q.Fondo; serie: Punto[]; metricas: Map<string, q.Metrica>; comp: Composicion | null }
 

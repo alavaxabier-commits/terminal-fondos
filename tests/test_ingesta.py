@@ -82,6 +82,14 @@ def test_accion():
     assert accion(fondo(ultima=D(2026, 11, 17), n=52), HOY) == 'carga'            # pasó de semanal a diario
     assert accion(fondo(diaria=False, ultima=D(2026, 11, 13)), HOY) is None       # ya tiene la semana pasada
     assert accion(fondo(diaria=False, ultima=D(2026, 11, 6)), HOY) == 'actualizar'
+    assert accion(fondo(diaria=False, ultima=D(2026, 11, 12)), HOY) == 'actualizar'  # le falta el viernes 13
+    assert accion(fondo(diaria=False, ultima=D(2026, 11, 6)), D(2026, 11, 19)) is None  # jueves: no toca
+
+
+def test_semanal_vuelve_a_tocar_el_martes_siguiente():
+    hecho = fondo(diaria=False, ultima=D(2026, 11, 16))       # actualizado el martes 17 con dato del lunes 16
+    assert accion(hecho, D(2026, 11, 18)) is None              # miércoles: ya tiene el viernes 13
+    assert accion(hecho, D(2026, 11, 24)) == 'actualizar'      # martes siguiente: le falta el viernes 20
 
 
 def test_planificar_diarios_primero_y_tanda_de_cargas():

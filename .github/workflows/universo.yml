@@ -37,7 +37,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ARGUMENTOS: ${{ inputs.argumentos }}
-        run: python -m fondos universo $ARGUMENTOS
+        run: python -m fondos universo ${ARGUMENTOS//—/--}  # el Mac convierte -- en raya
       - name: Composición de las carteras (X-Ray), los míos una vez al mes y el resto del universo cada dos meses
         if: (success() || failure()) && steps.reciente.outputs.saltar != '1'
         env:

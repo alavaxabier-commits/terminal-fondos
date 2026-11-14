@@ -156,6 +156,15 @@ def test_metricas_mensuales_como_morningstar():
     out = metricas_mensuales(serie, {}, hoy)
     assert out[('3a', 'volatilidad_mensual')] == pytest.approx(stdev(rs) * math.sqrt(12))
     assert ('5a', 'volatilidad_mensual') not in out
+    # el tipo sin riesgo es la media de las semanas del tramo (nov-2023 a oct-2026), no de toda la historia
+    rf = {}
+    d = D(2021, 1, 4)
+    while d <= D(2026, 10, 26):
+        rf[d.isocalendar()[:2]] = 0.0 if d >= D(2023, 11, 1) else 0.01
+        d += dt.timedelta(days=7)
+    anual = math.prod(1 + r for r in rs) ** (1 / 3) - 1
+    con_rf = metricas_mensuales(serie, rf, hoy)
+    assert con_rf[('3a', 'sharpe_mensual')] == pytest.approx(anual / (stdev(rs) * math.sqrt(12)))
 
 
 

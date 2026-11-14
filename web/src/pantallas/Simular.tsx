@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { calcularCartera, cambiosCartera, type CalculoCartera } from '../calculo/cartera'
-import { cifra, fecha, pct } from '../calculo/formato'
+import { cifra, fecha, hoy, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
 import { base100 } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import { Titulo } from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
-import { cargarFondo, hoy, type DatosFondo } from './Cartera'
+import { cargarFondo, type DatosFondo } from './Cartera'
 
 type Pesos = Map<string, number> // ISIN → %
 

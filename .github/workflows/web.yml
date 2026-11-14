@@ -19,7 +19,7 @@ jobs:
       - name: Comprobar (dependencias, tipos, tests, compilación)
         run: |
           set -o pipefail
-          { npm install --no-audit --no-fund && npm run typecheck && npm test && npm run build; } 2>&1 | tee ../web.log
+          { npm ci --no-audit --no-fund && npm run typecheck && npm test && npm run build; } 2>&1 | tee ../web.log
       # Publicación en Cloudflare (Workers con recursos estáticos, ver web/wrangler.jsonc), solo desde main
       - name: Publicar en Cloudflare
         if: success() && github.ref == 'refs/heads/main' && env.CF_TOKEN != ''

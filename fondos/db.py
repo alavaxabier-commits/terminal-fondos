@@ -225,13 +225,13 @@ class Repo:
                 'indices': indices, 'categorias': categorias, 'carteras': carteras}
 
     def guardar_metricas(self, filas: list[tuple], refs: dict[str, tuple]):
-        """Sustituye todas las métricas y las series de referencia de una vez, en una transacción: nunca se ven a medias."""
+        """Sustituye todas las métricas y las series de referencia de una vez, en una transacción: nunca se ven a medias
+        (truncate no deja filas muertas; mientras dura la carga, las lecturas esperan unos segundos)."""
         with self.cx.transaction(), self.cx.cursor() as c:
-            c.execute('delete from fondos.metrica')
+            c.execute('truncate fondos.metrica, fondos.referencia_serie')
             with c.copy('copy fondos.metrica (isin, ventana, nombre, valor, percentil) from stdin') as cp:
                 for fila in filas:
                     cp.write_row(fila)
-            c.execute('delete from fondos.referencia_serie')
             c.executemany('insert into fondos.referencia_serie (clave, semanas, valores_semana, meses, valores_mes) '
                           'values (%s, %s, %s, %s, %s)', [(k, *v) for k, v in refs.items()])
 
@@ -276,6 +276,10 @@ class Repo:
                            order by ts desc limit 1""", (fuente, prefijo + '%'))
         return f[0][0] if f else None
 
+    def borrar_registro_antiguo(self):
+        """registro_descarga solo guarda 90 días."""
+        self._ejecutar("delete from fondos.registro_descarga where ts < now() - interval '90 days'")
+
     def guardar_notas(self, lunes: dt.date, notas: list[tuple]):
         """Las notas de la semana del lunes dado (sustituye las que hubiera); se guardan 13 meses."""
         with self.cx.transaction(), self.cx.cursor() as c:
@@ -287,10 +291,10 @@ class Repo:
 
     def guardar_diversificacion(self, filas: list[tuple], carteras: dict[int, list[str]]):
         """Sustituye la diversificación de todas las carteras y anota con qué fondos de cada una se calculó (la web
-        avisa si la cartera ha cambiado desde entonces)."""
+        avisa si la cartera ha cambiado desde entonces). En una transacción, con truncate: mientras dura la carga, las
+        lecturas esperan unos segundos."""
         with self.cx.transaction(), self.cx.cursor() as c:
-            c.execute('delete from fondos.diversificacion')
-            c.execute('delete from fondos.diversificacion_base')
+            c.execute('truncate fondos.diversificacion, fondos.diversificacion_base')
             with c.copy('copy fondos.diversificacion (cartera_id, isin, correlacion, percentil) from stdin') as cp:
                 for fila in filas:
                     cp.write_row(fila)

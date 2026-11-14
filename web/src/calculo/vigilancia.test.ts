@@ -19,6 +19,11 @@ describe('estadoDescargas', () => {
     expect(e[2]).toMatchObject({ alarmas: [], atrasada: true }) // 12 días sin pasar
   })
 
+  it('lunes tras una ejecución del sábado: no atrasada', () => {
+    const sabado = [{ ts: '2026-11-14T06:40:00Z', estado: 'ok', mensaje: 'precios: sin alarmas' }]
+    expect(estadoDescargas(sabado, new Date('2026-11-16T20:00:00Z'))[0].atrasada).toBe(false)
+  })
+
   it('sin líneas, nada', () => {
     expect(estadoDescargas([], ahora)).toEqual([])
   })

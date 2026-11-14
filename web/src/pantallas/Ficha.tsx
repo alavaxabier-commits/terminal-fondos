@@ -4,11 +4,12 @@ import type { Composicion } from '../calculo/exposicion'
 import { bloques, PESOS_DEFECTO } from '../calculo/nota'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
 import { cubierta } from '../calculo/screener'
-import { aEur, base100, combinar, haceAnos, inicioComun, type Punto } from '../calculo/series'
+import { base100, combinar, haceAnos, inicioComun, type Punto } from '../calculo/series'
 import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import TablaNota from '../componentes/TablaNota'
 import * as q from '../datos/consultas'
+import { serieEur } from '../datos/series'
 
 type Datos = {
   fondo: q.Fondo
@@ -26,26 +27,10 @@ type Datos = {
 
 const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
 
-// Inicio, Revisión, Cartera, Comparador y Simulador piden las mismas series: se leen una vez por visita (recargar la página las renueva).
-const series = new Map<string, Promise<Punto[]>>()
-
-/** Serie en EUR de un fondo (con tipos de cambio si cotiza en otra divisa). */
-export function serieEur(isin: string, divisa: string | null): Promise<Punto[]> {
-  if (!series.has(isin)) series.set(isin, leerSerieEur(isin, divisa).catch((e) => { series.delete(isin); throw e }))
-  return series.get(isin)!
-}
-
-async function leerSerieEur(isin: string, divisa: string | null): Promise<Punto[]> {
-  const v = await q.valores(isin)
-  if (!divisa || divisa === 'EUR') return v
-  if (divisa === 'GBX') return aEur(v.map((p) => ({ ...p, valor: p.valor / 100 })), await q.tiposCambio('GBP')) // peniques
-  return aEur(v, await q.tiposCambio(divisa))
-}
-
 /** Serie del índice de referencia: su sustituto o la combinación de sus componentes. */
 async function serieIndice(ind: q.Indice | null): Promise<Punto[]> {
   if (!ind) return []
-  if (ind.proxy_isin) return q.valores(ind.proxy_isin)
+  if (ind.proxy_isin) return serieEur(ind.proxy_isin, (await q.fondo(ind.proxy_isin))?.divisa ?? null)
   if (ind.componentes?.length) {
     const comps = await q.indices(ind.componentes.map((c) => c.id))
     const series = await Promise.all(

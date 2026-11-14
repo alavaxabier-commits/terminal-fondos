@@ -175,6 +175,7 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
             print(f'{n} fichas…', flush=True)
     repo.guardar_fondos(lote)
     anteriores = repo.ultimo_mensaje('universo', 'fichas: ')
+    repo.borrar_registro_antiguo()
     if not limite:  # una prueba con pocas fichas no cuenta como referencia para la semana siguiente
         repo.registrar('universo', None, 'ok', f'fichas: {n}')
     mi, alarmas_mi = descargar_myinvestor(repo)
@@ -262,7 +263,7 @@ def main(argv=None) -> int:
     try:
         return ejecutar(args, repo)
     except Bloqueo as e:  # Morningstar rechaza seguido: se para y se avisa (tarea en rojo y aviso en Inicio)
-        return avisar(repo, args.orden, [str(e)])
+        return avisar(repo, args.orden, [vigilancia.bloqueo(args.orden, str(e))])
 
 
 def ejecutar(args, repo) -> int:

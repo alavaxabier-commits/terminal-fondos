@@ -16,6 +16,12 @@ MIN_METRICAS = 0.90        # métricas frente a la ejecución anterior
 MIN_MYINVESTOR = 2000      # fondos del catálogo de MyInvestor (2.483 en noviembre de 2026)
 
 
+def bloqueo(orden: str, mensaje: str) -> str:
+    """Alarma de un bloqueo de Morningstar con el nombre de la tarea delante, como lo agrupa la web."""
+    tarea = {'diario': 'precios', 'composicion': 'composición'}.get(orden, orden)
+    return f'{tarea}: {mensaje}'
+
+
 def _pct(x: float) -> str:
     return f'{x * 100:.0f} %'.replace('.', ',')
 

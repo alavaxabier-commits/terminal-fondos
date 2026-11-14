@@ -37,3 +37,9 @@ def test_myinvestor():
     assert v.myinvestor(2483, None) == []
     assert 'solo 12 fondos' in v.myinvestor(12, None)[0]
     assert 'no se ha podido descargar el catálogo (HTTPError: 403)' in v.myinvestor(0, 'HTTPError: 403')[0]
+
+
+def test_bloqueo_con_la_tarea_delante():
+    assert v.bloqueo('diario', 'Morningstar responde 429') == 'precios: Morningstar responde 429'
+    assert v.bloqueo('composicion', 'x') == 'composición: x'
+    assert v.bloqueo('universo', 'x') == 'universo: x'

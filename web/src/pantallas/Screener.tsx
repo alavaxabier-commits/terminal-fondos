@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { cifra, millones, pct } from '../calculo/formato'
+import { cifra, hoy, millones, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, PLAZOS, type Pesos, type Plazo } from '../calculo/nota'
 import { cubierta, grupo, grupos, indexada, MIN_CATEGORIA, ordenar, pasa, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado, type Tipo } from '../calculo/screener'
 import TablaNota from '../componentes/TablaNota'
 import * as q from '../datos/consultas'
 
 const POR_PAGINA = 100
-const hoy = () => new Date().toISOString().slice(0, 10)
 const control = 'border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento'
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
@@ -314,8 +313,7 @@ function Desglose({ f, plazo, pocos, pesos, seguido, seguir }: { f: Puntuado; pl
       {f.solo3a && <p className="text-suave">Menos de 5 años: métricas a 3 años y, en los activos, consistencia solo con el ratio de información.</p>}
       <button onClick={() => seguir(f.isin)} disabled={seguido}
         className="min-h-9 border border-acento bg-panel px-3 text-left text-acento disabled:border-borde disabled:text-suave">{seguido ? '★ en seguimiento' : 'añadir a seguimiento'}</button>
-      <button disabled className="min-h-9 border border-borde px-3 text-left text-suave">comparar (fase 4)</button>
-      <button disabled className="min-h-9 border border-borde px-3 text-left text-suave">probar en una cartera (fase 4)</button>
+      <a href={`#/comparar/${f.isin}`} className="flex min-h-9 items-center border border-acento bg-panel px-3 text-acento">comparar</a>
     </section>
   )
 }

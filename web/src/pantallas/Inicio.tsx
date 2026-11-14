@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { calcularCartera } from '../calculo/cartera'
-import { fecha, pct } from '../calculo/formato'
+import { fecha, hoy, pct } from '../calculo/formato'
 import { estadoDescargas, type Tarea } from '../calculo/vigilancia'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
 import { cartera as leerCartera, crearCartera, tamanoBase, carteras as leerCarteras, notasDe, seguidos, sustitutos, vigilancia, type Cartera } from '../datos/consultas'
 import { revisar, type Revision } from '../datos/revision'
-import { hoy } from './Cartera'
-import { serieEur } from './Ficha'
+import { serieEur } from '../datos/series'
 
 /** Rentabilidad simulada de la cartera este año y a 3 años (anual), con su rebalanceo: las cifras de su pantalla. */
 async function resumen(c: Cartera): Promise<{ ytd?: number; r3?: number } | null> {

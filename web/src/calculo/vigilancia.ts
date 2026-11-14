@@ -2,8 +2,9 @@
 export type Linea = { ts: string; estado: string; mensaje: string }
 export type Tarea = { tarea: string; ts: string; alarmas: string[]; atrasada: boolean }
 
-// Cada cuánto debe pasar cada tarea (horas), con margen: la diaria cada día, universo y composición los domingos
-const CADA: Record<string, number> = { precios: 36, 'métricas': 36, universo: 8 * 24, 'composición': 8 * 24 }
+// Cada cuánto debe pasar cada tarea (horas), con margen: la diaria de martes a sábado (del sábado por la mañana al
+// final de la del martes pasan ~75 h), universo y composición los domingos
+const CADA: Record<string, number> = { precios: 80, 'métricas': 80, universo: 8 * 24, 'composición': 8 * 24 }
 
 /** Última ejecución de cada tarea: sus alarmas (las líneas de error de esa misma ejecución) y si se ha atrasado. */
 export function estadoDescargas(lineas: Linea[], ahora: Date): Tarea[] {

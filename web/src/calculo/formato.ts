@@ -1,5 +1,8 @@
 // Formato de cifras en español (sin red).
 
+/** Fecha de hoy, 'AAAA-MM-DD'. */
+export const hoy = () => new Date().toISOString().slice(0, 10)
+
 const num = (dec: number) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec })
 
 /** 0.1234 → '+12,3 %'; null → '—'. */

@@ -126,12 +126,15 @@ function mensualesMorningstar(serie: Punto[], rf: Map<string, number>, hoy: stri
   const rent: [string, number][] = []
   for (let i = 1; i < meses.length; i++)
     if (mesSiguiente(meses[i - 1], meses[i])) rent.push([meses[i], cierres.get(meses[i])!.valor / cierres.get(meses[i - 1])!.valor - 1])
-  const rfAnual = rf.size ? (1 + media([...rf.values()])) ** SEMANAS_ANO - 1 : 0
   for (const [v, n] of [['3a', 3], ['5a', 5], ['10a', 10]] as const) {
     const tramo = rent.slice(-12 * n)
     if (tramo.length < 12 * n) continue
     const [a0, m0] = tramo[0][0].split('-').map(Number), [a1, m1] = tramo.at(-1)![0].split('-').map(Number)
     if (a1 * 12 + m1 - (a0 * 12 + m0) !== 12 * n - 1) continue // algún mes sin dato en medio
+    // tipo sin riesgo: media de las semanas cuyo lunes cae en los meses del tramo
+    const desde = tramo[0][0], hasta = tramo.at(-1)![0]
+    const rfV = [...rf].filter(([k]) => k.slice(0, 7) >= desde && k.slice(0, 7) <= hasta).map(([, x]) => x)
+    const rfAnual = rfV.length ? (1 + media(rfV)) ** SEMANAS_ANO - 1 : 0
     const rs = tramo.map(([, r]) => r)
     const vol = stdev(rs) * Math.sqrt(12)
     poner(v, 'volatilidad_mensual', vol)

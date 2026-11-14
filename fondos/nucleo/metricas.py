@@ -255,7 +255,7 @@ def metricas_mensuales(serie: dict[dt.date, float], rf_semanal: dict[Semana, flo
         consecutivos = (b[0] * 12 + b[1]) - (a[0] * 12 + a[1]) == 1
         if consecutivos:
             rent.append((b, cierres[b][1] / cierres[a][1] - 1))
-    rf_anual = (1 + fmean(rf_semanal.values())) ** SEMANAS_ANO - 1 if rf_semanal else 0.0
+    rf_meses = {k: ((lu := lunes_de(k)).year, lu.month) for k in rf_semanal}
     for nombre_v, n in (('3a', 3), ('5a', 5), ('10a', 10)):
         tramo = rent[-12 * n:]
         if len(tramo) < 12 * n:
@@ -263,6 +263,9 @@ def metricas_mensuales(serie: dict[dt.date, float], rf_semanal: dict[Semana, flo
         (a0, m0), (a1, m1) = tramo[0][0], tramo[-1][0]
         if (a1 * 12 + m1) - (a0 * 12 + m0) != 12 * n - 1:  # algún mes sin dato en medio
             continue
+        # tipo sin riesgo: media de las semanas cuyo lunes cae en los meses del tramo
+        rf_v = [v for k, v in rf_semanal.items() if (a0, m0) <= rf_meses[k] <= (a1, m1)]
+        rf_anual = (1 + fmean(rf_v)) ** SEMANAS_ANO - 1 if rf_v else 0.0
         rs = [r for _, r in tramo]
         vol = stdev(rs) * math.sqrt(12)
         anual = math.prod(1 + r for r in rs) ** (1 / n) - 1
