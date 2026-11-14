@@ -3,7 +3,7 @@ import { calcularCartera } from '../calculo/cartera'
 import { fecha, pct } from '../calculo/formato'
 import { estadoDescargas, type Tarea } from '../calculo/vigilancia'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
-import { cartera as leerCartera, crearCartera, carteras as leerCarteras, notasDe, seguidos, sustitutos, vigilancia, type Cartera } from '../datos/consultas'
+import { cartera as leerCartera, crearCartera, tamanoBase, carteras as leerCarteras, notasDe, seguidos, sustitutos, vigilancia, type Cartera } from '../datos/consultas'
 import { revisar, type Revision } from '../datos/revision'
 import { hoy } from './Cartera'
 import { serieEur } from './Ficha'
@@ -25,6 +25,7 @@ export default function Inicio() {
   const [resumenes, setResumenes] = useState<Map<number, Awaited<ReturnType<typeof resumen>>>>(new Map())
   const [error, setError] = useState('')
   const [descargas, setDescargas] = useState<Tarea[] | null>(null)
+  const [base, setBase] = useState<Awaited<ReturnType<typeof tamanoBase>>>(null)
   const [revision, setRevision] = useState<Revision | null>(null)
   const [cambiosSeg, setCambiosSeg] = useState<{ isin: string; nombre: string; estado: string; nota: number; semana: number | null }[]>([])
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function Inicio() {
         return e && (nuevo || Math.abs(e.semana ?? 0) >= 2) ? [{ isin: f.isin, nombre: f.fondo.nombre, estado: f.estado, nota: e.nota, semana: nuevo ? null : e.semana }] : []
       }))
     }).catch((e: Error) => setError(e.message))
+    tamanoBase().then(setBase).catch((e: Error) => setError(e.message))
     vigilancia().then((l) => setDescargas(estadoDescargas(l, new Date()))).catch((e: Error) => setError(e.message))
     sustitutos().then(setIndices).catch((e: Error) => setError(e.message))
     leerCarteras().then((cs) => {
@@ -53,6 +55,7 @@ export default function Inicio() {
       <p className="text-suave">Busca un fondo por nombre o ISIN (tecla «/»), o abre uno de los índices de referencia.</p>
       {error && <p className="text-baja">No se han podido leer los datos: {error}</p>}
       {descargas && <EstadoDescargas tareas={descargas} />}
+      {base && <TamanoBase {...base} />}
       <section>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className="text-[11px] uppercase tracking-widest text-suave">Carteras modelo</h2>
@@ -168,5 +171,24 @@ function EstadoDescargas({ tareas }: { tareas: Tarea[] }) {
       </ul>
       <p className="mt-2 text-suave">Puede que Morningstar haya cambiado algo: el detalle está en GitHub Actions y en el registro de descargas.</p>
     </section>
+  )
+}
+
+const LIMITE_MB = 500 // plan gratuito de Supabase
+const mb = (bytes: number) => Math.round(bytes / 2 ** 20)
+
+/** Cuánto ocupa la base frente al límite del plan gratuito, y qué tablas pesan más. Ámbar desde el 80 %, rojo desde el 90 %. */
+function TamanoBase({ total, tablas }: { total: number; tablas: { tabla: string; bytes: number }[] }) {
+  const uso = mb(total) / LIMITE_MB
+  const tono = uso >= 0.9 ? 'text-baja' : uso >= 0.8 ? 'text-aviso' : 'text-sube'
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 text-suave">
+      <span>Base de datos</span>
+      <span className="inline-block h-2 w-24 border border-borde" role="meter" aria-valuemin={0} aria-valuemax={LIMITE_MB} aria-valuenow={mb(total)} aria-label="Espacio usado en la base">
+        <span className={`block h-full bg-current ${tono}`} style={{ width: `${Math.min(100, uso * 100)}%` }} />
+      </span>
+      <span><span className={tono}>{mb(total)} MB</span> de {LIMITE_MB} MB ({Math.round(uso * 100)} %)</span>
+      <span>· {tablas.map((t) => `${t.tabla} ${mb(t.bytes)}`).join(', ')} MB</span>
+    </p>
   )
 }

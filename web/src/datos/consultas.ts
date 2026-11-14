@@ -245,6 +245,13 @@ export async function vigilancia(): Promise<{ ts: string; estado: string; mensaj
   return (data ?? []) as { ts: string; estado: string; mensaje: string }[]
 }
 
+/** Lo que ocupa la base (bytes) y sus 5 tablas mayores; null si no hay sesión del propietario. */
+export async function tamanoBase(): Promise<{ total: number; tablas: { tabla: string; bytes: number }[] } | null> {
+  const { data, error: e } = await supabase.rpc('tamano_base')
+  error(e)
+  return data
+}
+
 // ------------------------------------------------------------------ screener y seguimiento (fase 3)
 export type FilaScreener = {
   isin: string; nombre: string; categoria: string | null; divisa: string | null; ter: number | null; srri: number | null

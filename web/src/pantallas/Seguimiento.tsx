@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { cifra, fecha } from '../calculo/formato'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
 import * as q from '../datos/consultas'
@@ -39,7 +39,10 @@ export default function Seguimiento() {
 
   if (!filas) return <p className="text-suave">{error || 'Cargando…'}</p>
   const cuenta = (v: Vista) => filas.filter((f) => (v === 'activos' ? f.estado !== 'descartado' : f.estado === v)).length
+  const categoria = (f: Fila) => f.fondo.categoria ?? 'Sin categoría'
   const visibles = filas.filter((f) => (vista === 'activos' ? f.estado !== 'descartado' : f.estado === vista))
+    .sort((a, b) => (a.fondo.categoria == null ? 1 : 0) - (b.fondo.categoria == null ? 1 : 0) || categoria(a).localeCompare(categoria(b), 'es'))
+  const porCategoria = (c: string) => visibles.filter((f) => categoria(f) === c).length
   const ultimaFecha = [...notas.values()].flat().reduce((m, n) => (n.fecha > m ? n.fecha : m), '')
 
   return (
@@ -79,13 +82,22 @@ export default function Seguimiento() {
               </tr>
             </thead>
             <tbody className="tabular">
-              {visibles.map((f) => {
+              {visibles.map((f, i) => {
                 const e = evolucion(notas.get(f.isin) ?? [])
+                const nueva = i === 0 || categoria(visibles[i - 1]) !== categoria(f)
                 return (
-                  <tr key={f.isin} className="border-b border-borde/50 align-top">
+                  <Fragment key={f.isin}>
+                  {nueva && (
+                    <tr className="border-b border-borde">
+                      <th colSpan={9} scope="colgroup" className="pt-4 pb-1 text-left text-[11px] font-normal uppercase tracking-widest text-acento">
+                        {categoria(f)} <span className="text-suave">· {porCategoria(categoria(f))}</span>
+                      </th>
+                    </tr>
+                  )}
+                  <tr className="border-b border-borde/50 align-top">
                     <td className="py-1 text-left">
                       <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.fondo.nombre}</a>
-                      <span className="block text-suave">{f.fondo.categoria} · desde {fecha(f.alta)}</span>
+                      <span className="block text-suave">desde {fecha(f.alta)}</span>
                     </td>
                     <td className="text-left">
                       <select value={f.estado} aria-label="Estado" onChange={(x) => cambiar(f.isin, { estado: x.target.value as Fila['estado'] })}
@@ -105,6 +117,7 @@ export default function Seguimiento() {
                     </td>
                     <td><button onClick={() => quitar(f.isin)} aria-label="Dejar de seguir" className="min-h-7 min-w-7 text-suave hover:text-baja">×</button></td>
                   </tr>
+                  </Fragment>
                 )
               })}
             </tbody>
