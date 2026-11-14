@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Estética de terminal: fondo casi negro, monoespaciada, verde/rojo con significado y ámbar para avisos. */
+/* Estética de terminal: fondo casi negro, monoespaciada, cian de acento, verde/rojo solo para subir/bajar y ámbar para avisos. */
 @theme {
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --color-fondo: #0b0e0d;
@@ -8,7 +8,7 @@
   --color-borde: #24302b;
   --color-texto: #d6e2dc;
   --color-suave: #7d8f86;
-  --color-acento: #4fd18b;
+  --color-acento: #5cc8e6;
   --color-sube: #4fd18b;
   --color-baja: #ff6b6b;
   --color-aviso: #f2b84b;
@@ -22,6 +22,6 @@ body {
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
 }
-::selection { background: #2b5a43; }
+::selection { background: #1f4b58; }
 input { font: inherit; }
 .tabular { font-variant-numeric: tabular-nums; }

@@ -2,6 +2,10 @@ import { Fragment, useEffect, useState } from 'react'
 import { cifra, fecha } from '../calculo/formato'
 import { TIPOS, tipoActivo } from '../calculo/screener'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
+import Bandeja from '../componentes/Bandeja'
+import DetalleFondo from '../componentes/DetalleFondo'
+import { useTeclasLista } from '../componentes/teclas'
+import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
 
 type Fila = Awaited<ReturnType<typeof q.seguidos>>[number]
@@ -16,6 +20,7 @@ export default function Seguimiento() {
   const [filas, setFilas] = useState<Fila[] | null>(null)
   const [notas, setNotas] = useState<Map<string, NotaSemanal[]>>(new Map())
   const [vista, setVista] = useState<Vista>('activos')
+  const [sel, setSel] = useState<string | null>(null)
   const [error, setError] = useState('')
   const falla = (e: Error) => setError(e.message)
 
@@ -38,12 +43,23 @@ export default function Seguimiento() {
     q.dejarDeSeguir(isin).catch(falla)
   }
 
-  if (!filas) return <p className="text-suave">{error || 'Cargando…'}</p>
-  const cuenta = (v: Vista) => filas.filter((f) => (v === 'activos' ? f.estado !== 'descartado' : f.estado === v)).length
   const categoria = (f: Fila) => f.fondo.categoria ?? 'Sin categoría'
   const orden = (f: Fila) => TIPOS.indexOf(tipoActivo(f.fondo.categoria)) // renta variable, renta fija, mixto, monetario, otros
-  const visibles = filas.filter((f) => (vista === 'activos' ? f.estado !== 'descartado' : f.estado === vista))
+  const visibles = (filas ?? []).filter((f) => (vista === 'activos' ? f.estado !== 'descartado' : f.estado === vista))
     .sort((a, b) => orden(a) - orden(b) || (a.fondo.categoria == null ? 1 : 0) - (b.fondo.categoria == null ? 1 : 0) || categoria(a).localeCompare(categoria(b), 'es'))
+  // sin selección (o si deja de verse), la primera fila
+  const primera = visibles[0]?.isin
+  const sigue = visibles.some((f) => f.isin === sel)
+  useEffect(() => { if (primera && !sigue) setSel(primera) }, [primera, sigue])
+  useTeclasLista(visibles.map((f) => f.isin), sel, setSel, {
+    Enter: (i) => { location.hash = `#/fondo/${i}` },
+    b: (i) => { const f = visibles.find((x) => x.isin === i); if (f) alternar({ isin: i, nombre: f.fondo.nombre }) },
+  })
+
+  if (!filas) return <p className="text-suave">{error || 'Cargando…'}</p>
+  const cuenta = (v: Vista) => filas.filter((f) => (v === 'activos' ? f.estado !== 'descartado' : f.estado === v)).length
+  const elegido = visibles.find((f) => f.isin === sel)
+  const ev = elegido && evolucion(notas.get(elegido.isin) ?? [])
   const porCategoria = (c: string) => visibles.filter((f) => categoria(f) === c).length
   const ultimaFecha = [...notas.values()].flat().reduce((m, n) => (n.fecha > m ? n.fecha : m), '')
 
@@ -68,8 +84,9 @@ export default function Seguimiento() {
       {visibles.length === 0 ? (
         <p className="text-suave">Nada aquí. Se añaden fondos desde el screener (+).</p>
       ) : (
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[56rem] text-right [&_tr>*+*]:pl-3">
+          <table className="w-full min-w-[48rem] text-right [&_tr>*+*]:pl-3">
             <thead className="text-[11px] uppercase tracking-widest text-suave">
               <tr className="border-b border-borde">
                 <th className="py-1 text-left font-normal">Fondo</th>
@@ -96,8 +113,10 @@ export default function Seguimiento() {
                       </th>
                     </tr>
                   )}
-                  <tr className="border-b border-borde/50 align-top">
+                  <tr data-isin={f.isin} aria-selected={sel === f.isin} onClick={() => setSel(f.isin)}
+                    className={`cursor-pointer border-b border-borde/50 align-top ${sel === f.isin ? 'bg-panel' : 'hover:bg-panel/50'}`}>
                     <td className="py-1 text-left">
+                      {sel === f.isin && <span className="text-acento" aria-hidden>▸ </span>}
                       <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.fondo.nombre}</a>
                       <span className="block text-suave">desde {fecha(f.alta)}</span>
                     </td>
@@ -115,7 +134,7 @@ export default function Seguimiento() {
                     <td className="text-left">
                       <input defaultValue={f.nota ?? ''} placeholder="por qué lo sigo" aria-label="Mi nota"
                         onBlur={(x) => x.target.value !== (f.nota ?? '') && cambiar(f.isin, { nota: x.target.value || null })}
-                        className={`${control} w-56`} />
+                        className={`${control} w-44`} />
                     </td>
                     <td><button onClick={() => quitar(f.isin)} aria-label="Dejar de seguir" className="min-h-7 min-w-7 text-suave hover:text-baja">×</button></td>
                   </tr>
@@ -125,7 +144,22 @@ export default function Seguimiento() {
             </tbody>
           </table>
         </div>
+        {elegido && (
+          <aside className="lg:sticky lg:top-16">
+            <DetalleFondo isin={elegido.isin} nombre={elegido.fondo.nombre} divisa={elegido.fondo.divisa} seguido seguir={() => {}}
+              linea={`${elegido.isin} · ${categoria(elegido)} · ${elegido.fondo.gestion ?? 'gestión sin dato'} · TER ${elegido.fondo.ter == null ? '—' : `${cifra(elegido.fondo.ter)} %`} · SRRI ${elegido.fondo.srri ?? '—'} · MyInvestor ${elegido.myinvestor ? 'sí' : 'no'}`}
+              nota={ev
+                ? <p className="tabular"><span className="text-3xl text-acento">{Math.round(ev.nota)}</span>{ev.percentil != null && <span className="text-suave"> p{Math.round(ev.percentil)} de su categoría</span>}
+                    <span className="block"><span className="text-suave">semana </span>{cambio(ev.semana)}<span className="text-suave"> · 12 meses </span>{cambio(ev.periodo)}</span></p>
+                : <p className="text-suave">Sin nota: fuera del universo o menos de 3 años de historia.</p>}>
+              <p><span className="text-suave">estado </span><span className={elegido.estado === 'candidato' ? 'text-acento' : ''}>{elegido.estado}</span>
+                <span className="text-suave"> · desde {fecha(elegido.alta)}</span>{elegido.nota && <span className="block text-suave">«{elegido.nota}»</span>}</p>
+            </DetalleFondo>
+          </aside>
+        )}
+        </div>
       )}
+      <Bandeja />
       <p className="text-suave">El estado y tu nota se guardan al momento (la nota, al salir del campo). MyInvestor sale de su catálogo, que se renueva cada semana. Los fondos en seguimiento que no estén descartados tienen precios diarios desde la siguiente descarga.</p>
     </div>
   )

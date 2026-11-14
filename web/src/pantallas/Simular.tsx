@@ -104,7 +104,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
   const desde = a?.sim[0] && b?.sim[0] ? [a.sim[0].fecha, b.sim[0].fecha].sort()[1] : null
   const lineas = desde ? [
     { nombre: 'Actual', serie: base100(a!.sim, desde), color: '#7d8f86' },
-    { nombre: 'Propuesta', serie: base100(b!.sim, desde), color: '#4fd18b' },
+    { nombre: 'Propuesta', serie: base100(b!.sim, desde), color: '#5cc8e6' },
   ] : []
 
   async function aplicar() {

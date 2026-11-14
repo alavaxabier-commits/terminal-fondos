@@ -14,7 +14,7 @@ import { serieEur } from '../datos/series'
 type Datos = { fondo: q.Fondo; serie: Punto[]; metricas: Map<string, q.Metrica>; comp: Composicion | null }
 
 export const MAX_COMPARAR = 5
-const COLORES = ['#4fd18b', '#e0b84f', '#6fa8ff', '#e0736f', '#c58cf0']
+const COLORES = ['#5cc8e6', '#e0b84f', '#4fd18b', '#e0736f', '#c58cf0']
 const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
 
 async function cargar(isin: string): Promise<Datos | null> {

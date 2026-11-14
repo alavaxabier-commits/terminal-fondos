@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { calcularCartera } from '../calculo/cartera'
 import { fecha, hoy, pct } from '../calculo/formato'
-import { estadoDescargas, type Tarea } from '../calculo/vigilancia'
+import type { Tarea } from '../calculo/vigilancia'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
-import { cartera as leerCartera, crearCartera, tamanoBase, carteras as leerCarteras, notasDe, seguidos, sustitutos, vigilancia, type Cartera } from '../datos/consultas'
-import { revisar, type Revision } from '../datos/revision'
+import type { Estado } from '../App'
+import { cartera as leerCartera, crearCartera, carteras as leerCarteras, notasDe, seguidos, sustitutos, type Cartera } from '../datos/consultas'
+import type { Revision } from '../datos/revision'
 import { serieEur } from '../datos/series'
 
 /** Rentabilidad simulada de la cartera este año y a 3 años (anual), con su rebalanceo: las cifras de su pantalla. */
@@ -17,18 +18,15 @@ async function resumen(c: Cartera): Promise<{ ytd?: number; r3?: number } | null
 }
 const color = (v?: number) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 
-/** Inicio: estado de las descargas, mis carteras modelo, fondos a revisar, cambios del seguimiento e índices. */
-export default function Inicio() {
+/** Inicio: alarmas de las descargas, mis carteras modelo, fondos a revisar, cambios del seguimiento e índices.
+ *  Descargas y revisión llegan de App, que las lee una vez para la barra de estado. */
+export default function Inicio({ estado: { descargas, revision, error: errorEstado } }: { estado: Estado }) {
   const [indices, setIndices] = useState<{ indice: string; isin: string }[]>([])
   const [carteras, setCarteras] = useState<Cartera[]>([])
   const [resumenes, setResumenes] = useState<Map<number, Awaited<ReturnType<typeof resumen>>>>(new Map())
   const [error, setError] = useState('')
-  const [descargas, setDescargas] = useState<Tarea[] | null>(null)
-  const [base, setBase] = useState<Awaited<ReturnType<typeof tamanoBase>>>(null)
-  const [revision, setRevision] = useState<Revision | null>(null)
   const [cambiosSeg, setCambiosSeg] = useState<{ isin: string; nombre: string; estado: string; nota: number; semana: number | null }[]>([])
   useEffect(() => {
-    revisar().then(setRevision).catch((e: Error) => setError(e.message))
     seguidos().then(async (fs) => {
       const activos = fs.filter((f) => f.estado !== 'descartado')
       const porIsin = new Map<string, NotaSemanal[]>()
@@ -40,8 +38,6 @@ export default function Inicio() {
         return e && (nuevo || Math.abs(e.semana ?? 0) >= 2) ? [{ isin: f.isin, nombre: f.fondo.nombre, estado: f.estado, nota: e.nota, semana: nuevo ? null : e.semana }] : []
       }))
     }).catch((e: Error) => setError(e.message))
-    tamanoBase().then(setBase).catch((e: Error) => setError(e.message))
-    vigilancia().then((l) => setDescargas(estadoDescargas(l, new Date()))).catch((e: Error) => setError(e.message))
     sustitutos().then(setIndices).catch((e: Error) => setError(e.message))
     leerCarteras().then((cs) => {
       setCarteras(cs)
@@ -51,10 +47,8 @@ export default function Inicio() {
 
   return (
     <div className="space-y-6">
-      <p className="text-suave">Busca un fondo por nombre o ISIN (tecla «/»), o abre uno de los índices de referencia.</p>
-      {error && <p className="text-baja">No se han podido leer los datos: {error}</p>}
-      {descargas && <EstadoDescargas tareas={descargas} />}
-      {base && <TamanoBase {...base} />}
+      {(error || errorEstado) && <p className="text-baja">No se han podido leer los datos: {error || errorEstado}</p>}
+      {descargas && <AlarmasDescargas tareas={descargas} />}
       <section>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className="text-[11px] uppercase tracking-widest text-suave">Carteras modelo</h2>
@@ -148,17 +142,10 @@ function FondosARevisar({ revision }: { revision: Revision }) {
 
 const hora = (ts: string) => `${fecha(ts)} ${new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
 
-/** Una línea con el estado de las descargas; en rojo, las alarmas y las tareas que no han pasado cuando tocaba. */
-function EstadoDescargas({ tareas }: { tareas: Tarea[] }) {
+/** En rojo, las alarmas y las tareas que no han pasado cuando tocaba (si todo va bien, solo lo dice la barra de estado). */
+function AlarmasDescargas({ tareas }: { tareas: Tarea[] }) {
   const mal = tareas.filter((t) => t.alarmas.length || t.atrasada)
-  if (!tareas.length) return null
-  if (!mal.length)
-    return (
-      <p className="text-suave">
-        <span className="text-sube" aria-hidden="true">● </span>
-        Descargas en orden · {tareas.map((t) => `${t.tarea} ${hora(t.ts)}`).join(' · ')}
-      </p>
-    )
+  if (!mal.length) return null
   return (
     <section role="alert" className="border border-baja/60 p-3">
       <h2 className="mb-1 text-[11px] uppercase tracking-widest text-baja">Alarmas de las descargas</h2>
@@ -170,24 +157,5 @@ function EstadoDescargas({ tareas }: { tareas: Tarea[] }) {
       </ul>
       <p className="mt-2 text-suave">Puede que Morningstar haya cambiado algo: el detalle está en GitHub Actions y en el registro de descargas.</p>
     </section>
-  )
-}
-
-const LIMITE_MB = 500 // plan gratuito de Supabase
-const mb = (bytes: number) => Math.round(bytes / 2 ** 20)
-
-/** Cuánto ocupa la base frente al límite del plan gratuito, y qué tablas pesan más. Ámbar desde el 80 %, rojo desde el 90 %. */
-function TamanoBase({ total, tablas }: { total: number; tablas: { tabla: string; bytes: number }[] }) {
-  const uso = mb(total) / LIMITE_MB
-  const tono = uso >= 0.9 ? 'text-baja' : uso >= 0.8 ? 'text-aviso' : 'text-sube'
-  return (
-    <p className="flex flex-wrap items-center gap-x-2 text-suave">
-      <span>Base de datos</span>
-      <span className="inline-block h-2 w-24 border border-borde" role="meter" aria-valuemin={0} aria-valuemax={LIMITE_MB} aria-valuenow={mb(total)} aria-label="Espacio usado en la base">
-        <span className={`block h-full bg-current ${tono}`} style={{ width: `${Math.min(100, uso * 100)}%` }} />
-      </span>
-      <span><span className={tono}>{mb(total)} MB</span> de {LIMITE_MB} MB ({Math.round(uso * 100)} %)</span>
-      <span>· {tablas.map((t) => `${t.tabla} ${mb(t.bytes)}`).join(', ')} MB</span>
-    </p>
   )
 }

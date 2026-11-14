@@ -55,7 +55,7 @@ export function inicioComun(series: Punto[][], desde: string): string {
 /** Cartera y su referencia para la gráfica, en la misma escala: la referencia arranca al nivel de la cartera el día de
  *  su primer dato común (si empieza más tarde, como una referencia con el €STR, que empieza en octubre de 2019). */
 export function lineasCartera(nombre: string, sim: Punto[], ref: Punto[]) {
-  const out = [{ nombre, serie: sim, color: '#4fd18b' }]
+  const out = [{ nombre, serie: sim, color: '#5cc8e6' }]
   const r0 = sim.length ? ref.find((p) => p.fecha >= sim[0].fecha) : undefined
   const base = r0 && sim.filter((p) => p.fecha <= r0.fecha).at(-1)
   if (r0 && base) {

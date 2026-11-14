@@ -303,11 +303,13 @@ export async function notasDe(isins: string[]): Promise<import('../calculo/senal
   }
 }
 
+type FondoSeguido = Pick<Fondo, 'nombre' | 'categoria' | 'ter' | 'divisa' | 'gestion' | 'srri'>
+
 /** Fondos en seguimiento con su ficha y si se pueden comprar en MyInvestor (catálogo, clase abierta). */
-export async function seguidos(): Promise<(Seguido & { fondo: Pick<Fondo, 'nombre' | 'categoria' | 'ter'>; myinvestor: boolean })[]> {
-  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota,fondo(nombre,categoria,ter)').order('alta', { ascending: false })
+export async function seguidos(): Promise<(Seguido & { fondo: FondoSeguido; myinvestor: boolean })[]> {
+  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota,fondo(nombre,categoria,ter,divisa,gestion,srri)').order('alta', { ascending: false })
   error(e)
-  const filas = (data ?? []) as unknown as (Seguido & { fondo: Pick<Fondo, 'nombre' | 'categoria' | 'ter'> })[]
+  const filas = (data ?? []) as unknown as (Seguido & { fondo: FondoSeguido })[]
   const { data: mi, error: e2 } = await supabase.from('myinvestor').select('isin').eq('abierto', true).in('isin', filas.map((f) => f.isin))
   error(e2)
   const en = new Set(((mi ?? []) as { isin: string }[]).map((r) => r.isin))

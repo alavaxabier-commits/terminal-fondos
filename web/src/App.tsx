@@ -1,6 +1,11 @@
 import type { Session } from '@supabase/supabase-js'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
+import { PANTALLAS } from './calculo/ordenes'
+import { estadoDescargas, type Tarea } from './calculo/vigilancia'
 import Buscador from './componentes/Buscador'
+import { escribiendo } from './componentes/teclas'
+import { tamanoBase, vigilancia } from './datos/consultas'
+import { revisar, type Revision as DatosRevision } from './datos/revision'
 import { supabase } from './datos/supabase'
 import Cartera from './pantallas/Cartera'
 import Comparar from './pantallas/Comparar'
@@ -28,7 +33,7 @@ function useRuta(): string {
 function useAtajos(ruta: string) {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName ?? '')) return
+      if (escribiendo(e)) return
       const fondo = ruta.match(/^#\/fondo\/([A-Z0-9]{12})$/)?.[1]
       const cartera = ruta.match(/^#\/cartera\/(\d+)$/)?.[1]
       const destino = ({ '1': '#/', '3': '#/screener', '4': '#/seguimiento', r: '#/revision', c: fondo ? `#/comparar/${fondo}` : '#/comparar', m: cartera && `#/simular/${cartera}` } as Record<string, string | undefined>)[e.key]
@@ -39,10 +44,46 @@ function useAtajos(ruta: string) {
   }, [ruta])
 }
 
+// Lo que se ve con «?»: los atajos de toda la app.
+const ATAJOS: [string, string][] = [
+  ['/', 'barra de órdenes: fondo, cartera o pantalla (↑↓ mover, Intro abrir, Esc cerrar)'],
+  ['1 · 3 · 4 · r', 'inicio · screener · seguimiento · revisión'],
+  ['c', 'comparador (con la ficha de un fondo abierta, con ese fondo)'],
+  ['m', 'simulador (con una cartera abierta)'],
+  ['j / ↓ · k / ↑', 'mover la selección en screener y seguimiento'],
+  ['Intro · s · b', 'abrir la ficha · seguir · poner o quitar de la bandeja'],
+  ['← / →', 'pestañas de la ficha'],
+  ['?', 'esta ayuda (Esc la cierra)'],
+]
+
+export type Estado = { descargas: Tarea[] | null; base: Awaited<ReturnType<typeof tamanoBase>>; revision: DatosRevision | null; error: string }
+
 export default function App() {
   const [sesion, setSesion] = useState<Session | null | undefined>(undefined)
+  const [estado, setEstado] = useState<Estado>({ descargas: null, base: null, revision: null, error: '' })
+  const [ayuda, setAyuda] = useState(false)
   const ruta = useRuta()
   useAtajos(ruta)
+
+  // Estado de las descargas, de la base y de las revisiones: una vez por visita, para la barra de estado y para Inicio.
+  const usuario = sesion?.user.id
+  useEffect(() => {
+    if (!usuario) return
+    const pon = (x: Partial<Estado>) => setEstado((e) => ({ ...e, ...x }))
+    const falla = (e: Error) => pon({ error: e.message })
+    vigilancia().then((l) => pon({ descargas: estadoDescargas(l, new Date()) })).catch(falla)
+    tamanoBase().then((base) => pon({ base })).catch(falla)
+    revisar().then((revision) => pon({ revision })).catch(falla)
+  }, [usuario])
+
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAyuda(false)
+      else if (e.key === '?' && !escribiendo(e)) setAyuda((a) => !a)
+    }
+    addEventListener('keydown', tecla)
+    return () => removeEventListener('keydown', tecla)
+  }, [])
 
   useEffect(() => {
     // Al volver del enlace del correo, la dirección trae la sesión en el hash (#access_token=…): se limpia.
@@ -68,7 +109,7 @@ export default function App() {
           TERMINAL<span className="hidden sm:inline"> DE FONDOS</span>
         </a>
         <nav aria-label="Pantallas" className="flex shrink-0 gap-1">
-          {([['#/', 'inicio'], ['#/screener', 'screener'], ['#/seguimiento', 'seguimiento'], ['#/revision', 'revisión'], ['#/comparar', 'comparar']] as const).map(([h, t]) => (
+          {PANTALLAS.map(([h, t]) => (
             <a key={h} href={h} aria-current={((ruta || '#/') === h || (h === '#/comparar' && !!comparar)) ? 'page' : undefined}
               className={`px-2 py-1 ${(ruta || '#/') === h || (h === '#/comparar' && comparar) ? 'border border-borde bg-panel text-acento' : 'text-suave hover:text-texto'}`}>{t}</a>
           ))}
@@ -85,8 +126,54 @@ export default function App() {
       <main className="flex-1 px-4 py-4">
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
           : simular ? <Simular key={simular[0]} id={+simular[1]} sale={simular[2]} entra={simular[3]} />
-          : comparar ? <Comparar isins={[...new Set((comparar[1] ?? '').split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio />}
+          : comparar ? <Comparar isins={[...new Set((comparar[1] ?? '').split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
       </main>
+      <BarraEstado estado={estado} />
+      {ayuda && (
+        <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
+          <section onClick={(e) => e.stopPropagation()} className="w-full max-w-lg border border-borde bg-panel p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-[11px] uppercase tracking-widest text-suave">Atajos</h2>
+              <button onClick={() => setAyuda(false)} aria-label="Cerrar la ayuda" className="min-h-7 min-w-7 text-suave hover:text-texto">✕</button>
+            </div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+              {ATAJOS.map(([k, v]) => <Fragment key={k}><dt className="text-acento">{k}</dt><dd>{v}</dd></Fragment>)}
+            </dl>
+            <p className="mt-2 text-suave">Las teclas de una letra no actúan mientras se escribe en un campo.</p>
+          </section>
+        </div>
+      )}
     </div>
+  )
+}
+
+const LIMITE_MB = 500 // plan gratuito de Supabase
+const mb = (bytes: number) => Math.round(bytes / 2 ** 20)
+const cuando = (ts: string) => {
+  const d = new Date(ts)
+  return `${d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+/** Barra de estado al pie: descargas (o sus alarmas, que se detallan en Inicio), espacio de la base y fondos a revisar. */
+function BarraEstado({ estado: { descargas, base, revision, error } }: { estado: Estado }) {
+  const mal = descargas?.some((t) => t.alarmas.length || t.atrasada)
+  const ultima = descargas?.reduce((m, t) => (t.ts > m ? t.ts : m), '')
+  const uso = base ? mb(base.total) / LIMITE_MB : 0
+  const tono = uso >= 0.9 ? 'text-baja' : uso >= 0.8 ? 'text-aviso' : 'text-sube' // ámbar desde el 80 %, rojo desde el 90 %
+  const aRevisar = revision?.carteras.reduce((n, c) => n + c.fondos.filter((f) => f.senales.length).length, 0) ?? 0
+  return (
+    <footer className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-3 border-t border-borde bg-panel px-4 py-1 text-[11px] text-suave">
+      {mal ? <a href="#/" className="text-baja hover:underline">▲ alarmas en las descargas</a>
+        : ultima ? <span title={descargas!.map((t) => `${t.tarea} ${cuando(t.ts)}`).join(' · ')}><span className="text-sube" aria-hidden="true">● </span>descargas {cuando(ultima)}</span>
+        : <span>{descargas ? 'sin registro de descargas' : 'descargas …'}</span>}
+      {base && (
+        <span title={`${base.tablas.map((t) => `${t.tabla} ${mb(t.bytes)}`).join(', ')} MB`}>
+          base <span className={tono}>{mb(base.total)}</span>/{LIMITE_MB} MB
+        </span>
+      )}
+      {aRevisar > 0 && <a href="#/revision" className="text-aviso hover:underline">▲ {aRevisar} a revisar</a>}
+      {error && <span className="text-baja" title={error}>▲ estado sin leer</span>}
+      <span className="ml-auto hidden sm:inline">/ órdenes · j/k mover · ? ayuda</span>
+    </footer>
   )
 }
