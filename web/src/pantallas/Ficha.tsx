@@ -97,6 +97,33 @@ const BarraPercentil = ({ p }: { p: number }) => (
 const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
   <span className={`rounded-full bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
 
+/** Métricas de la pestaña, agrupadas por lo que miden, con una línea que explica cada una (claves de FILAS). */
+const GRUPOS: [string, string, [string, string][]][] = [
+  ['Rentabilidad', 'Lo que ha ganado.', [
+    ['rentabilidad', 'De media al año.'],
+    ['acumulada', 'En todo el periodo.'],
+  ]],
+  ['Riesgo', 'Cuánto se mueve y cuánto puede caer. Menos es mejor.', [
+    ['volatilidad', 'Cuánto oscila su valor, en % al año.'],
+    ['max_caida', 'La peor bajada desde un máximo.'],
+    ['volatilidad_mensual', 'Igual, con datos mensuales (como Morningstar).'],
+  ]],
+  ['Rentabilidad por riesgo', 'Lo que gana por cada unidad de riesgo. Más es mejor.', [
+    ['sharpe', 'Lo que gana por encima del €STR, dividido entre la volatilidad.'],
+    ['sortino', 'Como el Sharpe, pero solo cuenta las bajadas.'],
+    ['sharpe_mensual', 'Igual, con datos mensuales (como Morningstar).'],
+  ]],
+  ['Frente a su referencia', 'Cómo se comporta comparado con su índice.', [
+    ['alfa', 'Lo que gana de más, descontando lo que se mueve con el índice.'],
+    ['beta', 'Cuánto se mueve cuando se mueve el índice (1 = lo mismo).'],
+    ['r2', 'Cuánto se parece su movimiento al del índice (100 = igual).'],
+    ['tracking_error', 'Cuánto se separa del índice, en % al año.'],
+    ['ratio_informacion', 'Lo que gana de más por cada unidad de separación.'],
+    ['captura_alcista', 'Qué parte de las subidas del índice recoge (100 = todas).'],
+    ['captura_bajista', 'Qué parte de las bajadas del índice sufre (menos es mejor).'],
+  ]],
+]
+
 export default function Ficha({ isin }: { isin: string }) {
   const [datos, setDatos] = useState<Datos | null | undefined>(undefined)
   const [error, setError] = useState('')
@@ -145,16 +172,6 @@ export default function Ficha({ isin }: { isin: string }) {
   const b = bloques(pctFondo, f.gestion === 'indexada')
   const e = evolucion(datos.notas)
   const seguir = () => q.seguir(f.isin).then(() => setSeguido(true)).catch((x: Error) => setError(x.message))
-  const celda = (ventana: string, nombre: string, fmt: (v: number) => string) => {
-    const x = m.get(`${ventana}|${nombre}`)
-    if (!x) return <span className="text-suave">—</span>
-    return (
-      <>
-        {fmt(x.valor)}
-        {x.percentil != null && <span className={`ml-1 text-[11px] ${colorPercentil(x.percentil)}`}>p{Math.round(x.percentil)}</span>}
-      </>
-    )
-  }
   const anos = [...new Set((datos.metricas ?? []).filter((x) => /^\d{4}$/.test(x.ventana)).map((x) => x.ventana))].sort().reverse()
   const recup = m.get('10a|recuperacion_semanas')?.valor
   const textoRef = ref.metodo === 'indice' ? ref.indice?.nombre : ref.metodo === 'media_categoria' ? 'media de su categoría' : 'sin referencia'
@@ -319,38 +336,67 @@ export default function Ficha({ isin }: { isin: string }) {
 
         {pestana === 'métricas' && (
           <>
-            <section className="overflow-x-auto rounded-lg border border-borde bg-panel p-4">
-              <table className="w-full min-w-[560px] tabular">
-                <thead>
-                  <tr className="border-b border-borde text-[12px] text-suave">
-                    <th className="py-1 text-left font-normal">Métrica</th>
-                    {RANGOS.map(([v]) => <th key={v} className="py-1 text-right font-normal">{v.toUpperCase()}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {FILAS.map(([nombre, etiqueta, fmt]) => (
-                    <tr key={nombre} className="border-b border-borde/50">
-                      <td className="py-1 text-suave">{etiqueta}</td>
-                      {RANGOS.map(([v]) => <td key={v} className="py-1 text-right">{celda(v, nombre, fmt)}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="mt-1 text-[11px] text-suave">pNN = percentil en su categoría (100 = mejor). Ventanas solo con historia completa.</p>
+            <section className="grid gap-px overflow-hidden rounded-lg border border-borde bg-borde sm:grid-cols-3">
+              {([
+                ['Este año', 'ytd|rentabilidad', (v: number) => pct(v), 'Desde el 31 de diciembre.'],
+                ['Consistencia', 'hist|consistencia', (v: number) => `${cifra(v, 0)} %`, 'Periodos de 3 años (uno por semana) en que bate a su referencia.'],
+              ] as const).map(([k, clave, fmt, ayuda]) => {
+                const x = m.get(clave)
+                return (
+                  <div key={k} className="flex flex-col gap-1 bg-panel px-4 py-3">
+                    <span className="text-[12px] text-suave">{k}</span>
+                    <span className="cifra text-3xl tabular">{x ? fmt(x.valor) : '—'}</span>
+                    {x?.percentil != null && <BarraPercentil p={x.percentil} />}
+                    <span className="text-[11px] text-suave">{ayuda}</span>
+                  </div>
+                )
+              })}
+              <div className="flex flex-col gap-1 bg-panel px-4 py-3">
+                <span className="text-[12px] text-suave">Recuperación de la peor caída</span>
+                <span className="cifra text-3xl tabular">{recup == null ? '—' : recup < 0 ? 'sin recuperar' : `${cifra(recup, 0)} semanas`}</span>
+                <span className="mt-auto text-[11px] text-suave">Desde el máximo hasta volver a él, en la peor caída de 10 años.</span>
+              </div>
             </section>
 
-            <section className="grid gap-px overflow-hidden rounded-lg border border-borde bg-borde sm:grid-cols-3">
-              {[
-                ['Este año', celda('ytd', 'rentabilidad', (v) => pct(v))],
-                ['Consistencia', celda('hist', 'consistencia', (v) => `${cifra(v, 0)} %`)],
-                ['Recuperación de la peor caída', recup == null ? '—' : recup < 0 ? 'sin recuperar' : `${cifra(recup, 0)} semanas`],
-              ].map(([k, v], i) => (
-                <div key={i} className="bg-panel px-4 py-3">
-                  <div className="text-[12px] text-suave">{k}</div>
-                  <div className="cifra text-2xl tabular">{v}</div>
+            {GRUPOS.map(([grupo, ayudaGrupo, claves]) => (
+              <Tarjeta key={grupo} titulo={grupo} extra={<span className="text-[12px] text-suave">{ayudaGrupo}</span>}>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px] tabular">
+                    <thead>
+                      <tr className="text-[12px] text-suave">
+                        <th className="pb-1.5 text-left font-normal" />
+                        {RANGOS.map(([v]) => <th key={v} className="w-[14%] pb-1.5 pl-4 text-right font-normal">{v === '1a' ? '1 año' : `${v.slice(0, -1)} años`}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {claves.map(([nombre, ayuda]) => {
+                        const [, etiqueta, fmt] = FILAS.find(([k]) => k === nombre)!
+                        return (
+                          <tr key={nombre} className="border-t border-borde/60">
+                            <td className="py-2 pr-4 text-left">
+                              <span className="block">{etiqueta}</span>
+                              <span className="block text-[12px] text-suave">{ayuda}</span>
+                            </td>
+                            {RANGOS.map(([v]) => {
+                              const x = m.get(`${v}|${nombre}`)
+                              return (
+                                <td key={v} className="py-2 pl-4 text-right align-top">
+                                  {x ? <>
+                                    <span className="block">{fmt(x.valor)}</span>
+                                    {x.percentil != null && <span className="mt-1 block"><BarraPercentil p={x.percentil} /></span>}
+                                  </> : <span className="text-suave">—</span>}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-            </section>
+              </Tarjeta>
+            ))}
+            <p className="text-[12px] text-suave">La barra es el percentil en su categoría: 100 es el mejor fondo (en riesgo, el que menos). Solo hay cifra cuando el fondo tiene la historia completa del periodo.</p>
           </>
         )}
 
