@@ -4,11 +4,10 @@ import { fecha, hoy, pct } from '../calculo/formato'
 import { simularCartera } from '../calculo/metricas'
 import { haceAnos, haceDias, muestra, variacion, type Punto } from '../calculo/series'
 import type { Tarea } from '../calculo/vigilancia'
-import { evolucion, type NotaSemanal } from '../calculo/senales'
+import { evolucion, type NotaSemanal, type Senal } from '../calculo/senales'
 import type { Estado } from '../App'
 import Mini from '../componentes/Mini'
 import { cartera as leerCartera, crearCartera, carteras as leerCarteras, notasDe, seguidos, sustitutos, type Cartera } from '../datos/consultas'
-import type { Revision } from '../datos/revision'
 import { serieEur } from '../datos/series'
 
 type Periodo = 'semana' | 'mes' | 'año'
@@ -21,6 +20,8 @@ type ResumenCartera = {
   año: number | null; semana: number | null; r3?: number; vol3?: number; caida3?: number; linea: number[]; ultimoRebalanceo: string | null
   fondos: { isin: string; nombre: string; objetivo: number; hoy: number | null }[] // pesos en tanto por uno
 }
+/** Fondos de una cartera con señales de revisión, por ISIN. */
+type Senales = Map<string, Senal[]>
 type Mercado = { indice: string; isin: string; bolsa: boolean; cambio: Record<Periodo, number | null>; anual: number | null; linea: number[] }
 type Seguido = { isin: string; nombre: string; categoria: string | null; estado: string; myinvestor: boolean; nota: number; semana: number | null; nuevo: boolean; linea: number[] }
 
@@ -84,11 +85,14 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
       setSeg(activos.flatMap((f) => {
         const notas = porIsin.get(f.isin) ?? []
         const e = evolucion(notas)
-        return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, estado: f.estado, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, linea: notas.map((n) => n.nota) }] : []
+        return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, estado: f.estado, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, linea: notas.slice(-52).map((n) => n.nota) }] : []
       }).sort((a, b) => Number(seMueve(b)) - Number(seMueve(a)) || Number(b.nuevo) - Number(a.nuevo) || Math.abs(b.semana ?? 0) - Math.abs(a.semana ?? 0) || b.nota - a.nota))
     }).catch(falla)
   }, [])
 
+  const senalesDe = (id: number): Senales | undefined => revision
+    ? new Map(revision.carteras.find((x) => x.cartera.id === id)?.fondos.filter((f) => f.senales.length).map((f) => [f.fondo.isin, f.senales]) ?? [])
+    : undefined
   const nueva = () => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual', banda: 5, banda_tipo: 'puntos', revision: 'diaria' }).then((id) => (location.hash = `#/cartera/${id}`)).catch(falla)
 
   return (
@@ -97,20 +101,17 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
       {descargas && <AlarmasDescargas tareas={descargas} />}
 
       <Seccion titulo={carteras.length === 1 ? 'Cartera modelo' : 'Carteras modelo'} extra={<button onClick={nueva} className="text-suave hover:text-acento">+ nueva cartera</button>}>
-        {carteras.length === 1 ? <CarteraAncha c={carteras[0]} r={resumenes.get(carteras[0].id)} cargando={!resumenes.has(carteras[0].id)} />
+        {carteras.length === 1 ? <CarteraAncha c={carteras[0]} r={resumenes.get(carteras[0].id)} cargando={!resumenes.has(carteras[0].id)} senales={senalesDe(carteras[0].id)} />
           : carteras.length > 1 && (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {carteras.map((c) => <TarjetaCartera key={c.id} c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} />)}
+              {carteras.map((c) => <TarjetaCartera key={c.id} c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} senales={senalesDe(c.id)} />)}
             </ul>
           )}
       </Seccion>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <ListaSeguimiento seg={seg} />
-        <div className="space-y-10">
-          {revision && <FondosARevisar revision={revision} />}
-          <Mercados mercados={mercados} />
-        </div>
+        <Mercados mercados={mercados} />
       </div>
     </div>
   )
@@ -128,7 +129,7 @@ const PildoraSemana = ({ v }: { v: number | null }) => v == null ? null
 const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' : 'acento')
 
 /** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el reparto de hoy frente al objetivo. */
-function CarteraAncha({ c, r, cargando }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean }) {
+function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean; senales?: Senales }) {
   if (cargando || !r) return <div className="rounded-lg border border-borde bg-panel p-5 text-suave">{cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
   return (
     <div className="grid gap-6 rounded-lg border border-borde bg-panel p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
@@ -159,17 +160,23 @@ function CarteraAncha({ c, r, cargando }: { c: Cartera; r: ResumenCartera | null
                     <span className="absolute -inset-y-0.5 w-0.5 bg-texto" style={{ left: `${f.objetivo * 100}%` }} title="objetivo" />
                   </span>
                 </a>
+                {senales?.get(f.isin) && (
+                  <a href="#/revision" title={senales.get(f.isin)!.map((x) => x.motivo).join(' · ')} className="mt-0.5 block text-[12px] text-aviso hover:underline">
+                    ▲ {senales.get(f.isin)!.map((x) => x.tipo.toLowerCase()).join(', ')}
+                  </a>
+                )}
               </li>
             )
           })}
         </ul>
         <p className="mt-2 text-[12px] text-suave">La raya marca el peso objetivo; en arena, los que se salen de la banda de {c.banda} puntos.</p>
+        <EstadoRevision senales={senales} />
       </div>
     </div>
   )
 }
 
-function TarjetaCartera({ c, r, cargando }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean }) {
+function TarjetaCartera({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean; senales?: Senales }) {
   return (
     <li>
       <a href={`#/cartera/${c.id}`} className="flex h-full flex-col gap-3 rounded-lg border border-borde bg-panel p-4 hover:border-acento">
@@ -184,7 +191,7 @@ function TarjetaCartera({ c, r, cargando }: { c: Cartera; r: ResumenCartera | nu
           </div>
           <Mini valores={r.linea} area color={colorLinea(r.linea)} className="h-14 w-full" />
           <Cifras r={r} />
-          <p className="text-[12px] text-suave">{r.fondos.length} fondos · rebalanceo {c.rebalanceo}</p>
+          <p className="text-[12px] text-suave">{r.fondos.length} fondos · rebalanceo {c.rebalanceo}{senales?.size ? <span className="text-aviso"> · ▲ {senales.size} a revisar</span> : ''}</p>
         </>}
       </a>
     </li>
@@ -233,26 +240,12 @@ function Mercados({ mercados }: { mercados: Mercado[] | null }) {
   )
 }
 
-/** Fondos de mis carteras con alguna señal, con sus motivos. */
-function FondosARevisar({ revision }: { revision: Revision }) {
-  const marcados = revision.carteras.flatMap((c) => c.fondos.filter((f) => f.senales.length).map((f) => ({ ...f, cartera: c.cartera })))
-  return (
-    <Seccion titulo="A revisar" extra={<a href="#/revision" className="text-suave hover:text-texto">ver todos</a>}>
-      {!marcados.length ? <p className="text-suave"><span className="text-sube" aria-hidden="true">● </span>Ningún fondo de tus carteras tiene señales de revisión.</p> : (
-        <ul className="space-y-3">
-          {marcados.map((m) => (
-            <li key={`${m.cartera.id}-${m.fondo.isin}`} className="rounded-lg border border-aviso/40 bg-aviso/5 p-3">
-              <a href="#/revision" className="font-medium hover:text-acento">{m.fondo.nombre}</a>
-              <p className="text-[12px] text-suave">{m.cartera.nombre} · peso {Math.round(m.peso)} %{m.alternativas.length ? ` · ${m.alternativas.length} alternativas` : ''}</p>
-              <ul className="mt-1 space-y-0.5">
-                {m.senales.map((s) => <li key={s.tipo}><span className="text-aviso">▲ {s.tipo}.</span> <span className="text-suave">{s.motivo}</span></li>)}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Seccion>
-  )
+/** Una línea: cuántos fondos de la cartera tienen señales de revisión (el detalle, en Revisión). */
+function EstadoRevision({ senales }: { senales?: Senales }) {
+  if (!senales) return null
+  return senales.size
+    ? <a href="#/revision" className="mt-2 block text-[12px] text-aviso hover:underline">▲ {senales.size === 1 ? 'Un fondo' : `${senales.size} fondos`} con señales de revisión · ver revisión</a>
+    : <p className="mt-2 text-[12px] text-suave"><span className="text-sube" aria-hidden="true">● </span>Ningún fondo con señales de revisión.</p>
 }
 
 /** Seis fondos del seguimiento: primero los que se mueven (nuevos o ±2 puntos de nota en la semana), después los de mejor nota. */
@@ -263,7 +256,7 @@ function ListaSeguimiento({ seg }: { seg: Seguido[] | null }) {
     <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="text-suave hover:text-texto">{seg?.length ? `ver los ${seg.length}` : 'ver lista'}</a>}>
       {!seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
         : (<>
-        <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (nuevos o ±2 puntos de nota); después, los de mejor nota.` : 'Ninguno se mueve esta semana: los de mejor nota.'}</p>
+        <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (nuevos o ±2 puntos de nota); después, los de mejor nota.` : 'Ninguno se mueve esta semana: los de mejor nota.'} La línea es la nota del último año.</p>
         <ul className="divide-y divide-borde">
           {vistos.map((f) => (
             <li key={f.isin}>
