@@ -6,7 +6,7 @@ import {
 import { cifra, fecha, pct } from '../calculo/formato'
 
 type FondoX = Fondo & { fechaCartera: string | null }
-const COLOR: Record<string, string> = { Acciones: 'var(--color-acento)', Bonos: 'var(--color-serie3)', Liquidez: 'var(--color-suave)' } // el resto, arena
+export const COLOR_ACTIVO: Record<string, string> = { Acciones: 'var(--color-acento)', Bonos: 'var(--color-serie3)', Liquidez: 'var(--color-suave)' } // el resto, arena
 
 /** X-Ray de una cartera (o de uno de sus fondos): tipo de activo y, a elegir, la parte de renta variable o la de renta fija. */
 export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
@@ -132,12 +132,12 @@ function Reparto({ filas }: { filas: Fila[] }) {
   return (
     <div>
       <div className="flex h-3 w-full overflow-hidden bg-panel" role="img" aria-label={`Tipo de activo: ${filas.map(([n, v]) => `${n} ${pct(v / 100, 0, false)}`).join(', ')}`}>
-        {positivos.map(([n, v]) => <span key={n} style={{ width: `${v}%`, background: COLOR[n] ?? 'var(--color-serie2)' }} />)}
+        {positivos.map(([n, v]) => <span key={n} style={{ width: `${v}%`, background: COLOR_ACTIVO[n] ?? 'var(--color-serie2)' }} />)}
       </div>
       <p className="mt-1 flex flex-wrap gap-x-4 text-suave">
         {filas.map(([n, v]) => (
           <span key={n}>
-            <i aria-hidden="true" className="mr-1 inline-block h-2 w-2" style={{ background: COLOR[n] ?? 'var(--color-serie2)' }} />
+            <i aria-hidden="true" className="mr-1 inline-block h-2 w-2" style={{ background: COLOR_ACTIVO[n] ?? 'var(--color-serie2)' }} />
             {n} <b className="tabular font-normal text-texto">{pct(v / 100, 1, false)}</b>
           </span>
         ))}

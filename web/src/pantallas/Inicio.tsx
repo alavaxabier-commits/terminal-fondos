@@ -6,7 +6,9 @@ import { haceAnos, haceDias, muestra, variacion, type Punto } from '../calculo/s
 import type { Tarea } from '../calculo/vigilancia'
 import { evolucion, type NotaSemanal, type Senal } from '../calculo/senales'
 import type { Estado } from '../App'
+import { COLOR_ACTIVO } from '../componentes/Exposicion'
 import Mini from '../componentes/Mini'
+import { exposicion, type Fila } from '../calculo/exposicion'
 import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, seguidos, sustitutos, type Cartera } from '../datos/consultas'
 import { serieEur } from '../datos/series'
 import { cargarFondo } from './Cartera'
@@ -23,6 +25,7 @@ type ResumenCartera = {
   vsRef3: number | null // rentabilidad anual a 3 años menos la de la referencia combinada
   gastos: number | null // TER ponderado, en %
   fondos: { isin: string; nombre: string; objetivo: number; hoy: number | null }[] // pesos en tanto por uno
+  activos: Fila[]; cobertura: number // tipo de activo (X-Ray, %) y % de la cartera con composición
 }
 /** Fondos de una cartera con señales de revisión, por ISIN. */
 type Senales = Map<string, Senal[]>
@@ -55,6 +58,7 @@ async function resumen(c: Cartera, { cats, rf }: Comun): Promise<ResumenCartera 
     vsRef3: r3 != null && ref3 != null ? r3 - ref3 : null,
     gastos: lineas.every((l) => l.fondo.ter != null) ? lineas.reduce((t, l) => t + (l.peso * Number(l.fondo.ter)) / total, 0) : null,
     linea: muestra(sim, haceAnos(ultimo, 1)), ultimoRebalanceo: calc.ultimoRebalanceo,
+    ...(({ activos, cobertura }) => ({ activos, cobertura }))(exposicion(lineas.map((l, k) => ({ peso: l.peso, nombre: l.fondo.nombre, c: fs[k].comp })))),
     fondos: lineas.map((l, k) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, objetivo: l.peso / total, hoy: calc.fondos[k]?.pesoHoy ?? null })),
   }
 }
@@ -159,17 +163,17 @@ const PildoraSemana = ({ v }: { v: number | null }) => v == null ? null
   : <span className={`rounded-full px-2 text-[12px] tabular ${tono(v)} ${v >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(v)} semana</span>
 const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' : 'acento')
 
-/** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el reparto de hoy frente al objetivo. */
+/** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el tipo de activo con los avisos de sus fondos. */
 function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean; senales?: Senales }) {
   if (cargando || !r) return <div className="rounded-lg border border-borde bg-panel p-5 text-suave">{cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
-  // Alto casi fijo: como mucho 6 líneas de reparto. Si hay más fondos, 5 (primero los que tienen señal o se salen de la
-  // banda, luego los de más peso) y una línea con el resto.
-  const fuera = (f: ResumenCartera['fondos'][number]) => f.hoy != null && Math.abs(f.hoy - f.objetivo) * 100 >= c.banda
-  const prioridad = (f: ResumenCartera['fondos'][number]) => Number(!!senales?.has(f.isin) || fuera(f))
-  const vistos = r.fondos.length <= 6 ? r.fondos
-    : [...r.fondos].sort((a, b) => prioridad(b) - prioridad(a) || b.objetivo - a.objetivo).slice(0, 5).sort((a, b) => b.objetivo - a.objetivo)
-  const otros = r.fondos.filter((f) => !vistos.includes(f))
-  const suma = (k: 'objetivo' | 'hoy') => otros.reduce((t, f) => t + (f[k] ?? 0), 0)
+  // Lo que pide atención en el reparto: fondos con señales de revisión o fuera de la banda de rebalanceo (el detalle, en la cartera).
+  const avisos = r.fondos.flatMap((f) => {
+    const deriva = f.hoy == null ? 0 : (f.hoy - f.objetivo) * 100
+    return [
+      ...(senales?.get(f.isin) ? [{ k: `s${f.isin}`, href: '#/revision', texto: `${f.nombre}: ${senales.get(f.isin)!.map((x) => x.tipo.toLowerCase()).join(', ')}`, title: senales.get(f.isin)!.map((x) => x.motivo).join(' · ') }] : []),
+      ...(Math.abs(deriva) >= c.banda ? [{ k: `b${f.isin}`, href: `#/cartera/${c.id}`, texto: `${f.nombre} se sale de la banda: ${pct(f.objetivo, 0, false)} → ${pct(f.hoy, 1, false)}`, title: '' }] : []),
+    ]
+  })
   return (
     <div className="grid gap-6 rounded-lg border border-borde bg-panel p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
       <a href={`#/cartera/${c.id}`} className="flex flex-col gap-3 hover:text-acento">
@@ -182,40 +186,51 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
         <span className="text-[12px] text-suave">Último año, simulada con su rebalanceo</span>
         <div className="relative min-h-44 flex-1"><Mini valores={r.linea} area color={colorLinea(r.linea)} className="absolute inset-0 h-full w-full" /></div>
       </div>
-      <div className="md:col-span-2 lg:col-span-1">
-        <div className="mb-2 flex justify-between text-[12px] text-suave"><span>Reparto</span><span>objetivo → hoy</span></div>
-        <ul className="space-y-2">
-          {vistos.map((f) => {
-            const deriva = f.hoy == null ? 0 : (f.hoy - f.objetivo) * 100 // puntos
-            return (
-              <li key={f.isin}>
-                <a href={`#/fondo/${f.isin}`} className="block hover:text-acento">
-                  <span className="flex justify-between gap-2 text-[13px]">
-                    <span className="truncate">{f.nombre}</span>
-                    <span className="shrink-0 tabular text-suave">{pct(f.objetivo, 0, false)} → <span className={Math.abs(deriva) >= c.banda ? 'text-aviso' : 'text-texto'}>{pct(f.hoy, 1, false)}</span></span>
-                  </span>
-                  <span className="relative mt-1 block h-1.5 rounded-full bg-borde/60">
-                    <span className="absolute inset-y-0 left-0 rounded-full bg-acento" style={{ width: `${Math.min((f.hoy ?? f.objetivo) * 100, 100)}%` }} />
-                    <span className="absolute -inset-y-0.5 w-0.5 bg-texto" style={{ left: `${f.objetivo * 100}%` }} title="objetivo" />
-                  </span>
-                </a>
-                {senales?.get(f.isin) && (
-                  <a href="#/revision" title={senales.get(f.isin)!.map((x) => x.motivo).join(' · ')} className="mt-0.5 block text-[12px] text-aviso hover:underline">
-                    ▲ {senales.get(f.isin)!.map((x) => x.tipo.toLowerCase()).join(', ')}
-                  </a>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-        {otros.length > 0 && (
-          <a href={`#/cartera/${c.id}`} className="mt-2 flex justify-between gap-2 text-[13px] text-suave hover:text-acento">
-            <span>+ {otros.length} fondos más</span><span className="tabular">{pct(suma('objetivo'), 0, false)} → {pct(suma('hoy'), 1, false)}</span>
-          </a>
-        )}
-        <p className="mt-2 text-[12px] text-suave">La raya marca el peso objetivo; en arena, los que se salen de la banda de {c.banda} puntos.</p>
-        <EstadoRevision senales={senales} />
+      <div className="flex flex-col gap-3 md:col-span-2 lg:col-span-1">
+        <span className="text-[12px] text-suave">Tipo de activo</span>
+        <Donut activos={r.activos} cobertura={r.cobertura} />
+        <div className="mt-auto space-y-0.5 text-[12px]">
+          {senales === undefined ? null : avisos.length
+            ? avisos.slice(0, 3).map((a) => <a key={a.k} href={a.href} title={a.title} className="block truncate text-aviso hover:underline">▲ {a.texto}</a>)
+            : <p className="text-suave"><span className="text-sube" aria-hidden="true">● </span>Ningún fondo con señales de revisión ni fuera de banda.</p>}
+          {avisos.length > 3 && <a href="#/revision" className="block text-suave hover:text-acento">y {avisos.length - 3} avisos más</a>}
+          <a href={`#/cartera/${c.id}`} className="block text-suave hover:text-acento">{r.fondos.length} fondos · ver composición ›</a>
+        </div>
       </div>
+    </div>
+  )
+}
+
+/** Tipo de activo en un donut (con la parte mayor en el centro) y su leyenda; mismos colores que la exposición de la cartera. */
+function Donut({ activos, cobertura }: { activos: Fila[]; cobertura: number }) {
+  const positivos = activos.filter(([, v]) => v > 0.5)
+  if (!positivos.length) return <p className="text-suave">Sin composición todavía: se descarga los domingos.</p>
+  const total = positivos.reduce((t, [, v]) => t + v, 0)
+  let acum = 0
+  const [mayor, vMayor] = positivos[0] // mezclar() las devuelve de mayor a menor
+  return (
+    <div className="flex items-center gap-5">
+      <svg viewBox="0 0 100 100" className="h-32 w-32 shrink-0" role="img" aria-label={`Tipo de activo: ${positivos.map(([n, v]) => `${n} ${Math.round(v)} %`).join(', ')}`}>
+        <circle cx="50" cy="50" r="40" fill="none" strokeWidth="13" style={{ stroke: 'var(--color-borde)' }} />
+        {positivos.map(([n, v]) => {
+          const parte = (v / total) * 100
+          const el = <circle key={n} cx="50" cy="50" r="40" fill="none" strokeWidth="13" pathLength={100} transform="rotate(-90 50 50)"
+            strokeDasharray={`${Math.max(parte - 0.6, 0.1)} ${100 - Math.max(parte - 0.6, 0.1)}`} strokeDashoffset={-acum} style={{ stroke: COLOR_ACTIVO[n] ?? 'var(--color-serie2)' }} />
+          acum += parte
+          return el
+        })}
+        <text x="50" y="47" textAnchor="middle" style={{ fill: 'var(--color-texto)', font: '22px var(--font-serif)' }}>{Math.round(vMayor)} %</text>
+        <text x="50" y="62" textAnchor="middle" style={{ fill: 'var(--color-suave)', font: '9px var(--font-sans)' }}>{mayor.toLowerCase()}</text>
+      </svg>
+      <ul className="min-w-0 space-y-1 text-[13px]">
+        {positivos.map(([n, v]) => (
+          <li key={n} className="flex items-center gap-2">
+            <i aria-hidden="true" className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: COLOR_ACTIVO[n] ?? 'var(--color-serie2)' }} />
+            <span className={n === mayor ? 'text-texto' : 'text-suave'}>{n}</span><span className="tabular">{Math.round(v)} %</span>
+          </li>
+        ))}
+        {cobertura < 99 && <li className="text-[12px] text-suave">Con composición: {Math.round(cobertura)} % de la cartera</li>}
+      </ul>
     </div>
   )
 }
@@ -282,14 +297,6 @@ function Mercados({ mercados }: { mercados: Mercado[] | null }) {
       )}
     </Seccion>
   )
-}
-
-/** Una línea: cuántos fondos de la cartera tienen señales de revisión (el detalle, en Revisión). */
-function EstadoRevision({ senales }: { senales?: Senales }) {
-  if (!senales) return null
-  return senales.size
-    ? <a href="#/revision" className="mt-2 block text-[12px] text-aviso hover:underline">▲ {senales.size === 1 ? 'Un fondo' : `${senales.size} fondos`} con señales de revisión · ver revisión</a>
-    : <p className="mt-2 text-[12px] text-suave"><span className="text-sube" aria-hidden="true">● </span>Ningún fondo con señales de revisión.</p>
 }
 
 /** Seis fondos del seguimiento: primero los que se mueven (nuevos o ±2 puntos de nota en la semana), después los de mejor nota. */
