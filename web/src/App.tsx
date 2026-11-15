@@ -4,7 +4,7 @@ import { PANTALLAS } from './calculo/ordenes'
 import { estadoDescargas, type Tarea } from './calculo/vigilancia'
 import Buscador from './componentes/Buscador'
 import { escribiendo } from './componentes/teclas'
-import { leerTema, ponerTema, TEMAS, type Tema } from './componentes/tema'
+import { leerTema, ponerTema, type Tema } from './componentes/tema'
 import { tamanoBase, vigilancia } from './datos/consultas'
 import { revisar, type Revision as DatosRevision } from './datos/revision'
 import { supabase } from './datos/supabase'
@@ -118,13 +118,16 @@ export default function App() {
           ))}
         </nav>
         <Buscador />
-        <label className="shrink-0 text-suave">
-          <span className="sr-only">Tema</span>
-          <select value={tema} onChange={(e) => { const t = e.target.value as Tema; setTema(t); ponerTema(t) }}
-            title="Tema" className="min-h-8 cursor-pointer rounded-full border border-borde bg-panel px-2 text-suave hover:text-texto">
-            {TEMAS.map((t) => <option key={t} value={t}>tema: {t}</option>)}
-          </select>
-        </label>
+        <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
+          aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-borde bg-panel text-suave hover:text-texto">
+          {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            {tema === 'claro'
+              ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+              : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
+          </svg>
+        </button>
         <button
           onClick={() => supabase.auth.signOut()}
           className="shrink-0 text-suave hover:text-texto"
