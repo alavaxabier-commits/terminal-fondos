@@ -94,21 +94,22 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
         <div className="space-y-4">
           <Bloque titulo="Regiones (de la renta variable)">
             <Grupos grupos={x.regiones} />
-            <div className="mt-5 grid gap-6 md:grid-cols-2">
-              <Lista titulo="Mercados" filas={x.mercados} />
-              <Lista titulo="10 mayores países" filas={x.paises} />
-            </div>
+            {x.mercados.length > 0 && <Mercados filas={x.mercados} />}
+            {x.paises.length > 0 && (
+              <div className="mt-5">
+                <Titulo>{x.paises.length} mayores países</Titulo>
+                <Lista filas={x.paises} barras columnas={3} />
+              </div>
+            )}
           </Bloque>
           <Bloque titulo="Sectores (de la renta variable)">
             <Grupos grupos={x.sectores} />
           </Bloque>
           <Bloque titulo="Estilo">
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
               <Caja valores={x.estiloRv} {...CAJA_RV} fila="Tamaño" col="Estilo" />
-              <div className="space-y-4">
-                <Lista titulo="Capitalización" filas={x.capitalizacion} />
-                <Cifras titulo="Estadísticas" cifras={x.estadisticasRv} />
-              </div>
+              <Lista titulo="Capitalización" filas={x.capitalizacion} barras />
+              <Cifras titulo="Estadísticas" cifras={x.estadisticasRv} />
             </div>
           </Bloque>
           <Posiciones titulo="10 mayores acciones" filas={x.acciones} incompletas={x.incompletas} />
@@ -164,7 +165,7 @@ function Grupos({ grupos }: { grupos: Grupo[] }) {
 }
 
 /** Lista de nombre y %, con barra proporcional si se pide. */
-function Lista({ titulo, filas, barras }: { titulo?: string; filas: Fila[]; barras?: boolean }) {
+function Lista({ titulo, filas, barras, columnas }: { titulo?: string; filas: Fila[]; barras?: boolean; columnas?: number }) {
   const max = Math.max(...filas.map(([, v]) => Math.abs(v)), 1)
   return (
     <div>
@@ -172,7 +173,8 @@ function Lista({ titulo, filas, barras }: { titulo?: string; filas: Fila[]; barr
       {!filas.length ? (
         <p className="text-suave">—</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className={columnas ? 'grid gap-x-6 gap-y-1 md:grid-flow-col' : 'space-y-1'}
+          style={columnas ? { gridTemplateRows: `repeat(${Math.ceil(filas.length / columnas)}, auto)` } : undefined}>
           {filas.map(([nombre, v]) => (
             <li key={nombre} className={`grid items-center gap-2 ${barras ? 'grid-cols-[minmax(0,10rem)_1fr_4rem]' : 'grid-cols-[1fr_4rem]'}`}>
               <span className="truncate">{nombre}</span>
@@ -197,7 +199,7 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
   return (
     <figure>
       <div
-        className="grid w-fit grid-cols-[auto_repeat(3,4rem)] gap-1 text-center"
+        className="grid max-w-sm grid-cols-[auto_repeat(3,minmax(3rem,1fr))] gap-1 text-center"
         role="img"
         aria-label={`${fila} × ${col}: ${celdas.filter((x) => x.v >= 0.5).map((x) => `${x.f} · ${x.c} ${pct(x.v / 100, 0, false)}`).join(', ')}`}
       >
@@ -217,6 +219,28 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
       </div>
       <figcaption className="mt-2 text-[12px] text-suave">Filas: {fila.toLowerCase()} · columnas: {col.toLowerCase()} · % de la parte</figcaption>
     </figure>
+  )
+}
+
+/** Desarrollados frente a emergentes en una sola barra partida. */
+function Mercados({ filas }: { filas: Fila[] }) {
+  const total = filas.reduce((t, [, v]) => t + Math.max(v, 0), 0) || 1
+  const colores = ['var(--color-acento)', 'var(--color-serie2)', 'var(--color-suave)']
+  return (
+    <div className="mt-5">
+      <Titulo>Mercados</Titulo>
+      <div className="flex h-2 overflow-hidden rounded-full bg-borde/60" aria-hidden="true">
+        {filas.map(([n, v], i) => <span key={n} style={{ width: `${(Math.max(v, 0) / total) * 100}%`, background: colores[i % 3] }} />)}
+      </div>
+      <p className="mt-1.5 flex flex-wrap gap-x-5 text-[13px]">
+        {filas.map(([n, v], i) => (
+          <span key={n} className="flex items-center gap-1.5">
+            <i aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: colores[i % 3] }} />
+            {n} <span className="tabular">{pct(v / 100, 1, false)}</span>
+          </span>
+        ))}
+      </p>
+    </div>
   )
 }
 

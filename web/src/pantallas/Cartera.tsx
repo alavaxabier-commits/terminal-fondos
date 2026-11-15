@@ -171,6 +171,10 @@ export default function Cartera({ id }: { id: number }) {
   const ytd = m?.ytd?.rentabilidad
   const pesoHoy = new Map(calc?.fondos.map((f) => [f.isin, f.pesoHoy]))
   const hayCalculo = listos && !sinDatos.length
+  const porPeso = [...lineas].sort((x, y) => y.peso - x.peso).map((l) => ({ isin: l.fondo.isin as string | null, nombre: l.fondo.nombre, peso: l.peso, otros: 0 }))
+  const principales = porPeso.length > 10
+    ? [...porPeso.slice(0, 9), { isin: null, nombre: '', peso: porPeso.slice(9).reduce((t, l) => t + l.peso, 0), otros: porPeso.length - 9 }]
+    : porPeso
   const sinCalculo = !lineas.length ? <p className="text-suave">La cartera no tiene fondos todavía: añádelos en «Fondos».</p>
     : !listos ? <p className="text-suave">Cargando precios…</p>
     : sinDatos.length ? <p className="text-suave">Sin precios todavía: {sinDatos.map((l) => l.fondo.nombre).join(', ')}. Se cargan en la próxima descarga (los fondos de una cartera se descargan cada día).</p>
@@ -300,28 +304,63 @@ export default function Cartera({ id }: { id: number }) {
         {pestana === 'resumen' && (
           <>
             <Tarjeta>
-              {hayCalculo && sim.length > 1 ? (
-                <>
-                  <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <span className="cifra text-5xl tabular">{cifra(grafica[0]?.serie.at(-1)?.valor, 1)}</span>
-                      {ytd != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
-                      <span className="text-[12px] text-suave">valor simulado, base 100 al inicio del periodo</span>
+              <div className={lineas.length ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]' : ''}>
+                <div className="min-w-0">
+                  {hayCalculo && sim.length > 1 ? (
+                    <>
+                      <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <span className="cifra text-5xl tabular">{cifra(grafica[0]?.serie.at(-1)?.valor, 1)}</span>
+                          {ytd != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
+                          <span className="text-[12px] text-suave">valor simulado, base 100 al inicio del periodo</span>
+                        </div>
+                        <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+                          {rangos.map(([etiqueta, n]) => (
+                            <button key={etiqueta} onClick={() => setRango(n)} aria-pressed={rango === n}
+                              className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{etiqueta}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <Grafico lineas={grafica} />
+                      <p className="text-[11px] text-suave">
+                        Desde el {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)} · {simulacion.rebalanceos} rebalanceos
+                        {calc?.referenciaSerie.length ? <> · referencia: la de cada fondo combinada con sus pesos{calc.referenciaSerie[0].fecha > sim[0].fecha && `, desde el ${fecha(calc.referenciaSerie[0].fecha)}`}</> : null}.
+                      </p>
+                    </>
+                  ) : sinCalculo}
+                </div>
+                {lineas.length > 0 && (
+                  <div className="flex min-w-0 flex-col border-borde lg:border-l lg:pl-6">
+                    <div className="mb-3 flex items-baseline justify-between gap-3">
+                      <h2 className="font-serif text-xl">Fondos</h2>
+                      <button onClick={() => setPestana('fondos')} className="text-[12px] text-suave hover:text-acento">Ver todos →</button>
                     </div>
-                    <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
-                      {rangos.map(([etiqueta, n]) => (
-                        <button key={etiqueta} onClick={() => setRango(n)} aria-pressed={rango === n}
-                          className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{etiqueta}</button>
-                      ))}
-                    </div>
+                    <ul className="space-y-2">
+                      {principales.map(({ isin, nombre, peso, otros }) => {
+                        const r = isin ? revision.get(isin) : undefined
+                        const hoyP = isin ? pesoHoy.get(isin) : undefined
+                        return (
+                          <li key={isin ?? 'otros'} className="text-[13px]">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <span className="flex min-w-0 items-baseline gap-1.5">
+                                {r?.senales.length ? <span className="shrink-0 text-[10px] text-aviso" title={r.senales.map((x) => `${x.tipo}: ${x.motivo}`).join(' · ')} aria-label="Con señales de revisión">●</span> : null}
+                                {isin ? <a href={`#/fondo/${isin}`} className="min-w-0 truncate hover:text-acento">{nombre}</a>
+                                  : <span className="text-suave">Otros {otros} fondos</span>}
+                              </span>
+                              <span className="shrink-0 tabular">{pct(peso / 100, 0, false)}</span>
+                            </div>
+                            <div className="relative mt-1 h-1 rounded-full bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
+                              <span className={`absolute inset-y-0 left-0 rounded-full ${isin ? 'bg-acento' : 'bg-suave'}`} style={{ width: `${Math.min(peso, 100)}%` }} />
+                              {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2 w-0.5 rounded-full bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                    {calc && <p className="mt-auto pt-3 text-[11px] text-suave">Barra: peso objetivo · marca: peso de hoy.</p>}
                   </div>
-                  <Grafico lineas={grafica} />
-                  <p className="text-[11px] text-suave">
-                    Desde el {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)} · {simulacion.rebalanceos} rebalanceos
-                    {calc?.referenciaSerie.length ? <> · referencia: la de cada fondo combinada con sus pesos{calc.referenciaSerie[0].fecha > sim[0].fecha && `, desde el ${fecha(calc.referenciaSerie[0].fecha)}`}</> : null}.
-                  </p>
-                </>
-              ) : sinCalculo}
+                )}
+              </div>
             </Tarjeta>
 
             {calc && (
@@ -333,42 +372,12 @@ export default function Cartera({ id }: { id: number }) {
               </dl>
             )}
 
+            {calc && <AnoAno calc={calc} />}
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-4">
-                {calc && <AnoAno calc={calc} />}
-                {calc && <Crisis calc={calc} />}
-                <Tarjeta titulo="Tipo de activo">
-                  {expo ? <Donut activos={expo.activos} cobertura={expo.cobertura} /> : <p className="text-suave">Cargando…</p>}
-                </Tarjeta>
-              </div>
-              <div className="space-y-4">
-                <Tarjeta titulo="Fondos" extra={<button onClick={() => setPestana('fondos')} className="text-[12px] text-suave hover:text-acento">Ver detalle →</button>}>
-                  <div aria-hidden="true" className="mb-1.5 grid grid-cols-[minmax(0,1fr)_3.5rem_3rem] gap-x-3 text-right text-[11px] text-suave"><span /><span>Nota</span><span>Peso</span></div>
-                  <ul className="space-y-2.5">
-                    {lineas.map(({ fondo: f, peso }) => {
-                      const r = revision.get(f.isin)
-                      const hoyP = pesoHoy.get(f.isin)
-                      return (
-                        <li key={f.isin} className="text-[13px]">
-                          <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_3rem] items-baseline gap-x-3">
-                            <span className="flex min-w-0 items-baseline gap-2">
-                              <a href={`#/fondo/${f.isin}`} className="min-w-0 truncate hover:text-acento">{f.nombre}</a>
-                              {r?.senales.length ? <span className="max-w-[45%] shrink-0 truncate rounded-full bg-aviso/15 px-2 text-[11px] text-aviso" title={r.senales.map((s) => s.motivo).join(' · ')}>{r.senales.length === 1 ? r.senales[0].tipo : `${r.senales.length} señales`}</span> : null}
-                            </span>
-                            <span className="text-right text-[12px] tabular text-suave">{r?.nota ? Math.round(r.nota.nota) : '—'}</span>
-                            <span className="text-right tabular">{pct(peso / 100, 0, false)}</span>
-                          </div>
-                          <div className="relative mt-1 h-1.5 rounded-full bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
-                            <span className="absolute inset-y-0 left-0 rounded-full bg-acento" style={{ width: `${Math.min(peso, 100)}%` }} />
-                            {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2.5 w-0.5 rounded-full bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                  {calc && <p className="mt-3 text-[11px] text-suave">La barra es el peso objetivo; la marca, el de hoy (tras moverse los precios desde el último rebalanceo).</p>}
-                </Tarjeta>
-              </div>
+              {calc && <Crisis calc={calc} />}
+              <Tarjeta titulo="Tipo de activo">
+                {expo ? <Donut activos={expo.activos} cobertura={expo.cobertura} /> : <p className="text-suave">Cargando…</p>}
+              </Tarjeta>
             </div>
           </>
         )}
@@ -377,14 +386,17 @@ export default function Cartera({ id }: { id: number }) {
           <>
             <Tarjeta titulo={borrador ? 'Fondos y pesos' : 'Fondos'} extra={<span className={`text-[12px] tabular ${Math.abs(suma - 100) >= 0.01 ? 'text-baja' : 'text-suave'}`}>suman {cifra(suma, 1)} %</span>}>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[48rem] whitespace-nowrap text-right tabular text-[13px]">
+                <table className="w-full min-w-[60rem] whitespace-nowrap text-right tabular text-[13px]">
                   <thead>
                     <tr className="text-[12px] text-suave">
                       <th className="pb-1.5 text-left font-normal">Fondo</th>
                       <th className="pl-3 font-normal">Peso</th>
                       <th className="pl-3 font-normal">TER</th>
-                      <th className="pl-3 font-normal">3 años, anual</th>
-                      <th className="pl-3 font-normal">5 años, anual</th>
+                      <th className="pl-3 font-normal" title="Rentabilidad anualizada a 3 años">Rent. 3a</th>
+                      <th className="pl-3 font-normal" title="Volatilidad a 3 años">Volat. 3a</th>
+                      <th className="pl-3 font-normal" title="Máxima caída a 3 años">Caída 3a</th>
+                      <th className="pl-3 font-normal" title="Sharpe a 3 años">Sharpe 3a</th>
+                      <th className="pl-3 font-normal" title="Rentabilidad anualizada a 5 años">Rent. 5a</th>
                       <th className="pl-3 font-normal">Nota</th>
                       <th className="pl-3 text-left font-normal">Señales</th>
                       {borrador && <th />}
@@ -409,6 +421,9 @@ export default function Cartera({ id }: { id: number }) {
                           </td>
                           <td className="pl-3">{pct((ter(f) ?? NaN) / 100, 2, false)}</td>
                           <td className={`pl-3 ${tono(mf?.get('3a|rentabilidad'))}`}>{pct(mf?.get('3a|rentabilidad'))}</td>
+                          <td className="pl-3">{pct(mf?.get('3a|volatilidad'), 1, false)}</td>
+                          <td className="pl-3">{pct(mf?.get('3a|max_caida'))}</td>
+                          <td className="pl-3">{cifra(mf?.get('3a|sharpe'))}</td>
                           <td className={`pl-3 ${tono(mf?.get('5a|rentabilidad'))}`}>{pct(mf?.get('5a|rentabilidad'))}</td>
                           <td className="pl-3">{r?.nota ? <>{Math.round(r.nota.nota)}{r.nota.percentil != null && <span className="text-suave"> p{Math.round(r.nota.percentil)}</span>}</> : <span className="text-suave">—</span>}</td>
                           <td className="whitespace-normal pl-3 text-left">
@@ -437,7 +452,7 @@ export default function Cartera({ id }: { id: number }) {
             {hayCalculo && calc ? (
               <>
                 <Aportacion calc={calc} fondos={fondosE} />
-                <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+                <div className={`grid gap-4 [&>*]:min-w-0 ${fondosE.length <= 5 ? 'lg:grid-cols-2' : ''}`}>
                   <Juntos calc={calc} fondos={fondosE} />
                   <Tarjeta titulo="Posiciones en común"><Solapes fondos={fondosE} titulo={false} /></Tarjeta>
                 </div>
