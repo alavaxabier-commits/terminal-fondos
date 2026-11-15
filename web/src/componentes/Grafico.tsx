@@ -23,7 +23,7 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
     if (!caja.current) return
     const g = echarts.getInstanceByDom(caja.current)
     if (!g) return
-    const [texto, suave, borde, panel] = ['texto', 'suave', 'borde', 'panel'].map(token)
+    const [texto, suave, borde, panel, acento] = ['texto', 'suave', 'borde', 'panel', 'acento'].map(token)
     const fuente = getComputedStyle(document.body).fontFamily
     g.setOption(
       {
@@ -40,7 +40,14 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
         },
         xAxis: { type: 'time', axisLine: { lineStyle: { color: borde } }, splitLine: { show: false } },
         yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: borde, type: 'dashed' } } },
-        dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 8, borderColor: borde, textStyle: { color: suave } }],
+        dataZoom: [{ type: 'inside' }, {
+          type: 'slider', height: 18, bottom: 8, borderColor: borde, textStyle: { color: suave },
+          // Colores del tema (ECharts trae un azul propio): tramo elegido en acento suave, asas y fondo con los tokens.
+          fillerColor: `color-mix(in srgb, ${acento} 15%, transparent)`, handleStyle: { color: panel, borderColor: suave },
+          moveHandleStyle: { color: borde }, dataBackground: { lineStyle: { color: suave }, areaStyle: { color: borde } },
+          selectedDataBackground: { lineStyle: { color: acento }, areaStyle: { color: `color-mix(in srgb, ${acento} 25%, transparent)` } },
+          emphasis: { handleStyle: { borderColor: acento }, moveHandleStyle: { color: acento } },
+        }],
         series: lineas.map((l) => ({
           name: l.nombre,
           type: 'line',
