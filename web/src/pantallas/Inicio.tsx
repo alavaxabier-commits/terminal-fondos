@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { calcularCartera } from '../calculo/cartera'
 import { cifra, fecha, hoy, pct } from '../calculo/formato'
 import { rendimientos, simularCartera } from '../calculo/metricas'
@@ -128,11 +128,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
           : carteras instanceof Error ? <Fallo e={carteras} />
           : !carteras.length ? <p className="text-suave">Aún no hay ninguna cartera modelo: «+ nueva cartera» crea una.</p>
           : carteras.length === 1 ? <CarteraAncha c={carteras[0]} r={resumenes.get(carteras[0].id)} cargando={!resumenes.has(carteras[0].id)} senales={senalesDe(carteras[0].id)} />
-          : (
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {carteras.map((c) => <TarjetaCartera key={c.id} c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} senales={senalesDe(c.id)} />)}
-            </ul>
-          )}
+          : <Carrusel carteras={carteras} ancha={(c) => <CarteraAncha c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} senales={senalesDe(c.id)} />} />}
       </Seccion>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -144,11 +140,10 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
 }
 
 const puntos = (v: number | null) => (v == null ? '—' : `${v > 0 ? '+' : ''}${cifra(v * 100, 1)} pts`)
-/** KPIs de la cartera. `todos`: los 8 de la tarjeta ancha (una sola cartera); si no, 6. Rentabilidades a 3 y 5 años, anuales. */
-const Cifras = ({ r, todos = false }: { r: ResumenCartera; todos?: boolean }) => {
+/** KPIs de la cartera (8). Rentabilidades a 3 y 5 años, anuales. */
+const Cifras = ({ r }: { r: ResumenCartera }) => {
   const k: [string, string, string][] = [
-    ...(todos ? [['1 año', pct(r.r1), tono(r.r1)], ['3 años', pct(r.r3), tono(r.r3)], ['5 años', pct(r.r5), tono(r.r5)]] as [string, string, string][]
-      : [['3 años', pct(r.r3), tono(r.r3)]] as [string, string, string][]),
+    ['1 año', pct(r.r1), tono(r.r1)], ['3 años', pct(r.r3), tono(r.r3)], ['5 años', pct(r.r5), tono(r.r5)],
     ['vs referencia', puntos(r.vsRef3), tono(r.vsRef3)],
     ['Volatilidad', pct(r.vol3, 1, false), ''],
     ['Caída máx.', pct(r.caida3), 'text-baja'],
@@ -157,14 +152,14 @@ const Cifras = ({ r, todos = false }: { r: ResumenCartera; todos?: boolean }) =>
   ]
   return (
     <div>
-      <dl className={`grid gap-x-3 gap-y-2 text-[12px] ${todos ? 'grid-cols-4' : 'grid-cols-3'}`}>
+      <dl className={"grid grid-cols-4 gap-x-3 gap-y-2 text-[12px]"}>
         {k.map(([et, v, cls]) => (
           <div key={et}><dt className="text-suave">{et}</dt><dd className={`tabular text-[13px] ${cls}`}>{v}</dd></div>
         ))}
       </dl>
       {/* Las aclaraciones van a la vista (antes en title, que no se ve en el móvil ni con teclado). */}
       <p className="mt-1 text-[11px] text-suave">
-        A 3 años{todos ? ', salvo indicado' : ''}; rentabilidades a 3{todos ? ' y 5' : ''} años, anuales. «vs referencia»: menos la referencia combinada de sus fondos; «Gastos»: TER ponderado.
+        A 3 años, salvo indicado; rentabilidades a 3 y 5 años, anuales. «vs referencia»: menos la referencia combinada de sus fondos; «Gastos»: TER ponderado.
       </p>
     </div>
   )
@@ -175,7 +170,7 @@ const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' :
 
 /** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el tipo de activo con los avisos de sus fondos. */
 function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | Error | undefined; cargando: boolean; senales?: Senales }) {
-  if (cargando || !r || r instanceof Error) return <div className="rounded-lg border border-borde bg-panel p-5 text-suave">{r instanceof Error ? <Fallo e={r} /> : cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
+  if (cargando || !r || r instanceof Error) return <div className="h-full rounded-lg border border-borde bg-panel p-5 text-suave">{r instanceof Error ? <Fallo e={r} /> : cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
   // Lo que pide atención en el reparto: fondos con señales de revisión o fuera de la banda de rebalanceo (el detalle, en la cartera).
   const avisos = r.fondos.flatMap((f) => {
     const deriva = f.hoy == null ? 0 : (f.hoy - f.objetivo) * 100
@@ -185,12 +180,12 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
     ]
   })
   return (
-    <div className="grid gap-6 rounded-lg border border-borde bg-panel p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
+    <div className="grid h-full gap-6 rounded-lg border border-borde bg-panel p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
       {/* Solo el nombre es el enlace (el lector de pantalla no lee todas las cifras como su nombre); su ::after cubre la columna. */}
       <div className="relative flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline gap-2"><a href={`#/cartera/${c.id}`} className="font-medium after:absolute after:inset-0 hover:text-acento">{c.nombre}</a><PildoraSemana v={r.semana} /></div>
         <div><span className={`cifra text-6xl tabular ${tono(r.año)}`}>{pct(r.año)}</span><span className="ml-2 text-suave">en el año</span></div>
-        <Cifras r={r} todos />
+        <Cifras r={r} />
         <p className="mt-auto text-[12px] text-suave">Rebalanceo {c.rebalanceo}{r.ultimoRebalanceo ? `, el último el ${fecha(r.ultimoRebalanceo)}` : ''}{c.objetivo ? ` · ${c.objetivo}` : ''}</p>
       </div>
       <div className="flex flex-col gap-1">
@@ -244,26 +239,34 @@ function Donut({ activos, cobertura }: { activos: Fila[]; cobertura: number }) {
   )
 }
 
-function TarjetaCartera({ c, r: dato, cargando, senales }: { c: Cartera; r: ResumenCartera | null | Error | undefined; cargando: boolean; senales?: Senales }) {
-  const r = dato instanceof Error ? null : dato
+/** Varias carteras, una a una a todo el ancho. Se pasa con ‹ ›, con su nombre o deslizando: el «imán» es el scroll-snap
+ *  del navegador. No avanza solo (las cifras no se mueven mientras se leen). */
+function Carrusel({ carteras, ancha }: { carteras: Cartera[]; ancha: (c: Cartera) => React.ReactNode }) {
+  const pista = useRef<HTMLUListElement>(null)
+  const [actual, setActual] = useState(0)
+  const paso = (p: HTMLElement) => (p.scrollWidth + 16) / carteras.length // ancho de una diapositiva más el hueco (gap-4)
+  const ir = (i: number) => { const p = pista.current; if (p) p.scrollTo({ left: i * paso(p) }) }
+  const flecha = 'grid h-8 w-8 shrink-0 place-items-center rounded-full border border-borde bg-panel text-suave hover:text-texto disabled:opacity-40 disabled:hover:text-suave'
   return (
-    <li>
-      <div className="relative flex h-full flex-col gap-3 rounded-lg border border-borde bg-panel p-4 hover:border-acento">
-        <div className="flex items-baseline justify-between gap-2">
-          <a href={`#/cartera/${c.id}`} className="font-medium after:absolute after:inset-0 after:rounded-lg">{c.nombre}</a>
-          {r && <PildoraSemana v={r.semana} />}
+    <div role="region" aria-roledescription="carrusel" aria-label="Carteras modelo">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex min-w-0 gap-0.5 overflow-x-auto rounded-full bg-borde/50 p-0.5 text-[12px]">
+          {carteras.map((c, i) => (
+            <button key={c.id} onClick={() => ir(i)} aria-current={i === actual || undefined}
+              className={`shrink-0 rounded-full px-2.5 py-1 ${i === actual ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{c.nombre}</button>
+          ))}
         </div>
-        {cargando ? <p className="text-suave">calculando…</p> : dato instanceof Error ? <Fallo e={dato} /> : !r ? <p className="text-suave">Sin fondos o sin datos suficientes.</p> : <>
-          <div>
-            <span className={`cifra text-5xl tabular ${tono(r.año)}`}>{pct(r.año)}</span>
-            <span className="ml-2 text-suave">en el año</span>
-          </div>
-          <Mini valores={r.linea} area color={colorLinea(r.linea)} className="h-14 w-full" />
-          <Cifras r={r} />
-          <p className="text-[12px] text-suave">{r.fondos.length} fondos · rebalanceo {c.rebalanceo}{senales?.size ? <span className="text-aviso"> · ▲ {senales.size} a revisar</span> : ''}</p>
-        </>}
+        <span className="ml-auto shrink-0 text-[12px] tabular text-suave">{actual + 1} de {carteras.length}</span>
+        <button onClick={() => ir(actual - 1)} disabled={actual === 0} aria-label="Cartera anterior" className={flecha}>‹</button>
+        <button onClick={() => ir(actual + 1)} disabled={actual === carteras.length - 1} aria-label="Cartera siguiente" className={flecha}>›</button>
       </div>
-    </li>
+      <ul ref={pista} onScroll={(e) => setActual(Math.round(e.currentTarget.scrollLeft / paso(e.currentTarget)))}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth [scrollbar-width:none] motion-reduce:scroll-auto">
+        {carteras.map((c, i) => (
+          <li key={c.id} aria-roledescription="diapositiva" aria-label={`${i + 1} de ${carteras.length}: ${c.nombre}`} className="w-full shrink-0 snap-start">{ancha(c)}</li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
