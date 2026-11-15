@@ -337,22 +337,26 @@ export default function Cartera({ id }: { id: number }) {
               <div className="space-y-4">
                 {calc && <AnoAno calc={calc} />}
                 {calc && <Crisis calc={calc} />}
+                <Tarjeta titulo="Tipo de activo">
+                  {expo ? <Donut activos={expo.activos} cobertura={expo.cobertura} /> : <p className="text-suave">Cargando…</p>}
+                </Tarjeta>
               </div>
               <div className="space-y-4">
                 <Tarjeta titulo="Fondos" extra={<button onClick={() => setPestana('fondos')} className="text-[12px] text-suave hover:text-acento">Ver detalle →</button>}>
+                  <div aria-hidden="true" className="mb-1.5 grid grid-cols-[minmax(0,1fr)_3.5rem_3rem] gap-x-3 text-right text-[11px] text-suave"><span /><span>Nota</span><span>Peso</span></div>
                   <ul className="space-y-2.5">
                     {lineas.map(({ fondo: f, peso }) => {
                       const r = revision.get(f.isin)
                       const hoyP = pesoHoy.get(f.isin)
                       return (
                         <li key={f.isin} className="text-[13px]">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <a href={`#/fondo/${f.isin}`} className="min-w-0 truncate hover:text-acento">{f.nombre}</a>
-                            <span className="shrink-0 tabular">
-                              {r?.senales.length ? <span className="mr-2 rounded-full bg-aviso/15 px-2 text-[11px] text-aviso" title={r.senales.map((s) => s.motivo).join(' · ')}>{r.senales.length === 1 ? r.senales[0].tipo : `${r.senales.length} señales`}</span> : null}
-                              {r?.nota && <span className="mr-2 text-[12px] text-suave">nota {Math.round(r.nota.nota)}</span>}
-                              {pct(peso / 100, 0, false)}
+                          <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_3rem] items-baseline gap-x-3">
+                            <span className="flex min-w-0 items-baseline gap-2">
+                              <a href={`#/fondo/${f.isin}`} className="min-w-0 truncate hover:text-acento">{f.nombre}</a>
+                              {r?.senales.length ? <span className="max-w-[45%] shrink-0 truncate rounded-full bg-aviso/15 px-2 text-[11px] text-aviso" title={r.senales.map((s) => s.motivo).join(' · ')}>{r.senales.length === 1 ? r.senales[0].tipo : `${r.senales.length} señales`}</span> : null}
                             </span>
+                            <span className="text-right text-[12px] tabular text-suave">{r?.nota ? Math.round(r.nota.nota) : '—'}</span>
+                            <span className="text-right tabular">{pct(peso / 100, 0, false)}</span>
                           </div>
                           <div className="relative mt-1 h-1.5 rounded-full bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
                             <span className="absolute inset-y-0 left-0 rounded-full bg-acento" style={{ width: `${Math.min(peso, 100)}%` }} />
@@ -363,9 +367,6 @@ export default function Cartera({ id }: { id: number }) {
                     })}
                   </ul>
                   {calc && <p className="mt-3 text-[11px] text-suave">La barra es el peso objetivo; la marca, el de hoy (tras moverse los precios desde el último rebalanceo).</p>}
-                </Tarjeta>
-                <Tarjeta titulo="Tipo de activo">
-                  {expo ? <Donut activos={expo.activos} cobertura={expo.cobertura} /> : <p className="text-suave">Cargando…</p>}
                 </Tarjeta>
               </div>
             </div>
