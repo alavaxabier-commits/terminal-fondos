@@ -27,6 +27,29 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
   const partes = ([['rv', 'Renta variable', x.rv], ['rf', 'Renta fija y liquidez', x.rf]] as const).filter(([, , v]) => v >= 5)
   const tab = partes.find(([k]) => k === parte)?.[0] ?? [...partes].sort((a, b) => b[2] - a[2])[0]?.[0]
   const antiguas = vistos.filter((f) => f.fechaCartera && f.fechaCartera < haceMeses(6))
+  // Lo esencial, para la primera tarjeta: lo que más pesa de cada desglose (el detalle, en las tarjetas de abajo).
+  const mayor = (filas: Fila[]) => filas.reduce<Fila | null>((m, f) => (!m || f[1] > m[1] ? f : m), null)
+  const deLa = (f: Fila | null, parte: string) => f && `${f[0]} · ${pct(f[1] / 100, 0, false)} ${parte}`
+  const casilla = Object.entries(x.estiloRv).reduce<[string, number] | null>((m, e) => (!m || e[1] > m[1] ? e : m), null)
+  const top10 = [...x.acciones, ...x.otras].sort((a, b) => b.peso - a.peso).slice(0, 10).reduce((t, p) => t + p.peso, 0)
+  const ultimaCartera = vistos.map((f) => f.fechaCartera).filter(Boolean).sort().at(-1)
+  const emergentes = x.mercados.find(([n]) => n === 'Emergentes')
+  const duracion = x.estadisticasRf.find(([n]) => n === 'Duración efectiva')
+  const esencial = ([
+    ...(x.rv >= 5 ? [
+      ['Región principal', deLa(mayor(x.regiones.flatMap((g) => g.filas)), 'de la RV')],
+      ['Sector principal', deLa(mayor(x.sectores.flatMap((g) => g.filas)), 'de la RV')],
+      ['Emergentes', emergentes && `${pct(emergentes[1] / 100, 0, false)} de la RV`],
+      ['Estilo dominante', casilla && `${CAJA_RV.filas[Math.floor((+casilla[0] - 1) / 3)]} · ${CAJA_RV.cols[(+casilla[0] - 1) % 3].replace('Crecim.', 'Crecimiento')} (${Math.round(casilla[1])} %)`],
+    ] : []),
+    ...(x.rf >= 5 ? [
+      ['Calidad principal', deLa(mayor(x.calidad), 'de los bonos')],
+      ['Sector de los bonos', deLa(mayor(x.sectoresRf), 'de los bonos')],
+      ['Duración efectiva', duracion?.[1] != null && `${cifra(duracion[1], 1)} años`],
+    ] : []),
+    ['10 mayores posiciones', top10 > 0 && `${pct(top10 / 100, 0, false)} de la cartera`],
+    ['Cartera del', ultimaCartera && fecha(ultimaCartera)],
+  ] as [string, string | false | null | undefined][]).filter((e): e is [string, string] => !!e[1])
 
   return (
     <div className="space-y-4">
@@ -37,8 +60,17 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
           {conDatos.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
         </select>
       )}>
-        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+        <div className="grid items-center gap-x-10 gap-y-5 md:grid-cols-[auto_minmax(0,1fr)]">
           <Donut activos={x.activos} />
+          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+            {esencial.map(([k, v]) => (
+              <div key={k} className="min-w-0 border-l-2 border-borde pl-3">
+                <dt className="text-[12px] text-suave">{k}</dt><dd className="truncate text-[14px]" title={v}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           {partes.length > 1 && (
             <div role="group" aria-label="Parte de la cartera" className="flex flex-wrap gap-0.5 rounded-full bg-borde/50 p-0.5 text-[13px]">
               {partes.map(([k, t, v]) => (
@@ -49,13 +81,13 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
               ))}
             </div>
           )}
-        </div>
-        <p className="mt-3 text-[12px] text-suave">
+          <p className="text-[12px] text-suave">
           {elegido ? `Cartera de ${elegido} según Morningstar` : 'Cartera de cada fondo según Morningstar, ponderada por su peso'}
           {x.cobertura < 99.5 && <span className="text-aviso"> · solo el {pct(x.cobertura / 100, 0, false)} de la cartera tiene datos</span>}
           {x.cortos.length > 0 && <> · cifras netas: {x.cortos.join(', ')} {x.cortos.length > 1 ? 'tienen' : 'tiene'} posiciones cortas</>}
           {antiguas.length > 0 && <span className="text-aviso"> · cartera antigua: {antiguas.map((f) => `${f.nombre} (${fecha(f.fechaCartera)})`).join(', ')}</span>}
-        </p>
+          </p>
+        </div>
       </Tarjeta>
 
       {tab === 'rv' && (
