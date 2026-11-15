@@ -18,13 +18,14 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import os
+import re
 import sys
 from zoneinfo import ZoneInfo
 
 from . import ingesta, vigilancia
 from .validacion import lunes
 from .proveedores import BCE, FT, Morningstar, MyInvestor, Yahoo
-from .proveedores.morningstar import Bloqueo
+from .proveedores.morningstar import DETALLE, SCREENER, Bloqueo
 
 
 def hoy() -> dt.date:
@@ -203,6 +204,32 @@ def orden_prueba_red(isin: str) -> int:
     ms = Morningstar()
     f = ms.buscar(isin)
     print(f'Buscador Morningstar: {f}')
+    if f and f.get('ms_id'):  # ¿dice Morningstar dónde se comercializa el fondo?
+        try:
+            r = ms.http.get(DETALLE + f['ms_id'], params={'viewId': 'MFsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
+                                                          'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
+            claves = []
+
+            def recorrer(x, ruta):
+                if isinstance(x, dict):
+                    for k, v in x.items():
+                        claves.append(f'{ruta}/{k}')
+                        recorrer(v, f'{ruta}/{k}')
+                elif isinstance(x, list) and x:
+                    recorrer(x[0], f'{ruta}[]')
+            recorrer(r.json(), '')
+            print(f'security_details: {len(claves)} claves; {[c for c in claves if len(c.split("/")) <= 4]}')
+            print(f'security_details, claves de venta: {[c for c in claves if re.search("domic|sale|regist|distrib|platform|countr|broker", c, re.I)]}')
+        except Exception as e:  # noqa: BLE001
+            print(f'security_details falla: {e}')
+        for campo in ('Domicile', 'SaleCountries', 'RegisteredCountries', 'DistributionCountries'):
+            try:
+                r = ms.http.get(SCREENER, params={'outputType': 'json', 'universeIds': 'FOESP$$ALL', 'term': isin,
+                                                  'securityDataPoints': f'SecId|Isin|{campo}'}, timeout=60)
+                r.raise_for_status()
+                print(f'Buscador, campo {campo}: {(r.json().get("rows") or [None])[0]}')
+            except Exception as e:  # noqa: BLE001
+                print(f'Buscador, campo {campo} falla: {e}')
     try:
         s = ms.historico(isin, f and f['ms_id'], d - dt.timedelta(days=30), d, f and f['divisa'])
         print(f'Morningstar (series): {len(s)} valores; últimos {sorted(s.items())[-3:]}')
