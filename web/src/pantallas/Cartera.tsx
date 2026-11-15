@@ -9,6 +9,7 @@ import Buscador from '../componentes/Buscador'
 import Donut from '../componentes/Donut'
 import { Aportacion, AnoAno, costeCartera, Crisis, Juntos, MetricasCartera, Solapes } from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
+import Franja from '../componentes/Franja'
 import Grafico from '../componentes/Grafico'
 import Tarjeta from '../componentes/Tarjeta'
 import { escribiendo } from '../componentes/teclas'
@@ -180,21 +181,10 @@ export default function Cartera({ id }: { id: number }) {
     : sinDatos.length ? <p className="text-suave">Sin precios todavía: {sinDatos.map((l) => l.fondo.nombre).join(', ')}. Se cargan en la próxima descarga (los fondos de una cartera se descargan cada día).</p>
     : <p className="text-suave">Sin historia común suficiente entre los fondos para calcular la cartera.</p>
   const rangos = RANGOS.filter(([, n]) => !n || (sim.length > 1 && haceAnos(sim.at(-1)!.fecha, n) >= sim[0].fecha))
-  const kpi = (et: string, clave: string, fmt: (v: number) => string, color = false) => {
-    const v = m?.['3a']?.[clave]
-    const r = ref['3a']?.[clave]
-    return (
-      <div key={clave} className="flex flex-col gap-1 bg-panel px-4 py-3">
-        <span className="text-[12px] text-suave">{et}</span>
-        <span className={`cifra text-3xl tabular ${color ? tono(v) : ''}`}>{v == null ? '—' : fmt(v)}</span>
-        <span className="text-[11px] text-suave">{r == null ? 'sin referencia' : <>referencia {fmt(r)}</>}</span>
-      </div>
-    )
-  }
 
   return (
     <article className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+      <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         {borrador ? (
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <p className="text-[11px] uppercase tracking-widest text-acento">Cartera modelo · editando</p>
@@ -244,21 +234,11 @@ export default function Cartera({ id }: { id: number }) {
             <div className="flex flex-wrap gap-1.5 text-suave">
               <Pastilla>{lineas.length} {lineas.length === 1 ? 'fondo' : 'fondos'}</Pastilla>
               <Pastilla>Rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}</Pastilla>
-              {coste != null && <Pastilla>Coste {pct(coste / 100, 2, false)} al año</Pastilla>}
               {nSenales > 0 && <a href="#/revision"><Pastilla className="bg-aviso/15! text-aviso">{nSenales} {nSenales === 1 ? 'señal' : 'señales'} de revisión</Pastilla></a>}
             </div>
           </div>
         )}
-        <div className="flex flex-col items-end gap-3">
-          {!borrador && ytd != null && (
-            <p className="text-right tabular">
-              <span className="text-[12px] text-suave">Este año </span><span className={`cifra text-6xl leading-none ${tono(ytd)}`}>{pct(ytd)}</span>
-              <span className="block text-[12px] text-suave">
-                {ref.ytd?.rentabilidad != null && <>referencia {pct(ref.ytd.rentabilidad)} · </>}
-                {calc && <>a {fecha(calc.hasta)}</>}
-              </span>
-            </p>
-          )}
+        <div>
           <div className="flex flex-wrap justify-end gap-2">
             {borrador ? (
               <>
@@ -281,6 +261,23 @@ export default function Cartera({ id }: { id: number }) {
         </div>
       </header>
 
+      {calc && (
+        <>
+          <Franja cifras={[
+            { etiqueta: 'Este año', valor: pct(ytd), clase: tono(ytd), pie: ref.ytd?.rentabilidad != null ? `referencia ${pct(ref.ytd.rentabilidad)}` : 'sin referencia' },
+            ...([['3 años, anual', 'rentabilidad', (v: number) => pct(v), true], ['Volatilidad 3 años', 'volatilidad', (v: number) => pct(v, 1, false), false],
+              ['Sharpe 3 años', 'sharpe', (v: number) => cifra(v), false]] as const).map(([et, k, fmt, color]) => {
+              const v = m?.['3a']?.[k]
+              const r = ref['3a']?.[k]
+              return { etiqueta: et, valor: v == null ? '—' : fmt(v), clase: color ? tono(v) : '', pie: r == null ? 'sin referencia' : `referencia ${fmt(r)}` }
+            }),
+            { etiqueta: 'Coste anual', valor: coste == null ? '—' : pct(coste / 100, 2, false), pie: 'TER ponderado' },
+          ]} />
+          <p className="text-[13px] text-suave">
+            Simulada desde el {fecha(calc.desde)} hasta el {fecha(calc.hasta)}{calc.ultimoRebalanceo && ` · último rebalanceo ${fecha(calc.ultimoRebalanceo)}`}
+          </p>
+        </>
+      )}
       {borrador && (
         <p className="rounded-lg bg-aviso/10 px-3 py-2 text-[13px] text-aviso">
           Editando: las cifras ya reflejan los cambios, pero no se guardan hasta pulsar «Guardar».
@@ -363,14 +360,6 @@ export default function Cartera({ id }: { id: number }) {
               </div>
             </Tarjeta>
 
-            {calc && (
-              <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-borde bg-borde lg:grid-cols-4">
-                {kpi('Rentabilidad 3 años, anual', 'rentabilidad', (v) => pct(v), true)}
-                {kpi('Volatilidad 3 años', 'volatilidad', (v) => pct(v, 1, false))}
-                {kpi('Caída máxima 3 años', 'max_caida', (v) => pct(v))}
-                {kpi('Sharpe 3 años', 'sharpe', (v) => cifra(v))}
-              </dl>
-            )}
 
             {calc && <AnoAno calc={calc} />}
             <div className="grid gap-4 lg:grid-cols-2">

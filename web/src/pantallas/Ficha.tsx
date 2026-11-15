@@ -6,6 +6,7 @@ import { evolucion, type NotaSemanal } from '../calculo/senales'
 import { cubierta } from '../calculo/screener'
 import { base100, combinar, haceAnos, inicioComun, variacion, type Punto } from '../calculo/series'
 import Exposicion from '../componentes/Exposicion'
+import Franja from '../componentes/Franja'
 import Grafico from '../componentes/Grafico'
 import TablaNota from '../componentes/TablaNota'
 import Tarjeta from '../componentes/Tarjeta'
@@ -183,20 +184,11 @@ export default function Ficha({ isin }: { isin: string }) {
   const ytd = m.get('ytd|rentabilidad')?.valor ?? null
   const tono = (v: number | null) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
   const ultimosAnos = [...anos].reverse().slice(-10) // los 10 últimos años naturales, del más antiguo al más reciente
-  const kpi = (et: string, clave: string, fmt: (v: number) => string, color = false) => {
-    const x = m.get(clave)
-    return (
-      <div key={clave} className="flex flex-col gap-1 bg-panel px-4 py-3">
-        <span className="text-[12px] text-suave">{et}</span>
-        <span className={`cifra text-3xl tabular ${color && x ? tono(x.valor) : ''}`}>{x ? fmt(x.valor) : '—'}</span>
-        {x?.percentil != null ? <BarraPercentil p={x.percentil} /> : <span className="text-[11px] text-suave">sin percentil</span>}
-      </div>
-    )
-  }
+  const pieP = (p: number | null | undefined, conCuartil = false) => (p == null ? 'sin percentil' : <span className={colorPercentil(p)}>p{Math.round(p)}{conCuartil && ` · cuartil ${cuartil(p)}`}</span>)
 
   return (
     <article className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+      <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         <div className="min-w-0 space-y-2">
           <p className="text-[11px] uppercase tracking-widest text-acento">{f.categoria ?? 'sin categoría'}</p>
           <h1 className="text-3xl! sm:text-4xl!">{f.nombre}</h1>
@@ -209,29 +201,30 @@ export default function Ficha({ isin }: { isin: string }) {
             {!f.en_universo && <Pastilla className="text-aviso">fuera del universo</Pastilla>}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-3">
-          {e ? (
-            <p className="text-right tabular" title="Nota del screener (pesos por defecto, sin Diversificación)">
-              <span className="text-[12px] text-suave">Nota </span><span className="cifra text-6xl leading-none">{Math.round(e.nota)}</span>
-              <span className="block text-[12px] text-suave">
-                {e.percentil != null && <>p{Math.round(e.percentil)} de su categoría</>}
-                {e.periodo != null && <span className={e.periodo >= 0 ? 'text-sube' : 'text-baja'}> · {e.periodo >= 0 ? '+' : ''}{cifra(e.periodo, 0)} en 12 meses</span>}
-                <> · semana del {fecha(e.fecha)}</>
-              </span>
-            </p>
-          ) : <p className="text-right text-suave">Sin nota: fuera del universo<br />o menos de 3 años de historia.</p>}
-          <div className="flex flex-wrap justify-end gap-2">
-            <a href={`#/comparar/${f.isin}`} className="flex min-h-8 items-center rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Comparar</a>
-            <button onClick={() => alternar({ isin: f.isin, nombre: f.nombre })} disabled={llena} aria-pressed={enBandeja}
-              title={llena ? `Como mucho ${MAX_BANDEJA} fondos en la bandeja` : undefined}
-              className={`min-h-8 rounded-full bg-borde/50 px-4 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Bandeja' : '+ Bandeja'}</button>
-            <button onClick={seguir} disabled={seguido}
-              className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <a href={`#/comparar/${f.isin}`} className="flex min-h-8 items-center rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Comparar</a>
+          <button onClick={() => alternar({ isin: f.isin, nombre: f.nombre })} disabled={llena} aria-pressed={enBandeja}
+            title={llena ? `Como mucho ${MAX_BANDEJA} fondos en la bandeja` : undefined}
+            className={`min-h-8 rounded-full bg-borde/50 px-4 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Bandeja' : '+ Bandeja'}</button>
+          <button onClick={seguir} disabled={seguido}
+            className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
         </div>
       </header>
+      <Franja cifras={[
+        { etiqueta: 'Nota', valor: e ? String(Math.round(e.nota)) : '—', pie: e ? <>
+          {e.percentil != null && <>p{Math.round(e.percentil)}</>}
+          {e.periodo != null && <span className={e.periodo >= 0 ? 'text-sube' : 'text-baja'}> · {e.periodo >= 0 ? '+' : ''}{cifra(e.periodo, 0)} en 12 meses</span>}
+        </> : 'fuera del universo o < 3 años' },
+        { etiqueta: 'Este año', valor: ytd == null ? '—' : pct(ytd), clase: ytd == null ? '' : tono(ytd), pie: pieP(m.get('ytd|rentabilidad')?.percentil, true) },
+        ...([['3 años, anual', '3a|rentabilidad', (v: number) => pct(v), true], ['Volatilidad 3 años', '3a|volatilidad', (v: number) => pct(v, 1, false), false],
+          ['Gastos (TER)', 'hoy|ter', (v: number) => `${cifra(v)} %`, false]] as const).map(([et, k, fmt, color]) => {
+          const x = m.get(k)
+          return { etiqueta: et, valor: x ? fmt(x.valor) : '—', clase: color && x ? tono(x.valor) : '', pie: pieP(x?.percentil) }
+        }),
+      ]} />
       <p className="text-[13px] text-suave">
         {datos.carteras.length ? <>En {datos.carteras.map((c, i) => <span key={c.id}>{i > 0 && ', '}<a href={`#/cartera/${c.id}`} className="text-texto hover:text-acento">{c.nombre}</a> ({cifra(c.peso, 0)} %)</span>)}</> : 'No está en ninguna cartera.'}
+        {e && <> · nota de la semana del {fecha(e.fecha)}</>}
       </p>
 
       <div role="tablist" aria-label="Secciones de la ficha" className="flex flex-wrap gap-5 border-b border-borde">
@@ -266,12 +259,6 @@ export default function Ficha({ isin }: { isin: string }) {
               <p className="text-[11px] text-suave">Base 100 en euros, frente a {textoRef ?? 'su referencia'}.{ref.metodo === 'media_categoria' && ' La media de la categoría se usa en las métricas; no se dibuja.'}</p>
             </Tarjeta>
 
-            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-borde bg-borde lg:grid-cols-4">
-              {kpi('Rentabilidad 3 años, anual', '3a|rentabilidad', (v) => pct(v), true)}
-              {kpi('Volatilidad 3 años', '3a|volatilidad', (v) => pct(v, 1, false))}
-              {kpi('Sharpe 3 años', '3a|sharpe', (v) => cifra(v))}
-              {kpi('Gastos corrientes (TER)', 'hoy|ter', (v) => `${cifra(v)} %`)}
-            </dl>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-4">
