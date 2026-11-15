@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { calcularCartera } from '../calculo/cartera'
-import { fecha, hoy, pct } from '../calculo/formato'
-import { simularCartera } from '../calculo/metricas'
+import { cifra, fecha, hoy, pct } from '../calculo/formato'
+import { rendimientos, simularCartera } from '../calculo/metricas'
 import { haceAnos, haceDias, muestra, variacion, type Punto } from '../calculo/series'
 import type { Tarea } from '../calculo/vigilancia'
 import { evolucion, type NotaSemanal, type Senal } from '../calculo/senales'
 import type { Estado } from '../App'
 import Mini from '../componentes/Mini'
-import { cartera as leerCartera, crearCartera, carteras as leerCarteras, notasDe, seguidos, sustitutos, type Cartera } from '../datos/consultas'
+import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, seguidos, sustitutos, type Cartera } from '../datos/consultas'
 import { serieEur } from '../datos/series'
+import { cargarFondo } from './Cartera'
 
 type Periodo = 'semana' | 'mes' | 'año'
 const PERIODOS: Periodo[] = ['semana', 'mes', 'año']
@@ -17,7 +18,10 @@ const desde = (ultimo: string, p: Periodo) => (p === 'semana' ? haceDias(ultimo,
 const cambios = (s: Punto[]) => Object.fromEntries(PERIODOS.map((p) => [p, s.length ? variacion(s, desde(s.at(-1)!.fecha, p)) : null])) as Record<Periodo, number | null>
 
 type ResumenCartera = {
-  año: number | null; semana: number | null; r3?: number; vol3?: number; caida3?: number; linea: number[]; ultimoRebalanceo: string | null
+  año: number | null; semana: number | null; linea: number[]; ultimoRebalanceo: string | null
+  r1?: number; r3?: number; r5?: number; vol3?: number; caida3?: number; sharpe3?: number
+  vsRef3: number | null // rentabilidad anual a 3 años menos la de la referencia combinada
+  gastos: number | null // TER ponderado, en %
   fondos: { isin: string; nombre: string; objetivo: number; hoy: number | null }[] // pesos en tanto por uno
 }
 /** Fondos de una cartera con señales de revisión, por ISIN. */
@@ -25,23 +29,33 @@ type Senales = Map<string, Senal[]>
 type Mercado = { indice: string; isin: string; bolsa: boolean; cambio: Record<Periodo, number | null>; anual: number | null; linea: number[] }
 type Seguido = { isin: string; nombre: string; categoria: string | null; estado: string; myinvestor: boolean; nota: number; semana: number | null; nuevo: boolean; linea: number[] }
 
-/** La cartera simulada con su rebalanceo: lo que enseña su pantalla, más la variación de la semana y la línea del último año. */
-async function resumen(c: Cartera): Promise<ResumenCartera | null> {
+type Comun = { cats: Awaited<ReturnType<typeof categoriasReferencia>>; rf: Map<string, number> }
+
+/** La cartera simulada con su rebalanceo, calculada como en su pantalla (mismas referencias, €STR y bandas), más la
+ *  variación de la semana, la línea del último año y el reparto de hoy. */
+async function resumen(c: Cartera, { cats, rf }: Comun): Promise<ResumenCartera | null> {
   const d = await leerCartera(c.id)
-  if (!d?.fondos.length) return null
-  const fs = await Promise.all(d.fondos.map(async (l) => ({ isin: l.fondo.isin, peso: l.peso, serie: await serieEur(l.fondo.isin, l.fondo.divisa), ref: null, vol3: null })))
+  const lineas = d?.fondos.filter((l) => l.peso > 0) ?? []
+  if (!lineas.length) return null
+  const fs = await Promise.all(lineas.map(async (l) => {
+    const x = await cargarFondo(l.fondo, cats)
+    return { isin: l.fondo.isin, peso: l.peso, ...x, vol3: x.metricas.get('3a|volatilidad') ?? null }
+  }))
   const bandas = { banda: c.banda || 5, tipo: c.banda_tipo, revision: c.revision }
   const sim = simularCartera(fs, c.rebalanceo, bandas).valor
-  const calc = calcularCartera(fs, c.rebalanceo, new Map(), hoy(), bandas)
+  const calc = calcularCartera(fs, c.rebalanceo, rf, hoy(), bandas)
   const m = calc?.metricas
   if (!calc || !m || !sim.length) return null
-  const total = d.fondos.reduce((t, l) => t + l.peso, 0)
+  const total = lineas.reduce((t, l) => t + l.peso, 0)
   const ultimo = sim.at(-1)!.fecha
+  const r3 = m['3a']?.rentabilidad, ref3 = calc.referencia?.['3a']?.rentabilidad
   return {
     año: variacion(sim, desde(ultimo, 'año')), semana: variacion(sim, desde(ultimo, 'semana')),
-    r3: m['3a']?.rentabilidad, vol3: m['3a']?.volatilidad, caida3: m['3a']?.max_caida,
+    r1: m['1a']?.rentabilidad, r3, r5: m['5a']?.rentabilidad, vol3: m['3a']?.volatilidad, caida3: m['3a']?.max_caida, sharpe3: m['3a']?.sharpe,
+    vsRef3: r3 != null && ref3 != null ? r3 - ref3 : null,
+    gastos: lineas.every((l) => l.fondo.ter != null) ? lineas.reduce((t, l) => t + (l.peso * Number(l.fondo.ter)) / total, 0) : null,
     linea: muestra(sim, haceAnos(ultimo, 1)), ultimoRebalanceo: calc.ultimoRebalanceo,
-    fondos: d.fondos.map((l, k) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, objetivo: l.peso / total, hoy: calc.fondos[k]?.pesoHoy ?? null })),
+    fondos: lineas.map((l, k) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, objetivo: l.peso / total, hoy: calc.fondos[k]?.pesoHoy ?? null })),
   }
 }
 
@@ -68,9 +82,10 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
   const falla = (e: Error) => setError(e.message)
 
   useEffect(() => {
-    leerCarteras().then((cs) => {
+    Promise.all([leerCarteras(), categoriasReferencia(), referenciaSeries(['indice:estr'])]).then(([cs, cats, estr]) => {
       setCarteras(cs)
-      for (const c of cs) resumen(c).then((r) => setResumenes((m) => new Map(m).set(c.id, r))).catch(falla)
+      const comun = { cats, rf: rendimientos(estr.get('indice:estr')?.semanal ?? new Map()) }
+      for (const c of cs) resumen(c, comun).then((r) => setResumenes((m) => new Map(m).set(c.id, r))).catch(falla)
     }).catch(falla)
     sustitutos().then((is) => Promise.all(is.map(async (i): Promise<Mercado> => {
       const s = await serieEur(i.isin, 'EUR') // los fondos que representan a los índices están todos en euros
@@ -117,13 +132,29 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
   )
 }
 
-const Cifras = ({ r }: { r: ResumenCartera }) => (
-  <dl className="grid grid-cols-3 gap-2 text-[12px]">
-    <div><dt className="text-suave">3A anual</dt><dd className={`tabular ${tono(r.r3)}`}>{pct(r.r3)}</dd></div>
-    <div><dt className="text-suave">Volatilidad 3A</dt><dd className="tabular">{pct(r.vol3, 1, false)}</dd></div>
-    <div><dt className="text-suave">Caída máx. 3A</dt><dd className="tabular text-baja">{pct(r.caida3)}</dd></div>
-  </dl>
-)
+const puntos = (v: number | null) => (v == null ? '—' : `${v > 0 ? '+' : ''}${cifra(v * 100, 1)} pts`)
+/** KPIs de la cartera. `todos`: los 8 de la tarjeta ancha (una sola cartera); si no, 6. Rentabilidades a 3 y 5 años, anuales. */
+const Cifras = ({ r, todos = false }: { r: ResumenCartera; todos?: boolean }) => {
+  const k: [string, string, string, string?][] = [
+    ...(todos ? [['1 año', pct(r.r1), tono(r.r1)], ['3 años', pct(r.r3), tono(r.r3), 'anual'], ['5 años', pct(r.r5), tono(r.r5), 'anual']] as [string, string, string, string?][]
+      : [['3 años', pct(r.r3), tono(r.r3), 'anual']] as [string, string, string, string?][]),
+    ['vs referencia', puntos(r.vsRef3), tono(r.vsRef3), 'a 3 años, rentabilidad anual de la cartera menos la de la referencia combinada de sus fondos'],
+    ['Volatilidad', pct(r.vol3, 1, false), ''],
+    ['Caída máx.', pct(r.caida3), 'text-baja'],
+    ['Sharpe', cifra(r.sharpe3), ''],
+    ['Gastos', r.gastos == null ? '—' : `${cifra(r.gastos)} %`, '', 'TER medio ponderado por los pesos objetivo'],
+  ]
+  return (
+    <div>
+      <dl className={`grid gap-x-3 gap-y-2 text-[12px] ${todos ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        {k.map(([et, v, cls, ayuda]) => (
+          <div key={et} title={ayuda}><dt className="text-suave">{et}</dt><dd className={`tabular text-[13px] ${cls}`}>{v}</dd></div>
+        ))}
+      </dl>
+      <p className="mt-1 text-[11px] text-suave">A 3 años{todos ? ', salvo indicado' : ''}; rentabilidades a 3{todos ? ' y 5' : ''} años, anuales.</p>
+    </div>
+  )
+}
 const PildoraSemana = ({ v }: { v: number | null }) => v == null ? null
   : <span className={`rounded-full px-2 text-[12px] tabular ${tono(v)} ${v >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(v)} semana</span>
 const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' : 'acento')
@@ -136,7 +167,7 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
       <a href={`#/cartera/${c.id}`} className="flex flex-col gap-3 hover:text-acento">
         <div className="flex flex-wrap items-baseline gap-2"><span className="font-medium">{c.nombre}</span><PildoraSemana v={r.semana} /></div>
         <div><span className={`cifra text-6xl tabular ${tono(r.año)}`}>{pct(r.año)}</span><span className="ml-2 text-suave">en el año</span></div>
-        <Cifras r={r} />
+        <Cifras r={r} todos />
         <p className="mt-auto text-[12px] text-suave">Rebalanceo {c.rebalanceo}{r.ultimoRebalanceo ? `, el último el ${fecha(r.ultimoRebalanceo)}` : ''}{c.objetivo ? ` · ${c.objetivo}` : ''}</p>
       </a>
       <div className="flex flex-col gap-1">
