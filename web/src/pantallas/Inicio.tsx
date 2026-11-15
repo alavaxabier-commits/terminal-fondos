@@ -27,7 +27,7 @@ type ResumenCartera = {
 /** Fondos de una cartera con señales de revisión, por ISIN. */
 type Senales = Map<string, Senal[]>
 type Mercado = { indice: string; isin: string; bolsa: boolean; cambio: Record<Periodo, number | null>; anual: number | null; linea: number[] }
-type Seguido = { isin: string; nombre: string; categoria: string | null; estado: string; myinvestor: boolean; nota: number; semana: number | null; nuevo: boolean; linea: number[] }
+type Seguido = { isin: string; nombre: string; categoria: string | null; estado: string; myinvestor: boolean; nota: number; semana: number | null; nuevo: boolean; divisa: string | null }
 
 type Comun = { cats: Awaited<ReturnType<typeof categoriasReferencia>>; rf: Map<string, number> }
 
@@ -100,7 +100,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
       setSeg(activos.flatMap((f) => {
         const notas = porIsin.get(f.isin) ?? []
         const e = evolucion(notas)
-        return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, estado: f.estado, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, linea: notas.slice(-52).map((n) => n.nota) }] : []
+        return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, estado: f.estado, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, divisa: f.fondo.divisa }] : []
       }).sort((a, b) => Number(seMueve(b)) - Number(seMueve(a)) || Number(b.nuevo) - Number(a.nuevo) || Math.abs(b.semana ?? 0) - Math.abs(a.semana ?? 0) || b.nota - a.nota))
     }).catch(falla)
   }, [])
@@ -282,12 +282,17 @@ function EstadoRevision({ senales }: { senales?: Senales }) {
 /** Seis fondos del seguimiento: primero los que se mueven (nuevos o ±2 puntos de nota en la semana), después los de mejor nota. */
 function ListaSeguimiento({ seg }: { seg: Seguido[] | null }) {
   const vistos = (seg ?? []).slice(0, 6)
+  // Valor del último año, solo de los fondos que se ven. La línea es accesoria: si una serie falla, ese fondo va sin ella.
+  const [lineas, setLineas] = useState<Map<string, number[]>>(new Map())
+  useEffect(() => {
+    for (const f of vistos) serieEur(f.isin, f.divisa).then((s) => s.length && setLineas((m) => new Map(m).set(f.isin, muestra(s, haceAnos(s.at(-1)!.fecha, 1))))).catch(() => {})
+  }, [vistos.map((f) => f.isin).join()]) // eslint-disable-line react-hooks/exhaustive-deps
   const nMueven = (seg ?? []).filter(seMueve).length
   return (
     <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="text-suave hover:text-texto">{seg?.length ? `ver los ${seg.length}` : 'ver lista'}</a>}>
       {!seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
         : (<>
-        <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (nuevos o ±2 puntos de nota); después, los de mejor nota.` : 'Ninguno se mueve esta semana: los de mejor nota.'} La línea es la nota del último año.</p>
+        <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (nuevos o ±2 puntos de nota); después, los de mejor nota.` : 'Ninguno se mueve esta semana: los de mejor nota.'} La línea es su valor en el último año.</p>
         <ul className="divide-y divide-borde">
           {vistos.map((f) => (
             <li key={f.isin}>
@@ -298,7 +303,7 @@ function ListaSeguimiento({ seg }: { seg: Seguido[] | null }) {
                     {f.estado === 'candidato' ? <span className="text-acento">candidato</span> : f.estado}{f.myinvestor ? ' · MyInvestor' : ''}{f.categoria ? ` · ${f.categoria}` : ''}
                   </span>
                 </span>
-                <Mini valores={f.linea} className="h-6 w-16" />
+                <Mini valores={lineas.get(f.isin) ?? []} color={colorLinea(lineas.get(f.isin) ?? [])} className="h-6 w-16" />
                 <span className="w-14 text-right">
                   <span className="cifra block text-2xl leading-none tabular text-texto">{Math.round(f.nota)}</span>
                   <span className={`block text-[12px] tabular ${f.nuevo ? 'text-acento' : seMueve(f) ? `font-medium ${tono(f.semana)}` : 'text-suave'}`}>
