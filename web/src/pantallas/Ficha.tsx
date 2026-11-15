@@ -8,6 +8,7 @@ import { base100, combinar, haceAnos, inicioComun, variacion, type Punto } from 
 import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import TablaNota from '../componentes/TablaNota'
+import Tarjeta from '../componentes/Tarjeta'
 import { escribiendo } from '../componentes/teclas'
 import { alternar, MAX_BANDEJA, useBandeja } from '../datos/bandeja'
 import * as q from '../datos/consultas'
@@ -95,12 +96,6 @@ const BarraPercentil = ({ p }: { p: number }) => (
 )
 const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
   <span className={`rounded-full bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
-const Tarjeta = ({ titulo, extra, children, className = '' }: { titulo?: string; extra?: React.ReactNode; children: React.ReactNode; className?: string }) => (
-  <section className={`rounded-lg border border-borde bg-panel p-4 ${className}`}>
-    {titulo && <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-serif text-xl">{titulo}</h2>{extra}</div>}
-    {children}
-  </section>
-)
 
 export default function Ficha({ isin }: { isin: string }) {
   const [datos, setDatos] = useState<Datos | null | undefined>(undefined)
@@ -166,7 +161,6 @@ export default function Ficha({ isin }: { isin: string }) {
 
   const enBandeja = bandeja.some((x) => x.isin === f.isin)
   const llena = !enBandeja && bandeja.length >= MAX_BANDEJA
-  const titulo = 'text-[11px] uppercase tracking-widest text-suave'
   const ultimo = datos.serie.at(-1)
   const dia = datos.serie.length > 1 ? variacion(datos.serie, datos.serie.at(-2)!.fecha) : null
   const ytd = m.get('ytd|rentabilidad')?.valor ?? null
@@ -365,28 +359,33 @@ export default function Ficha({ isin }: { isin: string }) {
         )}
 
         {pestana === 'clases' && (
-          <section className="overflow-x-auto">
-            <h2 className={`mb-1 ${titulo}`}>Clases del mismo fondo · {datos.clases.length}</h2>
-            <table className="w-full min-w-[560px] tabular">
-              <thead>
-                <tr className="border-b border-borde text-[11px] uppercase tracking-widest text-suave">
-                  <th className="py-1 text-left font-normal">Clase</th><th className="text-left font-normal">Divisa</th>
-                  <th className="text-right font-normal">TER</th><th className="text-right font-normal">Mínimo</th><th className="text-right font-normal">MyInvestor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {datos.clases.map((c) => (
-                  <tr key={c.isin} className={`border-b border-borde/50 ${c.isin === f.isin ? 'text-acento' : ''}`}>
-                    <td className="py-1"><a href={`#/fondo/${c.isin}`} className="hover:text-acento">{c.nombre}</a> <span className="text-suave">{c.isin}{c.en_universo ? '' : ' · fuera del universo'}</span></td>
-                    <td>{c.divisa ?? '—'}{cubierta(c.nombre) && <span className="text-suave"> cubierta</span>}</td>
-                    <td className="text-right">{c.ter == null ? '—' : `${cifra(Number(c.ter))} %`}</td>
-                    <td className="text-right">{c.inversion_minima == null ? '—' : cifra(Number(c.inversion_minima), 0)}</td>
-                    <td className="text-right">{datos.myinvestor.has(c.isin) ? 'sí' : ''}</td>
+          <Tarjeta titulo={`Clases del mismo fondo · ${datos.clases.length}`} extra={<span className="text-[12px] text-suave">de menor a mayor gasto</span>}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] tabular">
+                <thead>
+                  <tr className="border-b border-borde text-[12px] text-suave">
+                    <th className="pb-1.5 text-left font-normal">Clase</th><th className="text-left font-normal">Divisa</th>
+                    <th className="text-right font-normal">TER</th><th className="text-right font-normal">Mínimo</th><th className="text-right font-normal">MyInvestor</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {datos.clases.map((c) => (
+                    <tr key={c.isin} className={`border-b border-borde/60 ${c.isin === f.isin ? 'bg-acento/10' : ''}`}>
+                      <td className="py-2 pl-2 text-left">
+                        <a href={`#/fondo/${c.isin}`} className="hover:text-acento">{c.nombre}</a>
+                        {c.isin === f.isin && <span className="ml-2 rounded-full bg-acento/15 px-2 text-[11px] text-acento">esta</span>}
+                        <span className="block text-[12px] text-suave"><span className="font-mono">{c.isin}</span>{c.en_universo ? '' : ' · fuera del universo'}</span>
+                      </td>
+                      <td>{c.divisa ?? '—'}{cubierta(c.nombre) && <span className="text-suave"> cubierta</span>}</td>
+                      <td className="text-right">{c.ter == null ? '—' : `${cifra(Number(c.ter))} %`}</td>
+                      <td className="text-right">{c.inversion_minima == null ? '—' : cifra(Number(c.inversion_minima), 0)}</td>
+                      <td className="pr-2 text-right">{datos.myinvestor.has(c.isin) ? <span className="text-acento" title="Se puede comprar en MyInvestor">●</span> : <span className="text-suave">—</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Tarjeta>
         )}
       </div>
     </article>

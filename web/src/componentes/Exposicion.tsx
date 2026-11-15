@@ -4,9 +4,10 @@ import {
   type Cifra, type Fila, type Fondo, type Grupo, type PosicionCartera,
 } from '../calculo/exposicion'
 import { cifra, fecha, pct } from '../calculo/formato'
+import Donut from './Donut'
+import Tarjeta from './Tarjeta'
 
 type FondoX = Fondo & { fechaCartera: string | null }
-export const COLOR_ACTIVO: Record<string, string> = { Acciones: 'var(--color-acento)', Bonos: 'var(--color-serie3)', Liquidez: 'var(--color-suave)' } // el resto, arena
 
 /** X-Ray de una cartera (o de uno de sus fondos): tipo de activo y, a elegir, la parte de renta variable o la de renta fija. */
 export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
@@ -18,10 +19,9 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
 
   if (!conDatos.length)
     return (
-      <section>
-        <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Exposición (X-Ray)</h2>
+      <Tarjeta titulo="Exposición">
         <p className="text-suave">Sin composición todavía: se descarga los domingos.</p>
-      </section>
+      </Tarjeta>
     )
 
   const partes = ([['rv', 'Renta variable', x.rv], ['rf', 'Renta fija y liquidez', x.rf]] as const).filter(([, , v]) => v >= 5)
@@ -29,52 +29,40 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
   const antiguas = vistos.filter((f) => f.fechaCartera && f.fechaCartera < haceMeses(6))
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[11px] uppercase tracking-widest text-suave">Exposición (X-Ray)</h2>
-        {conDatos.length > 1 && (
-          <select
-            value={elegido}
-            onChange={(e) => setElegido(e.target.value)}
-            aria-label="Ver la exposición de"
-            className="max-w-full border border-borde bg-panel px-2 py-1 text-texto"
-          >
-            <option value="">Toda la cartera</option>
-            {conDatos.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
-          </select>
-        )}
-      </div>
-
-      <p className="text-suave">
-        {elegido ? `Cartera de ${elegido} según Morningstar` : 'Cartera de cada fondo según Morningstar, ponderada por su peso'}
-        {x.cobertura < 99.5 && <span className="text-aviso"> · solo el {pct(x.cobertura / 100, 0, false)} de la cartera tiene datos</span>}
-        {x.cortos.length > 0 && <> · cifras netas: {x.cortos.join(', ')} {x.cortos.length > 1 ? 'tienen' : 'tiene'} posiciones cortas</>}
-        {antiguas.length > 0 && <span className="text-aviso"> · cartera antigua: {antiguas.map((f) => `${f.nombre} (${fecha(f.fechaCartera)})`).join(', ')}</span>}
-      </p>
-
-      <Reparto filas={x.activos} />
-
-      {partes.length > 1 && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Parte de la cartera">
-          {partes.map(([k, t, v]) => (
-            <button
-              key={k}
-              type="button"
-              aria-pressed={k === tab}
-              onClick={() => setParte(k)}
-              className={`min-h-9 border px-3 ${k === tab ? 'border-acento text-acento' : 'border-borde text-suave hover:text-texto'}`}
-            >
-              {t} · {pct(v / 100, 0, false)}
-            </button>
-          ))}
+    <div className="space-y-4">
+      <Tarjeta titulo="Exposición" extra={conDatos.length > 1 && (
+        <select value={elegido} onChange={(e) => setElegido(e.target.value)} aria-label="Ver la exposición de"
+          className="max-w-full rounded-full border border-borde bg-panel px-3 py-1 text-texto">
+          <option value="">Toda la cartera</option>
+          {conDatos.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
+        </select>
+      )}>
+        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+          <Donut activos={x.activos} />
+          {partes.length > 1 && (
+            <div role="group" aria-label="Parte de la cartera" className="flex flex-wrap gap-0.5 rounded-full bg-borde/50 p-0.5 text-[13px]">
+              {partes.map(([k, t, v]) => (
+                <button key={k} type="button" aria-pressed={k === tab} onClick={() => setParte(k)}
+                  className={`rounded-full px-3 py-1 ${k === tab ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>
+                  {t} · {pct(v / 100, 0, false)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+        <p className="mt-3 text-[12px] text-suave">
+          {elegido ? `Cartera de ${elegido} según Morningstar` : 'Cartera de cada fondo según Morningstar, ponderada por su peso'}
+          {x.cobertura < 99.5 && <span className="text-aviso"> · solo el {pct(x.cobertura / 100, 0, false)} de la cartera tiene datos</span>}
+          {x.cortos.length > 0 && <> · cifras netas: {x.cortos.join(', ')} {x.cortos.length > 1 ? 'tienen' : 'tiene'} posiciones cortas</>}
+          {antiguas.length > 0 && <span className="text-aviso"> · cartera antigua: {antiguas.map((f) => `${f.nombre} (${fecha(f.fechaCartera)})`).join(', ')}</span>}
+        </p>
+      </Tarjeta>
 
       {tab === 'rv' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <Bloque titulo="Regiones (de la renta variable)">
             <Grupos grupos={x.regiones} />
-            <div className="mt-4 grid gap-6 md:grid-cols-2">
+            <div className="mt-5 grid gap-6 md:grid-cols-2">
               <Lista titulo="Mercados" filas={x.mercados} />
               <Lista titulo="10 mayores países" filas={x.paises} />
             </div>
@@ -96,19 +84,19 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
       )}
 
       {tab === 'rf' && (
-        <div className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <Bloque titulo="Estilo de renta fija"><Caja valores={x.estiloRf} {...CAJA_RF} /></Bloque>
-            <Cifras titulo="Cifras medias (de los bonos)" cifras={x.estadisticasRf} />
+            <Bloque titulo="Cifras medias"><Cifras titulo="De los bonos" cifras={x.estadisticasRf} /></Bloque>
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <Lista titulo="Calidad crediticia (de los bonos)" filas={x.calidad} barras />
-            <Lista titulo="Renta fija por sector" filas={x.sectoresRf} barras />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Bloque titulo="Calidad crediticia"><Lista titulo="De los bonos" filas={x.calidad} barras /></Bloque>
+            <Bloque titulo="Renta fija por sector"><Lista filas={x.sectoresRf} barras /></Bloque>
           </div>
           <Posiciones titulo="10 mayores bonos y otras posiciones" filas={x.otras} incompletas={x.incompletas} />
         </div>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -119,31 +107,11 @@ function haceMeses(n: number): string {
 }
 
 export const Titulo = ({ children }: { children: React.ReactNode }) => (
-  <h3 className="mb-1 text-[11px] uppercase tracking-widest text-suave">{children}</h3>
+  <h3 className="mb-1.5 text-[12px] text-suave">{children}</h3>
 )
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return <div><Titulo>{titulo}</Titulo>{children}</div>
-}
-
-/** Tipo de activo en una sola barra partida, con su leyenda. */
-function Reparto({ filas }: { filas: Fila[] }) {
-  const positivos = filas.filter(([, v]) => v > 0)
-  return (
-    <div>
-      <div className="flex h-3 w-full overflow-hidden bg-panel" role="img" aria-label={`Tipo de activo: ${filas.map(([n, v]) => `${n} ${pct(v / 100, 0, false)}`).join(', ')}`}>
-        {positivos.map(([n, v]) => <span key={n} style={{ width: `${v}%`, background: COLOR_ACTIVO[n] ?? 'var(--color-serie2)' }} />)}
-      </div>
-      <p className="mt-1 flex flex-wrap gap-x-4 text-suave">
-        {filas.map(([n, v]) => (
-          <span key={n}>
-            <i aria-hidden="true" className="mr-1 inline-block h-2 w-2" style={{ background: COLOR_ACTIVO[n] ?? 'var(--color-serie2)' }} />
-            {n} <b className="tabular font-normal text-texto">{pct(v / 100, 1, false)}</b>
-          </span>
-        ))}
-      </p>
-    </div>
-  )
+  return <Tarjeta titulo={titulo}>{children}</Tarjeta>
 }
 
 /** Grupos (regiones o sectores) en columnas: el total del grupo y sus partes. */
@@ -152,7 +120,7 @@ function Grupos({ grupos }: { grupos: Grupo[] }) {
     <div className="grid gap-6 md:grid-cols-3">
       {grupos.map((g) => (
         <div key={g.nombre}>
-          <p className="flex justify-between border-b border-borde pb-0.5">
+          <p className="mb-1.5 flex justify-between border-b border-borde pb-1">
             <span>{g.nombre}</span>
             <b className="tabular font-normal text-acento">{pct(g.pct / 100, 1, false)}</b>
           </p>
@@ -172,13 +140,13 @@ function Lista({ titulo, filas, barras }: { titulo?: string; filas: Fila[]; barr
       {!filas.length ? (
         <p className="text-suave">—</p>
       ) : (
-        <ul className="space-y-0.5">
+        <ul className="space-y-1">
           {filas.map(([nombre, v]) => (
             <li key={nombre} className={`grid items-center gap-2 ${barras ? 'grid-cols-[minmax(0,10rem)_1fr_4rem]' : 'grid-cols-[1fr_4rem]'}`}>
               <span className="truncate">{nombre}</span>
               {barras && (
-                <span className="h-2 bg-panel" aria-hidden="true">
-                  <span className={`block h-2 ${v < 0 ? 'bg-baja' : 'bg-acento'}`} style={{ width: `${(Math.abs(v) / max) * 100}%` }} />
+                <span className="h-1.5 rounded-full bg-borde/60" aria-hidden="true">
+                  <span className={`block h-1.5 rounded-full ${v < 0 ? 'bg-baja' : 'bg-acento'}`} style={{ width: `${(Math.abs(v) / max) * 100}%` }} />
                 </span>
               )}
               <span className="text-right tabular">{pct(v / 100, 1, false)}</span>
@@ -197,7 +165,7 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
   return (
     <figure>
       <div
-        className="grid grid-cols-[auto_repeat(3,minmax(0,4rem))] gap-px text-center"
+        className="grid w-fit grid-cols-[auto_repeat(3,4rem)] gap-1 text-center"
         role="img"
         aria-label={`${fila} × ${col}: ${celdas.filter((x) => x.v >= 0.5).map((x) => `${x.f} · ${x.c} ${pct(x.v / 100, 0, false)}`).join(', ')}`}
       >
@@ -208,14 +176,14 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
           ...cols.map((c, j) => {
             const v = valores[String(i * 3 + j + 1)] ?? 0
             return (
-              <span key={`${f}-${c}`} className="py-3 tabular" style={{ background: `color-mix(in srgb, var(--color-acento) ${Math.min(v / 50, 1) * 70}%, transparent)`, color: v >= 25 ? 'var(--color-fondo)' : undefined }} title={`${f} · ${c}: ${pct(v / 100, 1, false)}`}>
+              <span key={`${f}-${c}`} className="rounded-sm py-3 tabular" style={{ background: `color-mix(in srgb, var(--color-acento) ${Math.min(v / 50, 1) * 70}%, color-mix(in srgb, var(--color-borde) 40%, transparent))`, color: v >= 25 ? 'var(--color-fondo)' : undefined }} title={`${f} · ${c}: ${pct(v / 100, 1, false)}`}>
                 {Math.round(v)}
               </span>
             )
           }),
         ])}
       </div>
-      <figcaption className="mt-1 text-suave">Filas: {fila.toLowerCase()} · columnas: {col.toLowerCase()} · % de la parte</figcaption>
+      <figcaption className="mt-2 text-[12px] text-suave">Filas: {fila.toLowerCase()} · columnas: {col.toLowerCase()} · % de la parte</figcaption>
     </figure>
   )
 }
@@ -227,7 +195,7 @@ function Cifras({ titulo, cifras }: { titulo: string; cifras: Cifra[] }) {
       <Titulo>{titulo}</Titulo>
       <ul className="space-y-0.5">
         {cifras.map((c) => (
-          <li key={c[0]} className="flex justify-between gap-4 border-b border-borde/50">
+          <li key={c[0]} className="flex justify-between gap-4 border-b border-borde/60 py-1">
             <span>{c[0]}</span>
             <span className={`tabular ${c[1] == null ? 'text-suave' : ''}`}>{valor(c)}</span>
           </li>
@@ -240,11 +208,10 @@ function Cifras({ titulo, cifras }: { titulo: string; cifras: Cifra[] }) {
 function Posiciones({ titulo, filas, incompletas }: { titulo: string; filas: PosicionCartera[]; incompletas: string[] }) {
   if (!filas.length) return null
   return (
-    <div>
-      <Titulo>{titulo}</Titulo>
+    <Tarjeta titulo={titulo}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[32rem] text-right tabular">
-          <thead className="text-[11px] uppercase tracking-widest text-suave">
+          <thead className="text-[12px] text-suave">
             <tr className="border-b border-borde">
               <th className="py-1 text-left font-normal">Nombre</th>
               <th className="text-left font-normal">Sector</th>
@@ -254,8 +221,8 @@ function Posiciones({ titulo, filas, incompletas }: { titulo: string; filas: Pos
           </thead>
           <tbody>
             {filas.slice(0, 10).map((p) => (
-              <tr key={p.isin || p.nombre} className="border-b border-borde/50">
-                <td className="py-1 text-left">
+              <tr key={p.isin || p.nombre} className="border-b border-borde/60">
+                <td className="py-1.5 text-left">
                   {p.nombre}
                   {p.fondos > 1 && <span className="text-suave"> · en {p.fondos} fondos</span>}
                 </td>
@@ -267,7 +234,7 @@ function Posiciones({ titulo, filas, incompletas }: { titulo: string; filas: Pos
           </tbody>
         </table>
       </div>
-      {incompletas.length > 0 && <p className="mt-2 text-suave">Morningstar solo da las mayores posiciones de: {incompletas.join(', ')}.</p>}
-    </div>
+      {incompletas.length > 0 && <p className="mt-2 text-[12px] text-suave">Morningstar solo da las mayores posiciones de: {incompletas.join(', ')}.</p>}
+    </Tarjeta>
   )
 }
