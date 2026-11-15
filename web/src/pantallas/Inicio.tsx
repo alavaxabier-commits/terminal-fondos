@@ -63,8 +63,8 @@ async function resumen(c: Cartera, { cats, rf }: Comun): Promise<ResumenCartera 
   }
 }
 
-/** En seguimiento, lo que merece mirarse: nuevo esta semana o con la nota 2 puntos arriba o abajo. */
-const seMueve = (f: Seguido) => f.nuevo || Math.abs(f.semana ?? 0) >= 2
+/** En seguimiento, lo que merece mirarse: la nota 2 puntos arriba o abajo en la semana (los nuevos van detrás, marcados). */
+const seMueve = (f: Seguido) => Math.abs(Math.round(f.semana ?? 0)) >= 2 // redondeada, como se ve
 const tono = (v?: number | null) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 const Seccion = ({ titulo, extra, children, className = '' }: { titulo: string; extra?: React.ReactNode; children: React.ReactNode; className?: string }) => (
   <section className={className}>
@@ -118,11 +118,12 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
 
   return (
     <div className="space-y-10">
+      <h1 className="sr-only">Inicio</h1>
       {errorEstado && <p className="text-baja">No se ha podido leer el estado (descargas, base o revisión): {errorEstado}</p>}
       {error && <p className="text-baja">No se ha podido crear la cartera: {error}</p>}
       {descargas && <AlarmasDescargas tareas={descargas} />}
 
-      <Seccion titulo={Array.isArray(carteras) && carteras.length === 1 ? 'Cartera modelo' : 'Carteras modelo'} extra={<button onClick={nueva} className="text-suave hover:text-acento">+ nueva cartera</button>}>
+      <Seccion titulo={Array.isArray(carteras) && carteras.length === 1 ? 'Cartera modelo' : 'Carteras modelo'} extra={<button onClick={nueva} className="-my-1 py-1 text-suave hover:text-acento">+ nueva cartera</button>}>
         {!carteras ? <p className="text-suave">Cargando…</p>
           : carteras instanceof Error ? <Fallo e={carteras} />
           : !carteras.length ? <p className="text-suave">Aún no hay ninguna cartera modelo: «+ nueva cartera» crea una.</p>
@@ -145,23 +146,26 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
 const puntos = (v: number | null) => (v == null ? '—' : `${v > 0 ? '+' : ''}${cifra(v * 100, 1)} pts`)
 /** KPIs de la cartera. `todos`: los 8 de la tarjeta ancha (una sola cartera); si no, 6. Rentabilidades a 3 y 5 años, anuales. */
 const Cifras = ({ r, todos = false }: { r: ResumenCartera; todos?: boolean }) => {
-  const k: [string, string, string, string?][] = [
-    ...(todos ? [['1 año', pct(r.r1), tono(r.r1)], ['3 años', pct(r.r3), tono(r.r3), 'anual'], ['5 años', pct(r.r5), tono(r.r5), 'anual']] as [string, string, string, string?][]
-      : [['3 años', pct(r.r3), tono(r.r3), 'anual']] as [string, string, string, string?][]),
-    ['vs referencia', puntos(r.vsRef3), tono(r.vsRef3), 'a 3 años, rentabilidad anual de la cartera menos la de la referencia combinada de sus fondos'],
+  const k: [string, string, string][] = [
+    ...(todos ? [['1 año', pct(r.r1), tono(r.r1)], ['3 años', pct(r.r3), tono(r.r3)], ['5 años', pct(r.r5), tono(r.r5)]] as [string, string, string][]
+      : [['3 años', pct(r.r3), tono(r.r3)]] as [string, string, string][]),
+    ['vs referencia', puntos(r.vsRef3), tono(r.vsRef3)],
     ['Volatilidad', pct(r.vol3, 1, false), ''],
     ['Caída máx.', pct(r.caida3), 'text-baja'],
     ['Sharpe', cifra(r.sharpe3), ''],
-    ['Gastos', r.gastos == null ? '—' : `${cifra(r.gastos)} %`, '', 'TER medio ponderado por los pesos objetivo'],
+    ['Gastos', r.gastos == null ? '—' : `${cifra(r.gastos)} %`, ''],
   ]
   return (
     <div>
       <dl className={`grid gap-x-3 gap-y-2 text-[12px] ${todos ? 'grid-cols-4' : 'grid-cols-3'}`}>
-        {k.map(([et, v, cls, ayuda]) => (
-          <div key={et} title={ayuda}><dt className="text-suave">{et}</dt><dd className={`tabular text-[13px] ${cls}`}>{v}</dd></div>
+        {k.map(([et, v, cls]) => (
+          <div key={et}><dt className="text-suave">{et}</dt><dd className={`tabular text-[13px] ${cls}`}>{v}</dd></div>
         ))}
       </dl>
-      <p className="mt-1 text-[11px] text-suave">A 3 años{todos ? ', salvo indicado' : ''}; rentabilidades a 3{todos ? ' y 5' : ''} años, anuales.</p>
+      {/* Las aclaraciones van a la vista (antes en title, que no se ve en el móvil ni con teclado). */}
+      <p className="mt-1 text-[11px] text-suave">
+        A 3 años{todos ? ', salvo indicado' : ''}; rentabilidades a 3{todos ? ' y 5' : ''} años, anuales. «vs referencia»: menos la referencia combinada de sus fondos; «Gastos»: TER ponderado.
+      </p>
     </div>
   )
 }
@@ -182,12 +186,13 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
   })
   return (
     <div className="grid gap-6 rounded-lg border border-borde bg-panel p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
-      <a href={`#/cartera/${c.id}`} className="flex flex-col gap-3 hover:text-acento">
-        <div className="flex flex-wrap items-baseline gap-2"><span className="font-medium">{c.nombre}</span><PildoraSemana v={r.semana} /></div>
+      {/* Solo el nombre es el enlace (el lector de pantalla no lee todas las cifras como su nombre); su ::after cubre la columna. */}
+      <div className="relative flex flex-col gap-3">
+        <div className="flex flex-wrap items-baseline gap-2"><a href={`#/cartera/${c.id}`} className="font-medium after:absolute after:inset-0 hover:text-acento">{c.nombre}</a><PildoraSemana v={r.semana} /></div>
         <div><span className={`cifra text-6xl tabular ${tono(r.año)}`}>{pct(r.año)}</span><span className="ml-2 text-suave">en el año</span></div>
         <Cifras r={r} todos />
         <p className="mt-auto text-[12px] text-suave">Rebalanceo {c.rebalanceo}{r.ultimoRebalanceo ? `, el último el ${fecha(r.ultimoRebalanceo)}` : ''}{c.objetivo ? ` · ${c.objetivo}` : ''}</p>
-      </a>
+      </div>
       <div className="flex flex-col gap-1">
         <span className="text-[12px] text-suave">Último año, simulada con su rebalanceo</span>
         <div className="relative min-h-44 flex-1"><Mini valores={r.linea} area color={colorLinea(r.linea)} className="absolute inset-0 h-full w-full" /></div>
@@ -195,12 +200,12 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
       <div className="flex flex-col gap-3 md:col-span-2 lg:col-span-1">
         <span className="text-[12px] text-suave">Tipo de activo</span>
         <Donut activos={r.activos} cobertura={r.cobertura} />
-        <div className="mt-auto space-y-0.5 text-[12px]">
+        <div className="mt-auto text-[12px]">
           {senales === undefined ? null : avisos.length
-            ? avisos.slice(0, 3).map((a) => <a key={a.k} href={a.href} title={a.title} className="block truncate text-aviso hover:underline">▲ {a.texto}</a>)
-            : <p className="text-suave"><span className="text-sube" aria-hidden="true">● </span>Ningún fondo con señales de revisión ni fuera de banda.</p>}
-          {avisos.length > 3 && <a href="#/revision" className="block text-suave hover:text-acento">y {avisos.length - 3} avisos más</a>}
-          <a href={`#/cartera/${c.id}`} className="block text-suave hover:text-acento">{r.fondos.length} fondos · ver composición ›</a>
+            ? avisos.slice(0, 3).map((a) => <a key={a.k} href={a.href} title={a.title} className="block truncate py-1 text-aviso hover:underline">▲ {a.texto}{a.title && <span className="sr-only"> ({a.title})</span>}</a>)
+            : <p className="py-1 text-suave"><span className="text-sube" aria-hidden="true">● </span>Ningún fondo con señales de revisión ni fuera de banda.</p>}
+          {avisos.length > 3 && <a href="#/revision" className="block py-1 text-suave hover:text-acento">y {avisos.length - 3} avisos más</a>}
+          <a href={`#/cartera/${c.id}`} className="block py-1 text-suave hover:text-acento">{r.fondos.length} fondos · ver composición ›</a>
         </div>
       </div>
     </div>
@@ -243,9 +248,9 @@ function TarjetaCartera({ c, r: dato, cargando, senales }: { c: Cartera; r: Resu
   const r = dato instanceof Error ? null : dato
   return (
     <li>
-      <a href={`#/cartera/${c.id}`} className="flex h-full flex-col gap-3 rounded-lg border border-borde bg-panel p-4 hover:border-acento">
+      <div className="relative flex h-full flex-col gap-3 rounded-lg border border-borde bg-panel p-4 hover:border-acento">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-medium">{c.nombre}</span>
+          <a href={`#/cartera/${c.id}`} className="font-medium after:absolute after:inset-0 after:rounded-lg">{c.nombre}</a>
           {r && <PildoraSemana v={r.semana} />}
         </div>
         {cargando ? <p className="text-suave">calculando…</p> : dato instanceof Error ? <Fallo e={dato} /> : !r ? <p className="text-suave">Sin fondos o sin datos suficientes.</p> : <>
@@ -257,7 +262,7 @@ function TarjetaCartera({ c, r: dato, cargando, senales }: { c: Cartera; r: Resu
           <Cifras r={r} />
           <p className="text-[12px] text-suave">{r.fondos.length} fondos · rebalanceo {c.rebalanceo}{senales?.size ? <span className="text-aviso"> · ▲ {senales.size} a revisar</span> : ''}</p>
         </>}
-      </a>
+      </div>
     </li>
   )
 }
@@ -273,10 +278,10 @@ function Mercados({ mercados }: { mercados: Mercado[] | Error | null }) {
           const v = m.cambio[periodo]
           return (
             <li key={m.isin}>
-              <a href={`#/fondo/${m.isin}`} title={`${m.indice} · 1 año ${pct(m.anual)}`} className="grid grid-cols-[minmax(0,1fr)_auto_4.5rem] items-center gap-3 py-0.5 text-[13px] hover:text-acento">
+              <a href={`#/fondo/${m.isin}`} title={`${m.indice} · 1 año ${pct(m.anual)}`} className="grid grid-cols-[minmax(0,1fr)_auto_4.5rem] items-center gap-3 py-1 text-[13px] hover:text-acento">
                 <span className="truncate">{m.indice.replace(/^(MSCI|Bloomberg) /, '')}</span>
-                <Mini valores={m.linea} color={m.anual != null && m.anual < 0 ? 'baja' : 'suave'} className="h-4 w-14" />
-                <span className={`text-right tabular ${tono(v)}`}>{pct(v)}</span>
+                <Mini valores={m.linea} color={colorLinea(m.linea)} className="h-4 w-14" />
+                <span className={`text-right tabular ${tono(v)}`}>{pct(v)}<span className="sr-only"> ({periodo}); 1 año {pct(m.anual)}</span></span>
               </a>
             </li>
           )
@@ -289,7 +294,7 @@ function Mercados({ mercados }: { mercados: Mercado[] | Error | null }) {
       <div role="group" aria-label="Periodo" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
         {PERIODOS.map((p) => (
           <button key={p} onClick={() => setPeriodo(p)} aria-pressed={periodo === p}
-            className={`rounded-full px-2.5 py-0.5 ${periodo === p ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{p}</button>
+            className={`rounded-full px-2.5 py-1 ${periodo === p ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{p}</button>
         ))}
       </div>
     }>
@@ -304,7 +309,7 @@ function Mercados({ mercados }: { mercados: Mercado[] | Error | null }) {
   )
 }
 
-/** Seis fondos del seguimiento: primero los que se mueven (nuevos o ±2 puntos de nota en la semana), después los de mejor nota. */
+/** Seis fondos del seguimiento: primero los que se mueven (±2 puntos de nota en la semana), después los nuevos y los de mejor nota. */
 function ListaSeguimiento({ seg: dato }: { seg: Seguido[] | Error | null }) {
   const seg = dato instanceof Error ? null : dato
   const vistos = (seg ?? []).slice(0, 6)
@@ -315,10 +320,10 @@ function ListaSeguimiento({ seg: dato }: { seg: Seguido[] | Error | null }) {
   }, [vistos.map((f) => f.isin).join()]) // eslint-disable-line react-hooks/exhaustive-deps
   const nMueven = (seg ?? []).filter(seMueve).length
   return (
-    <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="text-suave hover:text-texto">{seg?.length ? `ver los ${seg.length}` : 'ver lista'}</a>}>
+    <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="-my-1 py-1 text-suave hover:text-acento">{seg?.length ? `ver los ${seg.length}` : 'ver lista'}</a>}>
       {dato instanceof Error ? <Fallo e={dato} /> : !seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
         : (<>
-        <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (nuevos o ±2 puntos de nota); después, los de mejor nota.` : 'Ninguno se mueve esta semana: los de mejor nota.'} La línea es su valor en el último año.</p>
+        <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (±2 puntos de nota); después, los nuevos y los de mejor nota.` : 'Ninguno se mueve esta semana (±2 puntos de nota): primero los nuevos, después los de mejor nota.'} La línea es su valor en el último año.</p>
         <ul className="divide-y divide-borde">
           {vistos.map((f) => (
             <li key={f.isin}>
@@ -326,14 +331,14 @@ function ListaSeguimiento({ seg: dato }: { seg: Seguido[] | Error | null }) {
                 <span className="min-w-0">
                   <span className="block truncate">{f.nombre}</span>
                   <span className="block truncate text-[12px] text-suave">
-                    {f.estado === 'candidato' ? <span className="text-acento">candidato</span> : f.estado}{f.myinvestor ? ' · MyInvestor' : ''}{f.categoria ? ` · ${f.categoria}` : ''}
+                    {f.estado === 'candidato' ? <span className="text-acento">candidato</span> : f.estado}{f.nuevo && <> · <span className="text-acento">nuevo</span></>}{f.myinvestor ? ' · MyInvestor' : ''}{f.categoria ? ` · ${f.categoria}` : ''}
                   </span>
                 </span>
                 <Mini valores={lineas.get(f.isin) ?? []} color={colorLinea(lineas.get(f.isin) ?? [])} className="h-6 w-16" />
                 <span className="w-14 text-right">
                   <span className="cifra block text-2xl leading-none tabular text-texto">{Math.round(f.nota)}</span>
-                  <span className={`block text-[12px] tabular ${f.nuevo ? 'text-acento' : seMueve(f) ? `font-medium ${tono(f.semana)}` : 'text-suave'}`}>
-                    {f.nuevo ? 'nuevo' : f.semana == null ? '—' : `${f.semana > 0 ? '+' : ''}${Math.round(f.semana)}`}
+                  <span className={`block text-[12px] tabular ${seMueve(f) ? `font-medium ${tono(f.semana)}` : 'text-suave'}`}>
+                    {f.semana == null ? '—' : `${Math.round(f.semana) > 0 ? '+' : ''}${Math.round(f.semana)}`}
                   </span>
                 </span>
               </a>
