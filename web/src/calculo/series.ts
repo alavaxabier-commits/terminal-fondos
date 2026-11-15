@@ -46,6 +46,26 @@ export function haceAnos(hoy: string, anos: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+/** Fecha ISO de hace `dias` días respecto a `hoy`. */
+export const haceDias = (hoy: string, dias: number) => new Date(Date.parse(hoy + 'T00:00:00Z') - dias * 864e5).toISOString().slice(0, 10)
+
+/** Variación del último valor frente al último dato en o antes de `desde` (serie ordenada); null si no llega tan atrás. */
+export function variacion(serie: Punto[], desde: string): number | null {
+  let base: Punto | undefined
+  for (const p of serie) {
+    if (p.fecha > desde) break
+    base = p
+  }
+  const ultimo = serie.at(-1)
+  return base && ultimo && base !== ultimo ? ultimo.valor / base.valor - 1 : null
+}
+
+/** Los valores de una serie desde una fecha, uno de cada `paso` (para un minigráfico). Siempre incluye el último. */
+export function muestra(serie: Punto[], desde: string, paso = 5): number[] {
+  const tramo = serie.filter((p) => p.fecha >= desde)
+  return tramo.filter((_, i) => (tramo.length - 1 - i) % paso === 0).map((p) => p.valor)
+}
+
 /** Primera fecha en que hay dato en todas las series (para que fondo e índice empiecen juntos). */
 export function inicioComun(series: Punto[][], desde: string): string {
   const firsts = series.filter((s) => s.length).map((s) => s.find((p) => p.fecha >= desde)?.fecha ?? '9999')

@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { cifra, colorPercentil, fecha, millones, pct } from './formato'
 import { simularCartera } from './metricas'
-import { aEur, base100, combinar, haceAnos, inicioComun, lineasCartera } from './series'
+import { aEur, base100, combinar, haceAnos, haceDias, inicioComun, lineasCartera, muestra, variacion } from './series'
 
 describe('series', () => {
+  it('variacion frente al último dato en o antes de la fecha; null si la serie no llega', () => {
+    const s = [{ fecha: '2026-01-02', valor: 100 }, { fecha: '2026-01-05', valor: 110 }, { fecha: '2026-01-09', valor: 121 }]
+    expect(variacion(s, '2026-01-04')).toBeCloseTo(0.21) // base: el 2 (el 4 no hay dato)
+    expect(variacion(s, '2026-01-05')).toBeCloseTo(0.1)
+    expect(variacion(s, '2026-01-01')).toBeNull()
+    expect(variacion(s, '2026-01-09')).toBeNull() // la base sería el propio último
+    expect(haceDias('2026-03-01', 7)).toBe('2026-02-22')
+    expect(muestra(s, '2026-01-01', 2)).toEqual([100, 121])
+  })
+
   it('pasa a EUR con el último tipo disponible', () => {
     const r = aEur(
       [{ fecha: '2026-11-02', valor: 110 }, { fecha: '2026-11-03', valor: 110 }],
