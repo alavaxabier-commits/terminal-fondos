@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_DEFECTO } from './nota'
-import { alternativas, cubierta, grupo, mediana, ordenar, pasa, plazoDe, puntuar, tipoActivo } from './screener'
+import { alternativas, cubierta, grupo, grupos, mediana, ordenar, pasa, plazoDe, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
@@ -107,5 +107,14 @@ describe('región o estilo', () => {
     expect(plazoDe(yo)).toBe('5a')
     expect(plazoDe(fila({ pct: { '3a|rentabilidad': 50 } }))).toBe('3a')
     expect(plazoDe(yo, '10a')).toBe('10a')
+  })
+
+  it('los grupos de cada tipo, en orden de lectura y con todos los de las reglas', () => {
+    expect(grupos('renta variable')[0]).toBe('global')
+    expect(grupos('renta variable').at(-1)).toBe('otros')
+    expect(grupos('monetario')).toEqual([])
+    for (const t of ['renta variable', 'renta fija', 'mixto'] as const)
+      for (const [c] of [['Global Large-Cap Blend Equity'], ['EUR Government Bond'], ['EUR Moderate Allocation - Global']])
+        if (tipoActivo(c) === t) expect(grupos(t)).toContain(grupo(c))
   })
 })

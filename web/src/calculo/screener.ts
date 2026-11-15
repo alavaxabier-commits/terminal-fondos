@@ -36,7 +36,15 @@ const GRUPOS: Partial<Record<Tipo, [string, RegExp][]>> = {
     ['flexible', /flexible/i],
   ],
 }
-export const grupos = (tipo: Tipo) => [...new Set([...(GRUPOS[tipo] ?? []).map(([g]) => g), 'otros'])]
+/** Orden en que se enseñan los grupos (el de GRUPOS es el de las reglas); «otros» siempre al final. */
+const ORDEN_GRUPOS: Partial<Record<Tipo, string[]>> = {
+  'renta variable': ['global', 'EE. UU.', 'Europa', 'Japón', 'Asia y Pacífico', 'emergentes', 'sectoriales y temáticos'],
+  'renta fija': ['gobierno', 'corporativa', 'corto plazo y vencimiento fijo', 'flexible y diversificada', 'high yield', 'emergentes', 'convertibles', 'otras divisas'],
+  mixto: ['conservador', 'moderado', 'agresivo', 'flexible'],
+}
+export const grupos = (tipo: Tipo) => (GRUPOS[tipo] ? [...(ORDEN_GRUPOS[tipo] ?? []), 'otros'] : [])
+/** Qué es el segundo nivel en cada tipo. */
+export const NOMBRE_GRUPO: Partial<Record<Tipo, string>> = { 'renta variable': 'Región o estilo', 'renta fija': 'Tipo de bono', mixto: 'Perfil' }
 export function grupo(categoria: string | null): string | null {
   const reglas = GRUPOS[tipoActivo(categoria)]
   return reglas ? reglas.find(([, r]) => r.test(categoria ?? ''))?.[0] ?? 'otros' : null

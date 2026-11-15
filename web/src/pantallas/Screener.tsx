@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, hoy, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, PLAZOS, pesosEfectivos, type Bloque, type Pesos, type Plazo } from '../calculo/nota'
-import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
+import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
 import Bandeja from '../componentes/Bandeja'
 import Franja from '../componentes/Franja'
 import Tarjeta from '../componentes/Tarjeta'
@@ -117,6 +117,12 @@ export default function Screener() {
         n.set(f.categoria, (n.get(f.categoria) ?? 0) + 1)
     return [...n].sort(([a], [b]) => a.localeCompare(b))
   }, [datos, filtros.tipo, filtros.grupo])
+  // fondos de cada grupo del tipo elegido (en todo el universo), para las pastillas
+  const porGrupo = useMemo(() => {
+    const n = new Map<string, number>()
+    for (const f of datos ?? []) if (filtros.tipo && tipoActivo(f.categoria) === filtros.tipo) { const g = grupo(f.categoria); if (g) n.set(g, (n.get(g) ?? 0) + 1) }
+    return n
+  }, [datos, filtros.tipo])
   const divisas = useMemo(() => [...new Set((datos ?? []).map((f) => f.divisa).filter(Boolean) as string[])].sort(), [datos])
   const filtrar = (x: Partial<Filtros>) => { setFiltros((f) => ({ ...f, ...x })); setMostrar(POR_PAGINA) }
 
@@ -235,30 +241,46 @@ export default function Screener() {
 
       {panel === 'filtros' && (
         <Tarjeta>
-          <div aria-label="Filtros" className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-            <Grupo titulo="Qué fondo">
-              <div className="flex flex-wrap gap-1.5">
-                {TIPOS.map((x) => <Opcion key={x} on={filtros.tipo === x} onClick={() => filtrar({ tipo: filtros.tipo === x ? undefined : x, grupo: undefined, categoria: undefined })}>{x}</Opcion>)}
-              </div>
-              {filtros.tipo && grupos(filtros.tipo).length > 1 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {grupos(filtros.tipo).map((g) => <Opcion key={g} on={filtros.grupo === g} onClick={() => filtrar({ grupo: filtros.grupo === g ? undefined : g, categoria: undefined })}>{g}</Opcion>)}
+          <div aria-label="Filtros" className="space-y-4">
+            <div className="grid gap-x-8 gap-y-3 lg:grid-cols-[minmax(0,1fr)_19rem]">
+              <div className="space-y-2.5">
+                <h3 className="text-[12px] font-medium text-suave">Qué fondo</h3>
+                <div className="grid items-baseline gap-x-4 gap-y-1.5 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                  <span className="text-[13px]">Tipo de activo</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {TIPOS.map((x) => <Opcion key={x} on={filtros.tipo === x} onClick={() => filtrar({ tipo: filtros.tipo === x ? undefined : x, grupo: undefined, categoria: undefined })}>{x}</Opcion>)}
+                  </div>
+                  {filtros.tipo && grupos(filtros.tipo).length > 0 && (
+                    <>
+                      <span className="text-[13px]">{NOMBRE_GRUPO[filtros.tipo]}</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {grupos(filtros.tipo).filter((g) => porGrupo.get(g)).map((g) => (
+                          <Opcion key={g} on={filtros.grupo === g} onClick={() => filtrar({ grupo: filtros.grupo === g ? undefined : g, categoria: undefined })}>
+                            {g === 'otros' ? 'resto' : g} <span className="opacity-60">{porGrupo.get(g)}</span>
+                          </Opcion>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-              )}
-              <Campo etiqueta={`Categoría (${categorias.length})`}>
-                <select value={filtros.categoria ?? ''} onChange={(e) => filtrar({ categoria: e.target.value || undefined })} className={`${control} max-w-40`}>
-                  <option value="">todas</option>
-                  {categorias.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
-                </select>
-              </Campo>
-              <Campo etiqueta="Gestión">
-                <select value={filtros.gestion ?? ''} onChange={(e) => filtrar({ gestion: (e.target.value || undefined) as Filtros['gestion'] })} className={control}>
-                  <option value="">indexada y activa</option>
-                  <option value="indexada">indexada</option>
-                  <option value="activa">activa</option>
-                </select>
-              </Campo>
-            </Grupo>
+              </div>
+              <div className="flex flex-col gap-2 lg:pt-6">
+                <Campo etiqueta={`Categoría (${categorias.length})`}>
+                  <select value={filtros.categoria ?? ''} onChange={(e) => filtrar({ categoria: e.target.value || undefined })} className={`${control} max-w-44`}>
+                    <option value="">todas</option>
+                    {categorias.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
+                  </select>
+                </Campo>
+                <Campo etiqueta="Gestión">
+                  <select value={filtros.gestion ?? ''} onChange={(e) => filtrar({ gestion: (e.target.value || undefined) as Filtros['gestion'] })} className={control}>
+                    <option value="">indexada y activa</option>
+                    <option value="indexada">indexada</option>
+                    <option value="activa">activa</option>
+                  </select>
+                </Campo>
+              </div>
+            </div>
+            <div className="grid gap-x-8 gap-y-5 border-t border-borde pt-4 sm:grid-cols-3">
             <Grupo titulo="Coste y riesgo">
               <Campo etiqueta="TER máximo (%)"><CampoNumero valor={filtros.terMax} cambiar={(v) => filtrar({ terMax: v })} /></Campo>
               <Campo etiqueta="SRRI máximo">
@@ -295,6 +317,7 @@ export default function Screener() {
               </Campo>
               <p className="text-[12px] text-suave">Con una cartera, la nota suma el bloque Diversificación.</p>
             </Grupo>
+            </div>
           </div>
         </Tarjeta>
       )}
