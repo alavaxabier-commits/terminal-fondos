@@ -368,7 +368,7 @@ def meses_antes(f: dt.date, n: int) -> dt.date:
 
 def metricas_monetario(diaria: dict[dt.date, float], estr: dict[dt.date, float]) -> dict[tuple[str, str], float]:
     """Rendimiento reciente de un monetario con la serie diaria: rentabilidad anualizada a 1, 2 y 3 meses
-    ((final / inicial) ** (12 / N) − 1), su diferencial con el €STR medio de la ventana, la tendencia (1M − 3M) y los
+    ((final / inicial) ** (12 / N) − 1), su diferencial con el €STR medio de la ventana y los
     meses naturales negativos de los últimos 12. Cada ventana empieza el mismo día N meses antes o el último anterior."""
     out: dict[tuple[str, str], float] = {}
     if len(diaria) < 2:
@@ -386,8 +386,6 @@ def metricas_monetario(diaria: dict[dt.date, float], estr: dict[dt.date, float])
         tipos = [v for f, v in estr.items() if f0 < f <= ultima]
         if tipos:
             out[(f'{n}m', 'diferencial_estr')] = r - fmean(tipos) / 100
-    if ('1m', 'rentabilidad') in out and ('3m', 'rentabilidad') in out:
-        out[('hoy', 'tendencia')] = out[('1m', 'rentabilidad')] - out[('3m', 'rentabilidad')]
     cierres = cierres_mes(diaria)
     meses = [k for k in sorted(cierres) if k < (ultima.year, ultima.month)][-13:]
     if len(meses) == 13 and (meses[-1][0] * 12 + meses[-1][1]) - (meses[0][0] * 12 + meses[0][1]) == 12:

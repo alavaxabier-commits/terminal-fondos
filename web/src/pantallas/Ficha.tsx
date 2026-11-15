@@ -389,7 +389,7 @@ export default function Ficha({ isin }: { isin: string }) {
                   </table>
                 </div>
                 <dl className="mt-3 grid gap-x-8 border-t border-borde pt-3 text-[13px] sm:grid-cols-2">
-                  {([['hoy|tendencia', '¿Sube o baja? (último mes vs 3 meses)', (v: number) => `${v >= 0 ? '▲ sube' : '▼ baja'} ${cifra(Math.abs(v) * 100, 2)} pts`], ['12m|meses_negativos', 'Meses negativos (12 meses)', (v: number) => cifra(v, 0)]] as const).map(([k, et, fmt]) => {
+                  {([['12m|meses_negativos', 'Meses negativos (12 meses)', (v: number) => cifra(v, 0)]] as const).map(([k, et, fmt]) => {
                     const x = m.get(k)
                     return (
                       <div key={k} className="grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,8rem)] items-center gap-3 py-1">
@@ -399,7 +399,7 @@ export default function Ficha({ isin }: { isin: string }) {
                     )
                   })}
                 </dl>
-                <p className="mt-2 text-[11px] text-suave">Un mes solo es ruidoso: mira los tres plazos juntos. «Sube o baja» compara el último mes con la media de 3, en puntos. En clases de distribución el cupón no entra y la cifra sale baja.</p>
+                <p className="mt-2 text-[11px] text-suave">Un mes solo es ruidoso: mira los tres plazos juntos. En clases de distribución el cupón no entra y la cifra sale baja.</p>
               </Tarjeta>
             )}
             {GRUPOS.map(([grupo, ayudaGrupo, claves]) => (

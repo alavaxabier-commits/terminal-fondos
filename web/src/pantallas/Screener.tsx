@@ -335,7 +335,7 @@ export default function Screener() {
           ))}
           <p className="text-[12px] text-suave">
             {monetarios
-              ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. «¿Sube o baja?»: el último mes frente a la media de 3 meses, en puntos. En clases de distribución el cupón no entra y la cifra sale baja. Pasa el cursor por una cifra para ver su percentil.'
+              ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. En clases de distribución el cupón no entra y la cifra sale baja. Pasa el cursor por una cifra para ver su percentil.'
               : 'La barra de la nota se reparte por bloques, con los colores de los pesos. 3A: métricas a 3 años · «de N»: categoría con pocos fondos · ★ ya en seguimiento. Al final, los fondos con menos de 3 años, sin nota. Sin gestión conocida, un fondo cuenta como activo.'}
           </p>
         </div>
@@ -491,7 +491,7 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
           <tr className="text-[11px]">
             <th colSpan={2} />
             <th colSpan={3} className="border-b border-borde pb-1 pl-3 text-center font-normal">Lo que rinde ahora, en % anual</th>
-            <th colSpan={6} />
+            <th colSpan={5} />
           </tr>
           <tr>
             <th className="w-8 pb-1.5 pl-1 text-left font-normal">#</th>
@@ -501,7 +501,6 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
             <Cabecera o="m3" texto="3 meses" titulo="Lo que ha ganado en los últimos 3 meses, pasado a un año (% anual)" {...cab} />
             <Cabecera o="dif" texto="vs €STR" titulo="3 meses: puntos que rinde por encima (o por debajo) del €STR medio de esos 3 meses" {...cab} />
             <Cabecera o="m12" texto="12 meses" titulo="Lo que ha ganado de verdad en los últimos 12 meses" {...cab} />
-            <Cabecera o="tend" texto="¿Sube o baja?" titulo="Último mes frente a 3 meses: ▲ rinde más ahora que de media en los 3 meses; ▼ rinde menos (por ejemplo, porque bajan los tipos)" {...cab} />
             <Cabecera o="mneg" texto="Meses < 0" titulo="Meses naturales en pérdidas en los últimos 12; un monetario no debería tener ninguno" {...cab} />
             <Cabecera o="ter" texto="TER" {...cab} />
             <th className="w-8"><span className="sr-only">Seguir</span></th>
@@ -510,7 +509,6 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
         <tbody>
           {filas.map((f, i) => {
             const [dif, pDif] = c(f, '3m|diferencial_estr')
-            const [tend, pTend] = c(f, 'hoy|tendencia')
             const [neg, pNeg] = c(f, '12m|meses_negativos')
             return (
               <Fila key={f.isin} f={f} i={i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
@@ -521,7 +519,6 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
                 })}
                 <ConPct v={dif} p={pDif} texto={pct(dif, 2)} clase={tono(dif)} />
                 <ConPct v={cifraDe(f, '1a|rentabilidad')} p={percentilDe(f, '1a|rentabilidad')} texto={pct(cifraDe(f, '1a|rentabilidad'), 2, false)} />
-                <ConPct v={tend} p={pTend} texto={tend == null ? '' : `${tend >= 0 ? '▲ sube' : '▼ baja'} ${cifra(Math.abs(tend) * 100, 2)}`} clase={tono(tend)} />
                 <ConPct v={neg} p={pNeg} texto={cifra(neg, 0)} clase={neg ? 'text-baja' : ''} />
                 <td className="pl-3">{f.ter == null ? <span className="text-suave">—</span> : `${cifra(f.ter)} %`}</td>
               </Fila>

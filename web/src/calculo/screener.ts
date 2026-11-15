@@ -89,12 +89,12 @@ export const COLUMNAS = {
   v3: [(f: FilaScreener) => cifraDe(f, '3a|volatilidad'), true], s3: [(f: FilaScreener) => cifraDe(f, '3a|sharpe'), false],
   m1: [(f: FilaScreener) => cifraDe(f, '1m|rentabilidad'), false], m2: [(f: FilaScreener) => cifraDe(f, '2m|rentabilidad'), false],
   m3: [(f: FilaScreener) => cifraDe(f, '3m|rentabilidad'), false], m12: [(f: FilaScreener) => cifraDe(f, '1a|rentabilidad'), false],
-  dif: [(f: FilaScreener) => cifraDe(f, '3m|diferencial_estr'), false], tend: [(f: FilaScreener) => cifraDe(f, 'hoy|tendencia'), false],
+  dif: [(f: FilaScreener) => cifraDe(f, '3m|diferencial_estr'), false],
   mneg: [(f: FilaScreener) => cifraDe(f, '12m|meses_negativos'), true],
 } satisfies Record<string, [(f: FilaScreener) => number | null, boolean]>
 export type Orden = 'nota' | keyof typeof COLUMNAS
 /** Columnas propias de la vista Monetarios (con el tipo «monetario», el ranking cambia a ellas; por defecto, 3M). */
-export const DE_MONETARIOS: Orden[] = ['m1', 'm2', 'm3', 'm12', 'dif', 'tend', 'mneg']
+export const DE_MONETARIOS: Orden[] = ['m1', 'm2', 'm3', 'm12', 'dif', 'mneg']
 
 /** Orden de la tabla: por nota (como sale de puntuar) o por una columna; los que no tienen el dato, al final. */
 export function ordenar(filas: Puntuado[], orden: Orden): Puntuado[] {

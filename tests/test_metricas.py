@@ -240,6 +240,6 @@ def test_monetario_rendimiento_reciente():
     assert out[('1m', 'rentabilidad')] == pytest.approx(esperado1)
     assert out[('3m', 'rentabilidad')] == pytest.approx(0.03, abs=0.002)
     assert out[('3m', 'diferencial_estr')] == pytest.approx(out[('3m', 'rentabilidad')] - 0.02)
-    assert out[('hoy', 'tendencia')] == pytest.approx(out[('1m', 'rentabilidad')] - out[('3m', 'rentabilidad')])
+    assert ('hoy', 'tendencia') not in out
     assert out[('12m', 'meses_negativos')] == 1
     assert metricas_monetario({D(2026, 1, 2): 1.0, D(2026, 1, 5): 1.0}, {}) == {}  # sin un mes de historia
