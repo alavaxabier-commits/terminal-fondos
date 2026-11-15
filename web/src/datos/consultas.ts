@@ -304,11 +304,11 @@ export async function notasDe(isins: string[]): Promise<import('../calculo/senal
   }
 }
 
-type FondoSeguido = Pick<Fondo, 'nombre' | 'categoria' | 'ter' | 'divisa' | 'gestion' | 'srri'>
+type FondoSeguido = Pick<Fondo, 'nombre' | 'categoria' | 'ter' | 'divisa' | 'gestion' | 'srri' | 'fund_id'>
 
 /** Fondos en seguimiento con su ficha y si se pueden comprar en MyInvestor (catálogo, clase abierta). */
 export async function seguidos(): Promise<(Seguido & { fondo: FondoSeguido; myinvestor: boolean })[]> {
-  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota,fondo(nombre,categoria,ter,divisa,gestion,srri)').order('alta', { ascending: false })
+  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota,fondo(nombre,categoria,ter,divisa,gestion,srri,fund_id)').order('alta', { ascending: false })
   error(e)
   const filas = (data ?? []) as unknown as (Seguido & { fondo: FondoSeguido })[]
   const { data: mi, error: e2 } = await supabase.from('myinvestor').select('isin').eq('abierto', true).in('isin', filas.map((f) => f.isin))
