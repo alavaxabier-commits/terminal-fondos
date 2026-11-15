@@ -201,13 +201,13 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
   )
 }
 
-/** Tipo de activo en un donut (con la parte mayor en el centro) y su leyenda; mismos colores que la exposición de la cartera. */
+/** Tipo de activo en un donut y su leyenda; mismos colores que la exposición de la cartera. */
 function Donut({ activos, cobertura }: { activos: Fila[]; cobertura: number }) {
   const positivos = activos.filter(([, v]) => v > 0.5)
   if (!positivos.length) return <p className="text-suave">Sin composición todavía: se descarga los domingos.</p>
   const total = positivos.reduce((t, [, v]) => t + v, 0)
   let acum = 0
-  const [mayor, vMayor] = positivos[0] // mezclar() las devuelve de mayor a menor
+  const mayor = positivos[0][0] // mezclar() las devuelve de mayor a menor
   return (
     <div className="flex items-center gap-5">
       <svg viewBox="0 0 100 100" className="h-32 w-32 shrink-0" role="img" aria-label={`Tipo de activo: ${positivos.map(([n, v]) => `${n} ${Math.round(v)} %`).join(', ')}`}>
@@ -219,8 +219,6 @@ function Donut({ activos, cobertura }: { activos: Fila[]; cobertura: number }) {
           acum += parte
           return el
         })}
-        <text x="50" y="47" textAnchor="middle" style={{ fill: 'var(--color-texto)', font: '22px var(--font-serif)' }}>{Math.round(vMayor)} %</text>
-        <text x="50" y="62" textAnchor="middle" style={{ fill: 'var(--color-suave)', font: '9px var(--font-sans)' }}>{mayor.toLowerCase()}</text>
       </svg>
       <ul className="min-w-0 space-y-1 text-[13px]">
         {positivos.map(([n, v]) => (
