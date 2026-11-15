@@ -379,7 +379,7 @@ export default function Screener() {
           </p>
         </div>
         {elegido && (
-          <aside className="lg:sticky lg:top-16">
+          <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
             <TarjetaFondo f={elegido} todos={todos} plazo={plazo} colores={COLOR_BLOQUE} monetario={monetarios} cats={cats} pocos={pocos(elegido)}
               seguido={seguidos.has(elegido.isin)} seguir={() => seguirFondo(elegido.isin)} senales={senales.get(elegido.isin) ?? []}
               elegir={(i) => { if (visibles.some((x) => x.isin === i)) setSel(i); else location.hash = `#/fondo/${i}` }} />

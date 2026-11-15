@@ -162,7 +162,7 @@ export default function Seguimiento() {
           </table>
         </div>
         {elegido && (
-          <aside className="lg:sticky lg:top-16">
+          <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
             <DetalleFondo isin={elegido.isin} nombre={elegido.fondo.nombre} divisa={elegido.fondo.divisa} seguido seguir={() => {}} categoria={categoria(elegido)}
               linea={`${elegido.isin} · ${elegido.fondo.gestion ?? 'gestión sin dato'} · TER ${elegido.fondo.ter == null ? '—' : `${cifra(elegido.fondo.ter)} %`} · SRRI ${elegido.fondo.srri ?? '—'} · MyInvestor ${elegido.myinvestor ? 'sí' : 'no'}`}
               nota={ev
