@@ -162,6 +162,14 @@ const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' :
 /** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el reparto de hoy frente al objetivo. */
 function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean; senales?: Senales }) {
   if (cargando || !r) return <div className="rounded-lg border border-borde bg-panel p-5 text-suave">{cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
+  // Alto casi fijo: como mucho 6 líneas de reparto. Si hay más fondos, 5 (primero los que tienen señal o se salen de la
+  // banda, luego los de más peso) y una línea con el resto.
+  const fuera = (f: ResumenCartera['fondos'][number]) => f.hoy != null && Math.abs(f.hoy - f.objetivo) * 100 >= c.banda
+  const prioridad = (f: ResumenCartera['fondos'][number]) => Number(!!senales?.has(f.isin) || fuera(f))
+  const vistos = r.fondos.length <= 6 ? r.fondos
+    : [...r.fondos].sort((a, b) => prioridad(b) - prioridad(a) || b.objetivo - a.objetivo).slice(0, 5).sort((a, b) => b.objetivo - a.objetivo)
+  const otros = r.fondos.filter((f) => !vistos.includes(f))
+  const suma = (k: 'objetivo' | 'hoy') => otros.reduce((t, f) => t + (f[k] ?? 0), 0)
   return (
     <div className="grid gap-6 rounded-lg border border-borde bg-panel p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
       <a href={`#/cartera/${c.id}`} className="flex flex-col gap-3 hover:text-acento">
@@ -172,12 +180,12 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
       </a>
       <div className="flex flex-col gap-1">
         <span className="text-[12px] text-suave">Último año, simulada con su rebalanceo</span>
-        <Mini valores={r.linea} area color={colorLinea(r.linea)} className="h-44 w-full" />
+        <div className="relative min-h-44 flex-1"><Mini valores={r.linea} area color={colorLinea(r.linea)} className="absolute inset-0 h-full w-full" /></div>
       </div>
       <div className="md:col-span-2 lg:col-span-1">
         <div className="mb-2 flex justify-between text-[12px] text-suave"><span>Reparto</span><span>objetivo → hoy</span></div>
         <ul className="space-y-2">
-          {r.fondos.map((f) => {
+          {vistos.map((f) => {
             const deriva = f.hoy == null ? 0 : (f.hoy - f.objetivo) * 100 // puntos
             return (
               <li key={f.isin}>
@@ -200,6 +208,11 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
             )
           })}
         </ul>
+        {otros.length > 0 && (
+          <a href={`#/cartera/${c.id}`} className="mt-2 flex justify-between gap-2 text-[13px] text-suave hover:text-acento">
+            <span>+ {otros.length} fondos más</span><span className="tabular">{pct(suma('objetivo'), 0, false)} → {pct(suma('hoy'), 1, false)}</span>
+          </a>
+        )}
         <p className="mt-2 text-[12px] text-suave">La raya marca el peso objetivo; en arena, los que se salen de la banda de {c.banda} puntos.</p>
         <EstadoRevision senales={senales} />
       </div>
