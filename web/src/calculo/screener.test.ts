@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_DEFECTO } from './nota'
-import { cubierta, grupo, ordenar, pasa, puntuar, tipoActivo } from './screener'
+import { cubierta, grupo, mediana, ordenar, pasa, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
-  fecha_lanzamiento: '2018-01-01', myinvestor: false, pct: null, r5: null, r3: null, ...x,
+  fecha_lanzamiento: '2018-01-01', myinvestor: false, pct: null, r5: null, r3: null, cifras: null, ...x,
 })
 
 describe('screener', () => {
@@ -68,6 +68,20 @@ describe('región o estilo', () => {
     expect(ordenar(fs, 'ter').map((f) => f.isin)).toEqual(['C', 'A', 'B'])
     expect(ordenar(fs, 'r5').map((f) => f.isin)).toEqual(['A', 'B', 'C'])
     expect(ordenar(fs, 'r3').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
+  })
+
+  it('ordena por las cifras de la vista: volatilidad de menor a mayor, monetarios por 3M y meses negativos', () => {
+    const fs = puntuar([
+      fila({ isin: 'A', cifras: { '3a|volatilidad': [0.12, 40], '3m|rentabilidad': [0.031, 90], '12m|meses_negativos': [1, 10] } }),
+      fila({ isin: 'B', cifras: { '3a|volatilidad': [0.08, 80], '3m|rentabilidad': [0.028, 30], '12m|meses_negativos': [0, 80] } }),
+      fila({ isin: 'C' }),
+    ], PESOS_DEFECTO)
+    expect(ordenar(fs, 'v3').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
+    expect(ordenar(fs, 'm3').map((f) => f.isin)).toEqual(['A', 'B', 'C'])
+    expect(ordenar(fs, 'mneg').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
+    expect(mediana([3, null, 1, 2])).toBe(2)
+    expect(mediana([4, 1, 2, 3])).toBe(2.5)
+    expect(mediana([null])).toBeNull()
   })
 
   it('la diversificación entra en la nota si hay cartera', () => {

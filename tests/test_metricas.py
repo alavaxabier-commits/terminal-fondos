@@ -222,3 +222,24 @@ def test_bloques_nota_con_plazo_obligado():
     assert bloques_nota(pct, False, '1a') == ({'rentabilidad': 20, 'riesgo': 40, 'consistencia': 60}, False)
     assert bloques_nota(pct, False)[0] == {'rentabilidad': 80, 'consistencia': 5}  # sin plazo: 5 años
     assert bloques_nota(pct, False, '3a') is None
+
+
+def test_monetario_rendimiento_reciente():
+    from fondos.nucleo.metricas import meses_antes, metricas_monetario
+    assert meses_antes(D(2026, 5, 31), 1) == D(2026, 4, 30) and meses_antes(D(2026, 1, 15), 2) == D(2025, 11, 15)
+    # 3 % anual compuesto día a día durante 15 meses, salvo un mes con caída; €STR plano al 2 %
+    d0, diaria, v = D(2025, 8, 1), {}, 100.0
+    for i in range(460):
+        f = d0 + dt.timedelta(days=i)
+        v *= (1.03) ** (1 / 365) * (0.995 if f == D(2026, 3, 10) else 1)
+        diaria[f] = v
+    estr = {f: 2.0 for f in diaria}
+    out = metricas_monetario(diaria, estr)
+    ultima = max(diaria)
+    esperado1 = (diaria[ultima] / diaria[meses_antes(ultima, 1)]) ** 12 - 1
+    assert out[('1m', 'rentabilidad')] == pytest.approx(esperado1)
+    assert out[('3m', 'rentabilidad')] == pytest.approx(0.03, abs=0.002)
+    assert out[('3m', 'diferencial_estr')] == pytest.approx(out[('3m', 'rentabilidad')] - 0.02)
+    assert out[('hoy', 'tendencia')] == pytest.approx(out[('1m', 'rentabilidad')] - out[('3m', 'rentabilidad')])
+    assert out[('12m', 'meses_negativos')] == 1
+    assert metricas_monetario({D(2026, 1, 2): 1.0, D(2026, 1, 5): 1.0}, {}) == {}  # sin un mes de historia

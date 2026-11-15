@@ -370,6 +370,38 @@ export default function Ficha({ isin }: { isin: string }) {
               </div>
             </section>
 
+            {m.has('3m|rentabilidad') && (
+              <Tarjeta titulo="Rendimiento reciente" extra={<span className="text-[12px] text-suave">monetario · anualizado, con la serie diaria y neto de gastos</span>}>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] tabular">
+                    <thead><tr className="text-[12px] text-suave"><th />{['1 mes', '2 meses', '3 meses'].map((t) => <th key={t} className="w-[20%] pb-1.5 pl-4 text-right font-normal">{t}</th>)}</tr></thead>
+                    <tbody>
+                      {([['rentabilidad', 'Rentabilidad anualizada', '(final / inicial) elevado a 12/N, menos 1.'], ['diferencial_estr', 'Frente al €STR', 'Lo que rinde de más sobre el €STR medio de esos meses.']] as const).map(([k, et, ayuda]) => (
+                        <tr key={k} className="border-t border-borde/60">
+                          <td className="py-2 pr-4 text-left"><span className="block">{et}</span><span className="block text-[12px] text-suave">{ayuda}</span></td>
+                          {['1m', '2m', '3m'].map((v) => {
+                            const x = m.get(`${v}|${k}`)
+                            return <td key={v} className="py-2 pl-4 text-right align-top">{x ? <><span className="block">{pct(x.valor, 2, k !== 'rentabilidad')}</span>{x.percentil != null && <span className="mt-1 block"><BarraPercentil p={x.percentil} /></span>}</> : <span className="text-suave">—</span>}</td>
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <dl className="mt-3 grid gap-x-8 border-t border-borde pt-3 text-[13px] sm:grid-cols-2">
+                  {([['hoy|tendencia', 'Tendencia (1M − 3M)', (v: number) => `${v >= 0 ? '▲' : '▼'} ${pct(v, 2)}`], ['12m|meses_negativos', 'Meses negativos (12 meses)', (v: number) => cifra(v, 0)]] as const).map(([k, et, fmt]) => {
+                    const x = m.get(k)
+                    return (
+                      <div key={k} className="grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,8rem)] items-center gap-3 py-1">
+                        <dt className="text-suave">{et}</dt><dd className="text-right">{x ? fmt(x.valor) : '—'}</dd>
+                        <dd>{x?.percentil != null && <BarraPercentil p={x.percentil} />}</dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+                <p className="mt-2 text-[11px] text-suave">Una ventana corta es ruidosa: mira las tres juntas y la tendencia. En clases de distribución el cupón no entra y la cifra sale baja.</p>
+              </Tarjeta>
+            )}
             {GRUPOS.map(([grupo, ayudaGrupo, claves]) => (
               <Tarjeta key={grupo} titulo={grupo} extra={<span className="text-[12px] text-suave">{ayudaGrupo}</span>}>
                 <div className="overflow-x-auto">

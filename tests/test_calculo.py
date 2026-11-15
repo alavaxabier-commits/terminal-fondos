@@ -146,3 +146,19 @@ def test_serie_eur_en_peniques():
     from fondos.calculo import serie_eur
     d = dt.date(2026, 1, 2)
     assert serie_eur({d: 200.0}, 'GBX', {'GBP': {d: 0.8}}) == {d: 2.5}  # 200 p = 2 £ = 2,5 €
+
+
+def test_monetarios_con_serie_diaria_y_percentil():
+    d = datos_base()
+    fin = D(2026, 11, 13)
+    for i, tasa in enumerate((0.02, 0.03)):
+        isin = f'MONETARIO00{i}'
+        d['fondos'][isin] = {'categoria': 'EUR Money Market', 'divisa': 'EUR', 'indice_id': None, 'en_universo': True}
+        dias = {fin - dt.timedelta(days=k): 100 * (1 + tasa) ** ((800 - k) / 365) for k in range(800)}
+        d['valores'][isin] = dias
+        d['diarios'] = {**d.get('diarios', {}), isin: {f: v for f, v in dias.items() if f >= fin - dt.timedelta(days=460)}}
+    filas = por_clave(calculo.calcular(d, HOY)[0])
+    assert filas[('MONETARIO001', '3m', 'rentabilidad')][0] == pytest.approx(0.03, abs=1e-3)
+    assert filas[('MONETARIO001', '3m', 'rentabilidad')][1] == 100   # rinde más que el otro de su categoría
+    assert filas[('MONETARIO000', '12m', 'meses_negativos')] == (0.0, 50.0)  # empate: mismo percentil
+    assert ('GLOBAL000001', '3m', 'rentabilidad') not in filas  # solo los monetarios

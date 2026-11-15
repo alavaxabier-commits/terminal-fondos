@@ -79,13 +79,37 @@ export function pasa(f: FilaScreener, x: Filtros, hoy: string, excluir: Set<stri
 /** Con menos fondos en la categoría, su percentil (y la nota) dice poco: «el mejor de 3» saca 100. */
 export const MIN_CATEGORIA = 5
 
-export type Orden = 'nota' | 'ter' | 'r3' | 'r5'
-/** Orden de la tabla: por nota (como sale de puntuar), por TER (menor primero) o por rentabilidad anual a 3 o 5 años (mayor primero). */
+/** Cifra guardada en la vista (valor y percentil en su categoría), p. ej. '3a|volatilidad' o '3m|rentabilidad'. */
+export const cifraDe = (f: FilaScreener, clave: string): number | null => f.cifras?.[clave]?.[0] ?? null
+export const percentilDe = (f: FilaScreener, clave: string): number | null => f.cifras?.[clave]?.[1] ?? null
+
+/** Columnas ordenables: cómo se lee el valor y si menos es mejor (entonces se ordena de menor a mayor). */
+export const COLUMNAS = {
+  ter: [(f: FilaScreener) => f.ter, true], r3: [(f: FilaScreener) => f.r3, false], r5: [(f: FilaScreener) => f.r5, false],
+  v3: [(f: FilaScreener) => cifraDe(f, '3a|volatilidad'), true], s3: [(f: FilaScreener) => cifraDe(f, '3a|sharpe'), false],
+  m1: [(f: FilaScreener) => cifraDe(f, '1m|rentabilidad'), false], m2: [(f: FilaScreener) => cifraDe(f, '2m|rentabilidad'), false],
+  m3: [(f: FilaScreener) => cifraDe(f, '3m|rentabilidad'), false], m12: [(f: FilaScreener) => cifraDe(f, '1a|rentabilidad'), false],
+  dif: [(f: FilaScreener) => cifraDe(f, '3m|diferencial_estr'), false], tend: [(f: FilaScreener) => cifraDe(f, 'hoy|tendencia'), false],
+  mneg: [(f: FilaScreener) => cifraDe(f, '12m|meses_negativos'), true],
+} satisfies Record<string, [(f: FilaScreener) => number | null, boolean]>
+export type Orden = 'nota' | keyof typeof COLUMNAS
+/** Columnas propias de la vista Monetarios (con el tipo «monetario», el ranking cambia a ellas; por defecto, 3M). */
+export const DE_MONETARIOS: Orden[] = ['m1', 'm2', 'm3', 'm12', 'dif', 'tend', 'mneg']
+
+/** Orden de la tabla: por nota (como sale de puntuar) o por una columna; los que no tienen el dato, al final. */
 export function ordenar(filas: Puntuado[], orden: Orden): Puntuado[] {
   if (orden === 'nota') return filas
-  const v = (f: Puntuado) => (orden === 'ter' ? f.ter : orden === 'r3' ? f.r3 : f.r5)
-  const signo = orden === 'ter' ? 1 : -1
+  const [v, menos] = COLUMNAS[orden]
+  const signo = menos ? 1 : -1
   return [...filas].sort((a, b) => (v(a) == null ? 1 : 0) - (v(b) == null ? 1 : 0) || signo * ((v(a) ?? 0) - (v(b) ?? 0)))
+}
+
+/** Mediana de las cifras que hay (null si ninguna): para la franja del screener. */
+export function mediana(xs: (number | null | undefined)[]): number | null {
+  const v = xs.filter((x): x is number => x != null).sort((a, b) => a - b)
+  if (!v.length) return null
+  const m = v.length >> 1
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2
 }
 
 export function puntuar(filas: FilaScreener[], pesos: Pesos, diversificacion?: Map<string, number>, plazo?: Plazo): Puntuado[] {

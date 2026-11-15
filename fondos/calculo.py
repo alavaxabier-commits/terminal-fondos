@@ -122,6 +122,9 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
     for isin, s in semanales.items():
         ref = series_ref.get(usa.get(isin, ''))
         resultados[isin] = m.metricas_fondo(s, ref, estr_semanal, hoy, en_eur[isin])
+        if isin in datos.get('diarios', {}):  # monetarios: rendimiento reciente con la serie diaria
+            resultados[isin].update(m.metricas_monetario(serie_eur(datos['diarios'][isin], fondos[isin].get('divisa'), tipos),
+                                                         datos['estr']))
         if fondos[isin].get('ter') is not None:
             resultados[isin][('hoy', 'ter')] = fondos[isin]['ter']  # para el bloque Coste de la nota
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 import os
 import sys
 
@@ -192,6 +193,15 @@ class Repo:
         valores: dict[str, dict] = {}
         # Paquetes anuales en streaming (cursor con nombre): cada fondo se reduce a su último dato de cada semana y de
         # cada mes antes de pasar al siguiente, para no tener en memoria los ~11 millones de valores diarios.
+        # los monetarios guardan además sus últimos ~15 meses diarios: su rendimiento reciente (1M) necesita días
+        diarios: dict[str, dict] = {}
+        desde = dt.date.today() - dt.timedelta(days=460)
+
+        def guardar(isin, dias):
+            valores[isin] = reducir(dias)
+            if re.search('money market', fondos.get(isin, {}).get('categoria') or '', re.I):
+                diarios[isin] = {f: v for f, v in dias.items() if f >= desde}
+
         actual, dias = None, {}
         with self.cx.transaction(), self.cx.cursor(name='paquetes') as c:
             c.itersize = 500
@@ -202,13 +212,13 @@ class Repo:
             for isin, ano, ds, vs in c:
                 if isin != actual:
                     if actual:
-                        valores[actual] = reducir(dias)
+                        guardar(actual, dias)
                     actual, dias = isin, {}
                 inicio = dt.date(ano, 1, 1)
                 for d, v in zip(ds, vs):
                     dias[inicio + dt.timedelta(days=d)] = float(v)
             if actual:
-                valores[actual] = reducir(dias)
+                guardar(actual, dias)
         tipos: dict[str, dict] = {}
         for fecha, divisa, por_eur in self._filas('select fecha, divisa, por_eur from fondos.tipo_cambio'):
             tipos.setdefault(divisa, {})[fecha] = float(por_eur)
@@ -221,7 +231,7 @@ class Repo:
         for cid, isin in self._filas('''select cf.cartera_id, cf.isin from fondos.cartera_fondo cf
                                         join fondos.cartera c on c.id = cf.cartera_id where not c.archivada'''):
             carteras.setdefault(cid, []).append(isin)
-        return {'fondos': fondos, 'valores': valores, 'tipos': tipos, 'estr': estr,
+        return {'fondos': fondos, 'valores': valores, 'diarios': diarios, 'tipos': tipos, 'estr': estr,
                 'indices': indices, 'categorias': categorias, 'carteras': carteras}
 
     def guardar_metricas(self, filas: list[tuple], refs: dict[str, tuple]):

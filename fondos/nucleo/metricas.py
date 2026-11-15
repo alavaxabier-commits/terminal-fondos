@@ -5,6 +5,7 @@ con dato el viernes caen en la misma semana. Todas las rentabilidades son semana
 """
 from __future__ import annotations
 
+import calendar
 import datetime as dt
 import math
 from statistics import correlation, fmean, pstdev, stdev
@@ -357,9 +358,47 @@ def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[S
     return out
 
 
+# ------------------------------------------------------------------ monetarios
+def meses_antes(f: dt.date, n: int) -> dt.date:
+    """El mismo día n meses naturales antes (el último del mes si ese día no existe)."""
+    a, mes = divmod(f.year * 12 + f.month - 1 - n, 12)
+    mes += 1
+    return dt.date(a, mes, min(f.day, calendar.monthrange(a, mes)[1]))
+
+
+def metricas_monetario(diaria: dict[dt.date, float], estr: dict[dt.date, float]) -> dict[tuple[str, str], float]:
+    """Rendimiento reciente de un monetario con la serie diaria: rentabilidad anualizada a 1, 2 y 3 meses
+    ((final / inicial) ** (12 / N) − 1), su diferencial con el €STR medio de la ventana, la tendencia (1M − 3M) y los
+    meses naturales negativos de los últimos 12. Cada ventana empieza el mismo día N meses antes o el último anterior."""
+    out: dict[tuple[str, str], float] = {}
+    if len(diaria) < 2:
+        return out
+    fechas = sorted(diaria)
+    ultima = fechas[-1]
+    for n in (1, 2, 3):
+        inicio = meses_antes(ultima, n)
+        previas = [f for f in fechas if f <= inicio]
+        if not previas or (inicio - previas[-1]).days > 7:  # sin dato cerca del inicio: no hay ventana
+            continue
+        f0 = previas[-1]
+        r = (diaria[ultima] / diaria[f0]) ** (12 / n) - 1
+        out[(f'{n}m', 'rentabilidad')] = r
+        tipos = [v for f, v in estr.items() if f0 < f <= ultima]
+        if tipos:
+            out[(f'{n}m', 'diferencial_estr')] = r - fmean(tipos) / 100
+    if ('1m', 'rentabilidad') in out and ('3m', 'rentabilidad') in out:
+        out[('hoy', 'tendencia')] = out[('1m', 'rentabilidad')] - out[('3m', 'rentabilidad')]
+    cierres = cierres_mes(diaria)
+    meses = [k for k in sorted(cierres) if k < (ultima.year, ultima.month)][-13:]
+    if len(meses) == 13 and (meses[-1][0] * 12 + meses[-1][1]) - (meses[0][0] * 12 + meses[0][1]) == 12:
+        out[('12m', 'meses_negativos')] = float(sum(cierres[b][1] < cierres[a][1] for a, b in zip(meses, meses[1:])))
+    return out
+
+
 # ------------------------------------------------------------------ percentiles
 # Dónde menos es mejor: el percentil se invierte. La beta no lleva percentil (ni mejor ni peor).
-MENOS_ES_MEJOR = {'ter', 'volatilidad', 'volatilidad_mensual', 'tracking_error', 'captura_bajista', 'recuperacion_semanas'}
+MENOS_ES_MEJOR = {'ter', 'volatilidad', 'volatilidad_mensual', 'tracking_error', 'captura_bajista', 'recuperacion_semanas',
+                  'meses_negativos'}
 SIN_PERCENTIL = {'beta', 'acumulada', 'r2'}
 
 
