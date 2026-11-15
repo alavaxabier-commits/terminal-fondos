@@ -18,7 +18,7 @@ const desde = (ultimo: string, p: Periodo) => (p === 'semana' ? haceDias(ultimo,
 const cambios = (s: Punto[]) => Object.fromEntries(PERIODOS.map((p) => [p, s.length ? variacion(s, desde(s.at(-1)!.fecha, p)) : null])) as Record<Periodo, number | null>
 
 type ResumenCartera = { año: number | null; semana: number | null; r3?: number; vol3?: number; caida3?: number; fondos: number; linea: number[] }
-type Mercado = { indice: string; isin: string; bolsa: boolean; cambio: Record<Periodo, number | null>; anual: number | null; linea: number[] }
+type Mercado = { indice: string; isin: string; bolsa: boolean; cambio: Record<Periodo, number | null>; anual: number | null }
 type Seguido = { isin: string; nombre: string; categoria: string | null; estado: string; myinvestor: boolean; nota: number; semana: number | null; nuevo: boolean; linea: number[] }
 
 /** La cartera simulada con su rebalanceo: lo que enseña su pantalla, más la variación de la semana y la línea del último año. */
@@ -40,7 +40,6 @@ async function resumen(c: Cartera): Promise<ResumenCartera | null> {
 
 const tono = (v?: number | null) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 const sube = (v: number) => (v >= 0 ? 'sube' : 'baja')
-const fechaLarga = (d: Date) => { const t = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }); return t[0].toUpperCase() + t.slice(1) }
 const Seccion = ({ titulo, extra, children, className = '' }: { titulo: string; extra?: React.ReactNode; children: React.ReactNode; className?: string }) => (
   <section className={className}>
     <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-borde pb-1">
@@ -68,7 +67,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
     sustitutos().then((is) => Promise.all(is.map(async (i): Promise<Mercado> => {
       const s = await serieEur(i.isin, 'EUR') // los fondos que representan a los índices están todos en euros
       const ultimo = s.at(-1)?.fecha ?? hoy()
-      return { indice: i.indice, isin: i.isin, bolsa: /^(MSCI|S&P)/.test(i.indice), cambio: cambios(s), anual: variacion(s, haceAnos(ultimo, 1)), linea: muestra(s, haceAnos(ultimo, 1)) }
+      return { indice: i.indice, isin: i.isin, bolsa: /^(MSCI|S&P)/.test(i.indice), cambio: cambios(s), anual: variacion(s, haceAnos(ultimo, 1)) }
     }))).then(setMercados).catch(falla)
     seguidos().then(async (fs) => {
       const activos = fs.filter((f) => f.estado !== 'descartado')
@@ -88,7 +87,6 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
   return (
     <div className="space-y-10">
       {(error || errorEstado) && <p className="text-baja">No se han podido leer los datos: {error || errorEstado}</p>}
-      <Portada carteras={carteras} resumenes={resumenes} revision={revision} mercados={mercados} descargas={descargas} />
       {descargas && <AlarmasDescargas tareas={descargas} />}
 
       <Seccion titulo="Carteras modelo" extra={<button onClick={nueva} className="text-suave hover:text-acento">+ nueva cartera</button>}>
@@ -99,43 +97,12 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
         )}
       </Seccion>
 
-      <div className="grid gap-10 lg:grid-cols-[3fr_2fr]">
-        <Mercados mercados={mercados} />
-        <div className="space-y-10">
-          {revision && <FondosARevisar revision={revision} />}
-          <ListaSeguimiento seg={seg} />
-        </div>
+      <div className="grid gap-10 lg:grid-cols-2">
+        {revision && <FondosARevisar revision={revision} />}
+        <ListaSeguimiento seg={seg} />
       </div>
+      <Mercados mercados={mercados} />
     </div>
-  )
-}
-
-/** La fecha y lo importante del día en dos o tres frases, con lo que ya está cargado. */
-function Portada({ carteras, resumenes, revision, mercados, descargas }: {
-  carteras: Cartera[]; resumenes: Map<number, ResumenCartera | null>; revision: Revision | null; mercados: Mercado[] | null; descargas: Tarea[] | null
-}) {
-  const conDatos = carteras.flatMap((c) => { const r = resumenes.get(c.id); return r?.año != null ? [{ c, r }] : [] })
-  const mejor = conDatos.sort((a, b) => b.r.año! - a.r.año!)[0]
-  const aRevisar = revision?.carteras.reduce((n, c) => n + c.fondos.filter((f) => f.senales.length).length, 0)
-  const mundo = mercados?.find((m) => m.indice === 'MSCI World')
-  const ultima = descargas?.reduce((m, t) => (t.ts > m ? t.ts : m), '')
-  const B = ({ v }: { v: number | null }) => <b className={`font-medium ${tono(v)}`}>{pct(v)}</b>
-  return (
-    <header className="space-y-3">
-      <p className="text-[11px] uppercase tracking-widest text-suave">
-        {ultima ? `Datos del ${fecha(ultima)}` : descargas ? 'Sin registro de descargas' : 'Cargando datos…'}
-      </p>
-      <h1 className="text-4xl! sm:text-5xl!">{fechaLarga(new Date())}</h1>
-      <p className="max-w-3xl font-serif text-xl leading-relaxed text-suave">
-        {mejor && (carteras.length === 1
-          ? <><a href={`#/cartera/${mejor.c.id}`} className="text-texto hover:text-acento">{mejor.c.nombre}</a> {(mejor.r.semana ?? 0) >= 0 ? 'sube' : 'baja'} <B v={mejor.r.semana} /> esta semana y lleva <B v={mejor.r.año} /> en el año. </>
-          : <>De tus {carteras.length} carteras, la mejor del año es <a href={`#/cartera/${mejor.c.id}`} className="text-texto hover:text-acento">{mejor.c.nombre}</a>, con <B v={mejor.r.año} />. </>)}
-        {mundo?.cambio.semana != null && <>La bolsa mundial {mundo.cambio.semana >= 0 ? 'sube' : 'baja'} <B v={mundo.cambio.semana} /> en la semana. </>}
-        {aRevisar != null && (aRevisar
-          ? <><a href="#/revision" className="text-aviso hover:underline">{aRevisar === 1 ? 'Un fondo' : `${aRevisar} fondos`}</a> de tus carteras {aRevisar === 1 ? 'tiene' : 'tienen'} señales de revisión.</>
-          : <>Ningún fondo de tus carteras necesita revisión.</>)}
-      </p>
-    </header>
   )
 }
 
@@ -165,31 +132,24 @@ function TarjetaCartera({ c, r, cargando }: { c: Cartera; r: ResumenCartera | nu
   )
 }
 
-/** Los índices de referencia (a través de su fondo indexado en euros) como un mapa de color: verde si suben, rojo si bajan. */
+/** Los índices de referencia (a través de su fondo indexado en euros), en una franja de pastillas teñidas: verde si suben, rojo si bajan. */
 function Mercados({ mercados }: { mercados: Mercado[] | null }) {
   const [periodo, setPeriodo] = useState<Periodo>('semana')
   const escala = { semana: 0.03, mes: 0.06, año: 0.2 }[periodo] // a partir de aquí, color pleno
   const grupo = (titulo: string, ms: Mercado[]) => (
-    <div>
-      <h3 className="mb-2 text-[11px] uppercase tracking-widest text-suave">{titulo}</h3>
-      {/* En dos filas iguales: 7 índices de bolsa en 4 columnas, 5 de renta fija en 3. */}
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-(--cols)" style={{ '--cols': `repeat(${Math.ceil(ms.length / 2)}, minmax(0, 1fr))` } as React.CSSProperties}>
-        {ms.map((m) => {
-          const v = m.cambio[periodo]
-          const fuerza = v == null ? 0 : Math.min(Math.abs(v) / escala, 1) * 30
-          return (
-            <li key={m.isin}>
-              <a href={`#/fondo/${m.isin}`} title={`${m.indice} · 1 año ${pct(m.anual)}`}
-                className="flex h-full flex-col gap-1 rounded-lg border border-borde p-3 hover:border-acento"
-                style={{ background: v == null ? undefined : `color-mix(in srgb, var(--color-${sube(v)}) ${fuerza}%, var(--color-panel))` }}>
-                <span className="truncate text-[12px] text-suave">{m.indice}</span>
-                <span className={`cifra text-3xl tabular ${tono(v)}`}>{pct(v)}</span>
-                <Mini valores={m.linea} color={m.anual != null && m.anual < 0 ? 'baja' : 'sube'} className="h-6 w-full opacity-70" />
-              </a>
-            </li>
-          )
-        })}
-      </ul>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-20 shrink-0 text-[11px] uppercase tracking-widest text-suave">{titulo}</span>
+      {ms.map((m) => {
+        const v = m.cambio[periodo]
+        const fuerza = v == null ? 0 : Math.min(Math.abs(v) / escala, 1) * 22
+        return (
+          <a key={m.isin} href={`#/fondo/${m.isin}`} title={`${m.indice} · 1 año ${pct(m.anual)}`}
+            className="rounded-full border border-borde px-2.5 py-0.5 text-[12px] hover:border-acento"
+            style={{ background: v == null ? undefined : `color-mix(in srgb, var(--color-${sube(v)}) ${fuerza}%, var(--color-panel))` }}>
+            <span className="text-suave">{m.indice.replace(/^(MSCI|Bloomberg) /, '')}</span> <span className={`tabular ${tono(v)}`}>{pct(v)}</span>
+          </a>
+        )
+      })}
     </div>
   )
   return (
@@ -202,10 +162,10 @@ function Mercados({ mercados }: { mercados: Mercado[] | null }) {
       </div>
     }>
       {!mercados ? <p className="text-suave">Cargando índices…</p> : (
-        <div className="space-y-5">
+        <div className="space-y-2">
           {grupo('Bolsa', mercados.filter((m) => m.bolsa))}
           {grupo('Renta fija', mercados.filter((m) => !m.bolsa))}
-          <p className="text-[12px] text-suave">Cada índice, con su fondo indexado en euros. «Año»: desde el 31 de diciembre. La línea es el último año.</p>
+          <p className="pt-1 text-[12px] text-suave">Cada índice, con su fondo indexado en euros. «Año»: desde el 31 de diciembre.</p>
         </div>
       )}
     </Seccion>
@@ -234,13 +194,15 @@ function FondosARevisar({ revision }: { revision: Revision }) {
   )
 }
 
-/** Fondos que sigo (sin los descartados): nota, su tendencia en el último año y el cambio de la semana. */
+/** Lo que se ha movido en el seguimiento: fondos nuevos de la semana y cambios de nota de 2 puntos o más (6 como mucho). */
 function ListaSeguimiento({ seg }: { seg: Seguido[] | null }) {
+  const movidos = (seg ?? []).filter((f) => f.nuevo || Math.abs(f.semana ?? 0) >= 2).slice(0, 6)
   return (
-    <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="text-suave hover:text-texto">ver lista</a>}>
-      {!seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p> : (
+    <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="text-suave hover:text-texto">{seg?.length ? `ver los ${seg.length}` : 'ver lista'}</a>}>
+      {!seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
+        : !movidos.length ? <p className="text-suave">Sin cambios de nota de 2 puntos o más esta semana.</p> : (
         <ul className="divide-y divide-borde">
-          {seg.map((f) => (
+          {movidos.map((f) => (
             <li key={f.isin}>
               <a href={`#/fondo/${f.isin}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 hover:text-acento">
                 <span className="min-w-0">
@@ -252,7 +214,7 @@ function ListaSeguimiento({ seg }: { seg: Seguido[] | null }) {
                 <Mini valores={f.linea} className="h-6 w-16" />
                 <span className="w-14 text-right">
                   <span className="cifra block text-2xl leading-none tabular text-texto">{Math.round(f.nota)}</span>
-                  <span className={`block text-[12px] tabular ${f.nuevo ? 'text-acento' : Math.abs(f.semana ?? 0) >= 2 ? `font-medium ${tono(f.semana)}` : 'text-suave'}`}>
+                  <span className={`block text-[12px] tabular ${f.nuevo ? 'text-acento' : `font-medium ${tono(f.semana)}`}`}>
                     {f.nuevo ? 'nuevo' : f.semana == null ? '—' : `${f.semana > 0 ? '+' : ''}${Math.round(f.semana)}`}
                   </span>
                 </span>
