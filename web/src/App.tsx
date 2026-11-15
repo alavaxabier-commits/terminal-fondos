@@ -111,7 +111,7 @@ export default function App() {
           <i aria-hidden="true" className="inline-block h-4 w-4 rounded-full bg-acento" />
           <span className="hidden sm:inline">Terminal de fondos</span>
         </a>
-        <nav aria-label="Pantallas" className="flex shrink-0 gap-0.5 overflow-x-auto rounded-full bg-borde/50 p-0.5">
+        <nav aria-label="Pantallas" className="flex min-w-0 gap-0.5 overflow-x-auto rounded-full bg-borde/50 p-0.5">
           {PANTALLAS.map(([h, t]) => (
             <a key={h} href={h} aria-current={((ruta || '#/') === h || (h === '#/comparar' && !!comparar)) ? 'page' : undefined}
               className={`rounded-full px-3 py-1 ${(ruta || '#/') === h || (h === '#/comparar' && comparar) ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{t}</a>

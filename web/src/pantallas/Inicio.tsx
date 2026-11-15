@@ -74,14 +74,16 @@ const Seccion = ({ titulo, extra, children, className = '' }: { titulo: string; 
     {children}
   </section>
 )
+const Fallo = ({ e }: { e: Error }) => <p className="text-baja">No se ha podido leer: {e.message}</p>
 
 /** Inicio: portada con un resumen escrito, carteras, mercados (índices de referencia), fondos a revisar y seguimiento.
  *  Descargas y revisión llegan de App, que las lee una vez para la barra de estado. */
 export default function Inicio({ estado: { descargas, revision, error: errorEstado } }: { estado: Estado }) {
-  const [carteras, setCarteras] = useState<Cartera[]>([])
-  const [resumenes, setResumenes] = useState<Map<number, ResumenCartera | null>>(new Map())
-  const [mercados, setMercados] = useState<Mercado[] | null>(null)
-  const [seg, setSeg] = useState<Seguido[] | null>(null)
+  // Cada sección: null mientras carga, Error si falla su lectura (lo dice ella misma, no se queda «cargando»).
+  const [carteras, setCarteras] = useState<Cartera[] | Error | null>(null)
+  const [resumenes, setResumenes] = useState<Map<number, ResumenCartera | null | Error>>(new Map())
+  const [mercados, setMercados] = useState<Mercado[] | Error | null>(null)
+  const [seg, setSeg] = useState<Seguido[] | Error | null>(null)
   const [error, setError] = useState('')
   const falla = (e: Error) => setError(e.message)
 
@@ -89,13 +91,13 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
     Promise.all([leerCarteras(), categoriasReferencia(), referenciaSeries(['indice:estr'])]).then(([cs, cats, estr]) => {
       setCarteras(cs)
       const comun = { cats, rf: rendimientos(estr.get('indice:estr')?.semanal ?? new Map()) }
-      for (const c of cs) resumen(c, comun).then((r) => setResumenes((m) => new Map(m).set(c.id, r))).catch(falla)
-    }).catch(falla)
+      for (const c of cs) resumen(c, comun).catch((e: Error) => e).then((r) => setResumenes((m) => new Map(m).set(c.id, r)))
+    }).catch(setCarteras)
     sustitutos().then((is) => Promise.all(is.map(async (i): Promise<Mercado> => {
       const s = await serieEur(i.isin, 'EUR') // los fondos que representan a los índices están todos en euros
       const ultimo = s.at(-1)?.fecha ?? hoy()
       return { indice: i.indice, isin: i.isin, bolsa: /^(MSCI|S&P)/.test(i.indice), cambio: cambios(s), anual: variacion(s, haceAnos(ultimo, 1)), linea: muestra(s, haceAnos(ultimo, 1), 10) }
-    }))).then(setMercados).catch(falla)
+    }))).then(setMercados).catch(setMercados)
     seguidos().then(async (fs) => {
       const activos = fs.filter((f) => f.estado !== 'descartado')
       const porIsin = new Map<string, NotaSemanal[]>()
@@ -106,7 +108,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
         const e = evolucion(notas)
         return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, estado: f.estado, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, divisa: f.fondo.divisa }] : []
       }).sort((a, b) => Number(seMueve(b)) - Number(seMueve(a)) || Number(b.nuevo) - Number(a.nuevo) || Math.abs(b.semana ?? 0) - Math.abs(a.semana ?? 0) || b.nota - a.nota))
-    }).catch(falla)
+    }).catch(setSeg)
   }, [])
 
   const senalesDe = (id: number): Senales | undefined => revision
@@ -116,12 +118,16 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
 
   return (
     <div className="space-y-10">
-      {(error || errorEstado) && <p className="text-baja">No se han podido leer los datos: {error || errorEstado}</p>}
+      {errorEstado && <p className="text-baja">No se ha podido leer el estado (descargas, base o revisión): {errorEstado}</p>}
+      {error && <p className="text-baja">No se ha podido crear la cartera: {error}</p>}
       {descargas && <AlarmasDescargas tareas={descargas} />}
 
-      <Seccion titulo={carteras.length === 1 ? 'Cartera modelo' : 'Carteras modelo'} extra={<button onClick={nueva} className="text-suave hover:text-acento">+ nueva cartera</button>}>
-        {carteras.length === 1 ? <CarteraAncha c={carteras[0]} r={resumenes.get(carteras[0].id)} cargando={!resumenes.has(carteras[0].id)} senales={senalesDe(carteras[0].id)} />
-          : carteras.length > 1 && (
+      <Seccion titulo={Array.isArray(carteras) && carteras.length === 1 ? 'Cartera modelo' : 'Carteras modelo'} extra={<button onClick={nueva} className="text-suave hover:text-acento">+ nueva cartera</button>}>
+        {!carteras ? <p className="text-suave">Cargando…</p>
+          : carteras instanceof Error ? <Fallo e={carteras} />
+          : !carteras.length ? <p className="text-suave">Aún no hay ninguna cartera modelo: «+ nueva cartera» crea una.</p>
+          : carteras.length === 1 ? <CarteraAncha c={carteras[0]} r={resumenes.get(carteras[0].id)} cargando={!resumenes.has(carteras[0].id)} senales={senalesDe(carteras[0].id)} />
+          : (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {carteras.map((c) => <TarjetaCartera key={c.id} c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} senales={senalesDe(c.id)} />)}
             </ul>
@@ -164,8 +170,8 @@ const PildoraSemana = ({ v }: { v: number | null }) => v == null ? null
 const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' : 'acento')
 
 /** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el tipo de activo con los avisos de sus fondos. */
-function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean; senales?: Senales }) {
-  if (cargando || !r) return <div className="rounded-lg border border-borde bg-panel p-5 text-suave">{cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
+function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | Error | undefined; cargando: boolean; senales?: Senales }) {
+  if (cargando || !r || r instanceof Error) return <div className="rounded-lg border border-borde bg-panel p-5 text-suave">{r instanceof Error ? <Fallo e={r} /> : cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
   // Lo que pide atención en el reparto: fondos con señales de revisión o fuera de la banda de rebalanceo (el detalle, en la cartera).
   const avisos = r.fondos.flatMap((f) => {
     const deriva = f.hoy == null ? 0 : (f.hoy - f.objetivo) * 100
@@ -233,7 +239,8 @@ function Donut({ activos, cobertura }: { activos: Fila[]; cobertura: number }) {
   )
 }
 
-function TarjetaCartera({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | undefined; cargando: boolean; senales?: Senales }) {
+function TarjetaCartera({ c, r: dato, cargando, senales }: { c: Cartera; r: ResumenCartera | null | Error | undefined; cargando: boolean; senales?: Senales }) {
+  const r = dato instanceof Error ? null : dato
   return (
     <li>
       <a href={`#/cartera/${c.id}`} className="flex h-full flex-col gap-3 rounded-lg border border-borde bg-panel p-4 hover:border-acento">
@@ -241,7 +248,7 @@ function TarjetaCartera({ c, r, cargando, senales }: { c: Cartera; r: ResumenCar
           <span className="font-medium">{c.nombre}</span>
           {r && <PildoraSemana v={r.semana} />}
         </div>
-        {cargando ? <p className="text-suave">calculando…</p> : !r ? <p className="text-suave">Sin fondos o sin datos suficientes.</p> : <>
+        {cargando ? <p className="text-suave">calculando…</p> : dato instanceof Error ? <Fallo e={dato} /> : !r ? <p className="text-suave">Sin fondos o sin datos suficientes.</p> : <>
           <div>
             <span className={`cifra text-5xl tabular ${tono(r.año)}`}>{pct(r.año)}</span>
             <span className="ml-2 text-suave">en el año</span>
@@ -256,7 +263,7 @@ function TarjetaCartera({ c, r, cargando, senales }: { c: Cartera; r: ResumenCar
 }
 
 /** Los índices de referencia (a través de su fondo indexado en euros), en lista compacta con la línea del último año. */
-function Mercados({ mercados }: { mercados: Mercado[] | null }) {
+function Mercados({ mercados }: { mercados: Mercado[] | Error | null }) {
   const [periodo, setPeriodo] = useState<Periodo>('semana')
   const grupo = (titulo: string, ms: Mercado[]) => (
     <div>
@@ -286,7 +293,7 @@ function Mercados({ mercados }: { mercados: Mercado[] | null }) {
         ))}
       </div>
     }>
-      {!mercados ? <p className="text-suave">Cargando índices…</p> : (
+      {!mercados ? <p className="text-suave">Cargando índices…</p> : mercados instanceof Error ? <Fallo e={mercados} /> : (
         <div className="space-y-3">
           {grupo('Bolsa', mercados.filter((m) => m.bolsa))}
           {grupo('Renta fija', mercados.filter((m) => !m.bolsa))}
@@ -298,7 +305,8 @@ function Mercados({ mercados }: { mercados: Mercado[] | null }) {
 }
 
 /** Seis fondos del seguimiento: primero los que se mueven (nuevos o ±2 puntos de nota en la semana), después los de mejor nota. */
-function ListaSeguimiento({ seg }: { seg: Seguido[] | null }) {
+function ListaSeguimiento({ seg: dato }: { seg: Seguido[] | Error | null }) {
+  const seg = dato instanceof Error ? null : dato
   const vistos = (seg ?? []).slice(0, 6)
   // Valor del último año, solo de los fondos que se ven. La línea es accesoria: si una serie falla, ese fondo va sin ella.
   const [lineas, setLineas] = useState<Map<string, number[]>>(new Map())
@@ -308,7 +316,7 @@ function ListaSeguimiento({ seg }: { seg: Seguido[] | null }) {
   const nMueven = (seg ?? []).filter(seMueve).length
   return (
     <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="text-suave hover:text-texto">{seg?.length ? `ver los ${seg.length}` : 'ver lista'}</a>}>
-      {!seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
+      {dato instanceof Error ? <Fallo e={dato} /> : !seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
         : (<>
         <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (nuevos o ±2 puntos de nota); después, los de mejor nota.` : 'Ninguno se mueve esta semana: los de mejor nota.'} La línea es su valor en el último año.</p>
         <ul className="divide-y divide-borde">
