@@ -3,19 +3,30 @@ import { calcularCartera, cambiosCartera, type RefSerie } from '../calculo/carte
 import type { Composicion } from '../calculo/exposicion'
 import { cifra, fecha, hoy, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
-import { lineasCartera, type Punto } from '../calculo/series'
+import { exposicion } from '../calculo/exposicion'
+import { base100, haceAnos, lineasCartera, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
-import EstadisticasCartera from '../componentes/EstadisticasCartera'
+import Donut from '../componentes/Donut'
+import { Aportacion, AnoAno, costeCartera, Crisis, Juntos, MetricasCartera, Solapes } from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
+import Tarjeta from '../componentes/Tarjeta'
+import { escribiendo } from '../componentes/teclas'
 import * as q from '../datos/consultas'
 import { revisar, type FondoRevisado } from '../datos/revision'
 import { serieEur } from '../datos/series'
+import { Pastilla } from './Ficha'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
 export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
 type Linea = { fondo: q.Fondo; peso: number }
 type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
+
+const PESTANAS = ['resumen', 'fondos', 'métricas', 'exposición', 'cambios'] as const
+type Pestana = (typeof PESTANAS)[number]
+const RANGOS = [['1A', 1], ['3A', 3], ['5A', 5], ['10A', 10], ['Todo', 0]] as const
+const campo = 'rounded-md border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento'
+const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 
 const REVISION = { diaria: 'cada día', mensual: 'cada mes', trimestral: 'cada trimestre', semestral: 'cada semestre', anual: 'cada año' }
 const textoBandas = (b: Bandas) =>
@@ -50,6 +61,8 @@ export default function Cartera({ id }: { id: number }) {
   const [ocupado, setOcupado] = useState(false)
   const [revision, setRevision] = useState<Map<string, FondoRevisado>>(new Map())
   const [avisoDiv, setAvisoDiv] = useState<string | null>(null)
+  const [pestana, setPestana] = useState<Pestana>('resumen')
+  const [rango, setRango] = useState(0)
 
   async function leer() {
     const [c, cs, estr, h] = await Promise.all([q.cartera(id), q.categoriasReferencia(), q.referenciaSeries(['indice:estr']), q.cambios(id)])
@@ -59,7 +72,7 @@ export default function Cartera({ id }: { id: number }) {
     setGuardada(c)
     if (c?.fondos.length) q.baseDiversificacion(id).then((b) => setAvisoDiv(q.avisoDiversificacion(b, c.fondos.map((f) => f.fondo.isin)))).catch((e: Error) => setError(e.message))
     revisar([id]).then((r) => setRevision(new Map(r.carteras[0]?.fondos.map((f) => [f.fondo.isin, f])))).catch((e: Error) => setError(e.message))
-    if (c && !c.fondos.length) setBorrador({ ...c.cartera, fondos: [], motivo: '' }) // cartera nueva: directa a editar
+    if (c && !c.fondos.length) { setBorrador({ ...c.cartera, fondos: [], motivo: '' }); setPestana('fondos') } // cartera nueva: directa a editar
   }
   useEffect(() => {
     leer().catch((e: Error) => setError(e.message))
@@ -91,6 +104,23 @@ export default function Cartera({ id }: { id: number }) {
   const simulacion = useMemo(() => simularCartera(fondosCalc, reb, bandas), [fondosCalc, reb, bandas])
   const sim = simulacion.valor
   const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy(), bandas) : null), [fondosCalc, reb, rf, bandas])
+  const grafica = useMemo(() => {
+    if (sim.length < 2) return []
+    const desde = rango ? haceAnos(sim.at(-1)!.fecha, rango) : sim[0].fecha
+    return lineasCartera(cartera?.nombre ?? 'Cartera', base100(sim, desde < sim[0].fecha ? sim[0].fecha : desde), calc?.referenciaSerie ?? [])
+  }, [sim, rango, calc, cartera?.nombre])
+
+  // ← y → cambian de pestaña, como en la ficha
+  const pestanas = PESTANAS.filter((p) => p !== 'cambios' || historial.length > 0)
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => {
+      if (escribiendo(e) || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
+      const i = pestanas.indexOf(pestana) + (e.key === 'ArrowRight' ? 1 : -1)
+      if (pestanas[i]) setPestana(pestanas[i])
+    }
+    addEventListener('keydown', tecla)
+    return () => removeEventListener('keydown', tecla)
+  })
 
   if (error) return <p className="text-baja">No se ha podido leer o guardar la cartera: {error}</p>
   if (guardada === undefined) return <p className="text-suave">Cargando…</p>
@@ -131,18 +161,45 @@ export default function Cartera({ id }: { id: number }) {
     location.hash = '#/'
   }
 
+  const ter = (f: q.Fondo) => (f.ter == null ? null : Number(f.ter))
+  const fondosE = conPeso.map((l) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, peso: l.peso, ter: ter(l.fondo), c: datos.get(l.fondo.isin)?.comp ?? null }))
+  const coste = costeCartera(fondosE)
+  const expo = listos ? exposicion(fondosE.map((f) => ({ peso: f.peso, nombre: f.nombre, c: f.c }))) : null
+  const nSenales = [...revision.values()].reduce((n, r) => n + r.senales.length, 0)
+  const m = calc?.metricas
+  const ref = calc?.referencia ?? {}
+  const ytd = m?.ytd?.rentabilidad
+  const pesoHoy = new Map(calc?.fondos.map((f) => [f.isin, f.pesoHoy]))
+  const hayCalculo = listos && !sinDatos.length
+  const sinCalculo = !lineas.length ? <p className="text-suave">La cartera no tiene fondos todavía: añádelos en «Fondos».</p>
+    : !listos ? <p className="text-suave">Cargando precios…</p>
+    : sinDatos.length ? <p className="text-suave">Sin precios todavía: {sinDatos.map((l) => l.fondo.nombre).join(', ')}. Se cargan en la próxima descarga (los fondos de una cartera se descargan cada día).</p>
+    : <p className="text-suave">Sin historia común suficiente entre los fondos para calcular la cartera.</p>
+  const rangos = RANGOS.filter(([, n]) => !n || (sim.length > 1 && haceAnos(sim.at(-1)!.fecha, n) >= sim[0].fecha))
+  const kpi = (et: string, clave: string, fmt: (v: number) => string, color = false) => {
+    const v = m?.['3a']?.[clave]
+    const r = ref['3a']?.[clave]
+    return (
+      <div key={clave} className="flex flex-col gap-1 bg-panel px-4 py-3">
+        <span className="text-[12px] text-suave">{et}</span>
+        <span className={`cifra text-3xl tabular ${color ? tono(v) : ''}`}>{v == null ? '—' : fmt(v)}</span>
+        <span className="text-[11px] text-suave">{r == null ? 'sin referencia' : <>referencia {fmt(r)}</>}</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+    <article className="space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         {borrador ? (
           <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <p className="text-[11px] uppercase tracking-widest text-acento">Cartera modelo · editando</p>
             <input value={borrador.nombre} onChange={(e) => editar({ nombre: e.target.value })} aria-label="Nombre de la cartera"
-              className="border border-borde bg-panel px-2 py-1 text-lg font-bold text-acento outline-none focus:border-acento" />
-            <div className="flex flex-wrap gap-2">
+              className={`${campo} font-serif text-3xl`} />
+            <div className="flex flex-wrap items-center gap-2 text-[13px]">
               <label className="flex items-center gap-2 text-suave">
-                rebalanceo
-                <select value={borrador.rebalanceo} onChange={(e) => editar({ rebalanceo: e.target.value as q.Rebalanceo })}
-                  className="border border-borde bg-panel px-2 py-1 text-texto">
+                Rebalanceo
+                <select value={borrador.rebalanceo} onChange={(e) => editar({ rebalanceo: e.target.value as q.Rebalanceo })} className={campo}>
                   <option value="mensual">mensual</option>
                   <option value="trimestral">trimestral</option>
                   <option value="semestral">semestral</option>
@@ -155,16 +212,15 @@ export default function Cartera({ id }: { id: number }) {
                 <label className="flex flex-wrap items-center gap-2 text-suave">
                   ±
                   <input type="number" min={0.5} max={100} step={0.5} value={borrador.banda} aria-label="Banda"
-                    onChange={(e) => editar({ banda: Number(e.target.value) })}
-                    className="w-16 border border-borde bg-panel px-1 py-1 text-right text-texto outline-none focus:border-acento" />
+                    onChange={(e) => editar({ banda: Number(e.target.value) })} className={`${campo} w-16 text-right`} />
                   <select value={borrador.banda_tipo} onChange={(e) => editar({ banda_tipo: e.target.value as Bandas['tipo'] })}
-                    aria-label="Tipo de banda" className="border border-borde bg-panel px-2 py-1 text-texto">
+                    aria-label="Tipo de banda" className={campo}>
                     <option value="puntos">puntos</option>
                     <option value="relativa">% del peso de cada fondo</option>
                   </select>
                   revisada
                   <select value={borrador.revision} onChange={(e) => editar({ revision: e.target.value as Bandas['revision'] })}
-                    aria-label="Revisión de la banda" className="border border-borde bg-panel px-2 py-1 text-texto">
+                    aria-label="Revisión de la banda" className={campo}>
                     <option value="diaria">cada día</option>
                     <option value="mensual">al final de cada mes</option>
                     <option value="trimestral">al final de cada trimestre</option>
@@ -173,160 +229,249 @@ export default function Cartera({ id }: { id: number }) {
                   </select>
                 </label>
               )}
-              <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="objetivo (opcional)"
-                aria-label="Objetivo" className="min-w-0 flex-1 border border-borde bg-panel px-2 py-1 outline-none focus:border-acento" />
+              <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="Objetivo (opcional)"
+                aria-label="Objetivo" className={`${campo} min-w-0 flex-1`} />
             </div>
           </div>
         ) : (
-          <div>
-            <h1 className="text-lg font-bold text-acento">{cartera.nombre}</h1>
-            <p className="text-suave">
-              {lineas.length} fondos · rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}
-              {cartera.objetivo && ` · ${cartera.objetivo}`}
-            </p>
+          <div className="min-w-0 space-y-2">
+            <p className="text-[11px] uppercase tracking-widest text-acento">Cartera modelo{cartera.objetivo && ` · ${cartera.objetivo}`}</p>
+            <h1 className="text-3xl! sm:text-4xl!">{cartera.nombre}</h1>
+            <div className="flex flex-wrap gap-1.5 text-suave">
+              <Pastilla>{lineas.length} {lineas.length === 1 ? 'fondo' : 'fondos'}</Pastilla>
+              <Pastilla>Rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}</Pastilla>
+              {coste != null && <Pastilla>Coste {pct(coste / 100, 2, false)} al año</Pastilla>}
+              {nSenales > 0 && <a href="#/revision"><Pastilla className="bg-aviso/15! text-aviso">{nSenales} {nSenales === 1 ? 'señal' : 'señales'} de revisión</Pastilla></a>}
+            </div>
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
-          {borrador ? (
-            <>
-              <button onClick={() => hacer(guardar)} disabled={!puedeGuardar || ocupado}
-                className="min-h-9 border border-acento px-3 text-acento disabled:border-borde disabled:text-suave">guardar</button>
-              {guardada.fondos.length > 0 && (
-                <button onClick={() => setBorrador(null)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-texto">cancelar</button>
-              )}
-            </>
-          ) : (
-            <>
-              <button onClick={() => setBorrador({ ...guardada.cartera, fondos: guardada.fondos, motivo: '' })}
-                className="min-h-9 border border-borde px-3 text-suave hover:text-texto">editar</button>
-              <a href={`#/simular/${id}`} title="Atajo: m" className="min-h-9 border border-borde px-3 py-1.5 text-suave hover:text-texto">simular cambios</a>
-              <button onClick={() => hacer(duplicar)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-texto">duplicar</button>
-              <button onClick={() => hacer(archivar)} disabled={ocupado} className="min-h-9 border border-borde px-3 text-suave hover:text-baja">archivar</button>
-            </>
+        <div className="flex flex-col items-end gap-3">
+          {!borrador && ytd != null && (
+            <p className="text-right tabular">
+              <span className="text-[12px] text-suave">Este año </span><span className={`cifra text-6xl leading-none ${tono(ytd)}`}>{pct(ytd)}</span>
+              <span className="block text-[12px] text-suave">
+                {ref.ytd?.rentabilidad != null && <>referencia {pct(ref.ytd.rentabilidad)} · </>}
+                {calc && <>a {fecha(calc.hasta)}</>}
+              </span>
+            </p>
           )}
+          <div className="flex flex-wrap justify-end gap-2">
+            {borrador ? (
+              <>
+                {guardada.fondos.length > 0 && (
+                  <button onClick={() => setBorrador(null)} disabled={ocupado} className="min-h-8 rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Cancelar</button>
+                )}
+                <button onClick={() => hacer(guardar)} disabled={!puedeGuardar || ocupado}
+                  className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">Guardar</button>
+              </>
+            ) : (
+              <>
+                <a href={`#/simular/${id}`} title="Atajo: m" className="flex min-h-8 items-center rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Simular cambios</a>
+                <button onClick={() => hacer(duplicar)} disabled={ocupado} className="min-h-8 rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Duplicar</button>
+                <button onClick={() => hacer(archivar)} disabled={ocupado} className="min-h-8 rounded-full bg-borde/50 px-4 text-texto hover:bg-borde hover:text-baja">Archivar</button>
+                <button onClick={() => { setBorrador({ ...guardada.cartera, fondos: guardada.fondos, motivo: '' }); setPestana('fondos') }}
+                  className="min-h-8 rounded-full bg-acento px-4 text-panel">Editar</button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       {borrador && (
-        <p className="text-aviso">
-          Editando: las cifras de abajo ya reflejan los cambios, pero no se guardan hasta pulsar «guardar».
-          {Math.abs(suma - 100) >= 0.01 && <> Los pesos suman {suma} %; tienen que sumar 100 %.</>}
+        <p className="rounded-lg bg-aviso/10 px-3 py-2 text-[13px] text-aviso">
+          Editando: las cifras ya reflejan los cambios, pero no se guardan hasta pulsar «Guardar».
+          {Math.abs(suma - 100) >= 0.01 && <> Los pesos suman {cifra(suma, 1)} %; tienen que sumar 100 %.</>}
         </p>
       )}
-      {!borrador && Math.abs(suma - 100) > 0.01 && <p className="text-baja">Los pesos suman {suma} %, no 100 %.</p>}
-      {!borrador && avisoDiv && <p role="status" className="text-aviso">{avisoDiv}</p>}
+      {!borrador && Math.abs(suma - 100) > 0.01 && <p className="text-baja">Los pesos suman {cifra(suma, 1)} %, no 100 %.</p>}
+      {!borrador && avisoDiv && <p role="status" className="text-[13px] text-aviso">{avisoDiv}</p>}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[48rem] whitespace-nowrap text-right [&_tr>*+*]:pl-3">
-          <thead className="text-[11px] uppercase tracking-widest text-suave">
-            <tr className="border-b border-borde">
-              <th className="py-1 text-left font-normal">Fondo</th>
-              <th className="font-normal">Peso</th>
-              <th className="font-normal">TER</th>
-              <th className="font-normal">3A anual</th>
-              <th className="font-normal">5A anual</th>
-              <th className="font-normal">Nota</th>
-              <th className="text-left font-normal">Señales</th>
-              {borrador && <th />}
-            </tr>
-          </thead>
-          <tbody>
-            {lineas.map(({ fondo: f, peso }, k) => {
-              const m = datos.get(f.isin)?.metricas
-              const r = revision.get(f.isin)
-              return (
-                <tr key={f.isin} className={`border-b border-borde/50 ${r?.senales.length ? 'bg-aviso/5' : ''}`}>
-                  <td className="whitespace-normal py-1 text-left">
-                    <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a>
-                    <span className="text-suave"> · {f.isin}</span>
-                  </td>
-                  <td>
-                    {borrador ? (
-                      <input type="number" min={0} max={100} step={0.5} value={peso} aria-label={`Peso de ${f.nombre}`}
-                        onChange={(e) => editar({ fondos: lineas.map((l, j) => (j === k ? { ...l, peso: Number(e.target.value) } : l)) })}
-                        className="w-16 border border-borde bg-panel px-1 py-0.5 text-right outline-none focus:border-acento" />
-                    ) : pct(peso / 100, 0, false)}
-                  </td>
-                  <td>{pct((f.ter ?? NaN) / 100, 2, false)}</td>
-                  <td>{pct(m?.get('3a|rentabilidad'))}</td>
-                  <td>{pct(m?.get('5a|rentabilidad'))}</td>
-                  <td>{r?.nota ? <>{Math.round(r.nota.nota)}{r.nota.percentil != null && <span className="text-suave"> p{Math.round(r.nota.percentil)}</span>}</> : <span className="text-suave">—</span>}</td>
-                  <td className="whitespace-normal text-left">
-                    {r?.senales.map((s) => <a key={s.tipo} href="#/revision" title={s.motivo} className="mr-1 inline-block border border-aviso px-1.5 text-aviso">{s.tipo}</a>)}
-                  </td>
-                  {borrador && (
-                    <td>
-                      <button onClick={() => editar({ fondos: lineas.filter((_, j) => j !== k) })} aria-label={`Quitar ${f.nombre}`}
-                        className="min-h-8 px-2 text-suave hover:text-baja">quitar</button>
-                    </td>
-                  )}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      <div role="tablist" aria-label="Secciones de la cartera" className="flex flex-wrap gap-5 border-b border-borde">
+        {pestanas.map((p) => (
+          <button key={p} id={`pestana-${p}`} role="tab" aria-selected={pestana === p} aria-controls="panel-cartera" onClick={() => setPestana(p)}
+            className={`-mb-px border-b-2 pb-1.5 capitalize ${pestana === p ? 'border-acento text-texto' : 'border-transparent text-suave hover:text-texto'}`}>
+            {p}{p === 'fondos' ? ` · ${lineas.length}` : p === 'cambios' ? ` · ${historial.length}` : ''}
+          </button>
+        ))}
+        <span className="ml-auto self-center text-[11px] text-suave">← → cambiar</span>
       </div>
 
-      {borrador && (
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Buscador texto="añadir fondo: nombre o ISIN" onElegir={(f) => !lineas.some((l) => l.fondo.isin === f.isin) && editar({ fondos: [...lineas, { fondo: f, peso: 0 }] })} />
-          <input value={borrador.motivo} onChange={(e) => editar({ motivo: e.target.value })} placeholder="motivo del cambio (opcional, va al historial)"
-            aria-label="Motivo del cambio" className="flex-1 border border-borde bg-panel px-2 py-1 outline-none focus:border-acento" />
-        </div>
-      )}
+      <div id="panel-cartera" role="tabpanel" aria-labelledby={`pestana-${pestana}`} className="space-y-5">
+        {pestana === 'resumen' && (
+          <>
+            <Tarjeta>
+              {hayCalculo && sim.length > 1 ? (
+                <>
+                  <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="cifra text-5xl tabular">{cifra(grafica[0]?.serie.at(-1)?.valor, 1)}</span>
+                      {ytd != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
+                      <span className="text-[12px] text-suave">valor simulado, base 100 al inicio del periodo</span>
+                    </div>
+                    <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+                      {rangos.map(([etiqueta, n]) => (
+                        <button key={etiqueta} onClick={() => setRango(n)} aria-pressed={rango === n}
+                          className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{etiqueta}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <Grafico lineas={grafica} />
+                  <p className="text-[11px] text-suave">
+                    Desde el {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)} · {simulacion.rebalanceos} rebalanceos
+                    {calc?.referenciaSerie.length ? <> · referencia: la de cada fondo combinada con sus pesos{calc.referenciaSerie[0].fecha > sim[0].fecha && `, desde el ${fecha(calc.referenciaSerie[0].fecha)}`}</> : null}.
+                  </p>
+                </>
+              ) : sinCalculo}
+            </Tarjeta>
 
-      {lineas.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Valor simulado (base 100)</h2>
-          {!listos ? (
-            <p className="text-suave">Cargando precios…</p>
-          ) : sinDatos.length ? (
-            <p className="text-suave">Sin precios todavía: {sinDatos.map((l) => l.fondo.nombre).join(', ')}. Se cargan en la próxima descarga (los fondos de una cartera se descargan cada día).</p>
-          ) : (
-            <>
-              <p className="mb-2 text-suave">Desde {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)} · {simulacion.rebalanceos} rebalanceos.</p>
-              <Grafico lineas={lineasCartera(cartera.nombre, sim, calc?.referenciaSerie ?? [])} />
-              {calc?.referenciaSerie.length ? (
-                <p className="mt-1 text-suave">
-                  Referencia: la de cada fondo combinada con sus pesos{calc.referenciaSerie[0].fecha > sim[0].fecha && `; empieza el ${fecha(calc.referenciaSerie[0].fecha)}, desde el nivel de la cartera ese día`}.
-                </p>
-              ) : null}
-            </>
-          )}
-        </section>
-      )}
+            {calc && (
+              <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-borde bg-borde lg:grid-cols-4">
+                {kpi('Rentabilidad 3 años, anual', 'rentabilidad', (v) => pct(v), true)}
+                {kpi('Volatilidad 3 años', 'volatilidad', (v) => pct(v, 1, false))}
+                {kpi('Caída máxima 3 años', 'max_caida', (v) => pct(v))}
+                {kpi('Sharpe 3 años', 'sharpe', (v) => cifra(v))}
+              </dl>
+            )}
 
-      {listos && !sinDatos.length && (
-        <EstadisticasCartera
-          calc={calc}
-          fondos={conPeso.map((l) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, peso: l.peso, ter: l.fondo.ter, c: datos.get(l.fondo.isin)!.comp }))}
-        />
-      )}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-4">
+                {calc && <AnoAno calc={calc} />}
+                {calc && <Crisis calc={calc} />}
+              </div>
+              <div className="space-y-4">
+                <Tarjeta titulo="Fondos" extra={<button onClick={() => setPestana('fondos')} className="text-[12px] text-suave hover:text-acento">Ver detalle →</button>}>
+                  <ul className="space-y-2.5">
+                    {lineas.map(({ fondo: f, peso }) => {
+                      const r = revision.get(f.isin)
+                      const hoyP = pesoHoy.get(f.isin)
+                      return (
+                        <li key={f.isin} className="text-[13px]">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <a href={`#/fondo/${f.isin}`} className="min-w-0 truncate hover:text-acento">{f.nombre}</a>
+                            <span className="shrink-0 tabular">
+                              {r?.senales.length ? <span className="mr-2 rounded-full bg-aviso/15 px-2 text-[11px] text-aviso" title={r.senales.map((s) => s.motivo).join(' · ')}>{r.senales.length === 1 ? r.senales[0].tipo : `${r.senales.length} señales`}</span> : null}
+                              {r?.nota && <span className="mr-2 text-[12px] text-suave">nota {Math.round(r.nota.nota)}</span>}
+                              {pct(peso / 100, 0, false)}
+                            </span>
+                          </div>
+                          <div className="relative mt-1 h-1.5 rounded-full bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
+                            <span className="absolute inset-y-0 left-0 rounded-full bg-acento" style={{ width: `${Math.min(peso, 100)}%` }} />
+                            {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2.5 w-0.5 rounded-full bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  {calc && <p className="mt-3 text-[11px] text-suave">La barra es el peso objetivo; la marca, el de hoy (tras moverse los precios desde el último rebalanceo).</p>}
+                </Tarjeta>
+                <Tarjeta titulo="Tipo de activo">
+                  {expo ? <Donut activos={expo.activos} cobertura={expo.cobertura} /> : <p className="text-suave">Cargando…</p>}
+                </Tarjeta>
+              </div>
+            </div>
+          </>
+        )}
 
-      {listos && (
-        <Exposicion
-          fondos={conPeso.map((l) => {
-            const d = datos.get(l.fondo.isin)!
-            return { peso: l.peso, nombre: l.fondo.nombre, c: d.comp, duracion: l.fondo.duracion_efectiva, fechaCartera: d.fechaCartera }
-          })}
-        />
-      )}
+        {pestana === 'fondos' && (
+          <>
+            <Tarjeta titulo={borrador ? 'Fondos y pesos' : 'Fondos'} extra={<span className={`text-[12px] tabular ${Math.abs(suma - 100) >= 0.01 ? 'text-baja' : 'text-suave'}`}>suman {cifra(suma, 1)} %</span>}>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[48rem] whitespace-nowrap text-right tabular text-[13px]">
+                  <thead>
+                    <tr className="text-[12px] text-suave">
+                      <th className="pb-1.5 text-left font-normal">Fondo</th>
+                      <th className="pl-3 font-normal">Peso</th>
+                      <th className="pl-3 font-normal">TER</th>
+                      <th className="pl-3 font-normal">3 años, anual</th>
+                      <th className="pl-3 font-normal">5 años, anual</th>
+                      <th className="pl-3 font-normal">Nota</th>
+                      <th className="pl-3 text-left font-normal">Señales</th>
+                      {borrador && <th />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineas.map(({ fondo: f, peso }, k) => {
+                      const mf = datos.get(f.isin)?.metricas
+                      const r = revision.get(f.isin)
+                      return (
+                        <tr key={f.isin} className={`border-t border-borde/60 ${r?.senales.length ? 'bg-aviso/5' : ''}`}>
+                          <td className="whitespace-normal py-2 text-left">
+                            <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a>
+                            <span className="block text-[12px] text-suave"><span className="font-mono">{f.isin}</span>{f.categoria && ` · ${f.categoria}`}</span>
+                          </td>
+                          <td className="pl-3">
+                            {borrador ? (
+                              <input type="number" min={0} max={100} step={0.5} value={peso} aria-label={`Peso de ${f.nombre}`}
+                                onChange={(e) => editar({ fondos: lineas.map((l, j) => (j === k ? { ...l, peso: Number(e.target.value) } : l)) })}
+                                className={`${campo} w-20 text-right`} />
+                            ) : pct(peso / 100, 0, false)}
+                          </td>
+                          <td className="pl-3">{pct((ter(f) ?? NaN) / 100, 2, false)}</td>
+                          <td className={`pl-3 ${tono(mf?.get('3a|rentabilidad'))}`}>{pct(mf?.get('3a|rentabilidad'))}</td>
+                          <td className={`pl-3 ${tono(mf?.get('5a|rentabilidad'))}`}>{pct(mf?.get('5a|rentabilidad'))}</td>
+                          <td className="pl-3">{r?.nota ? <>{Math.round(r.nota.nota)}{r.nota.percentil != null && <span className="text-suave"> p{Math.round(r.nota.percentil)}</span>}</> : <span className="text-suave">—</span>}</td>
+                          <td className="whitespace-normal pl-3 text-left">
+                            {r?.senales.map((s) => <a key={s.tipo} href="#/revision" title={s.motivo} className="mr-1 inline-block rounded-full bg-aviso/15 px-2 text-[11px] text-aviso">{s.tipo}</a>)}
+                          </td>
+                          {borrador && (
+                            <td className="pl-3">
+                              <button onClick={() => editar({ fondos: lineas.filter((_, j) => j !== k) })} aria-label={`Quitar ${f.nombre}`}
+                                className="min-h-8 rounded-full px-3 text-suave hover:bg-baja/10 hover:text-baja">Quitar</button>
+                            </td>
+                          )}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {borrador && (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Buscador texto="Añadir fondo: nombre o ISIN" onElegir={(f) => !lineas.some((l) => l.fondo.isin === f.isin) && editar({ fondos: [...lineas, { fondo: f, peso: 0 }] })} />
+                  <input value={borrador.motivo} onChange={(e) => editar({ motivo: e.target.value })} placeholder="Motivo del cambio (opcional, va al historial)"
+                    aria-label="Motivo del cambio" className={`${campo} flex-1`} />
+                </div>
+              )}
+            </Tarjeta>
+            {hayCalculo && calc ? (
+              <>
+                <Aportacion calc={calc} fondos={fondosE} />
+                <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+                  <Juntos calc={calc} fondos={fondosE} />
+                  <Tarjeta titulo="Posiciones en común"><Solapes fondos={fondosE} titulo={false} /></Tarjeta>
+                </div>
+              </>
+            ) : lineas.length > 0 && sinCalculo}
+          </>
+        )}
 
-      {historial.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-[11px] uppercase tracking-widest text-suave">Cambios</h2>
-          <ul className="space-y-1">
-            {historial.map((c, i) => (
-              <li key={i}>
-                <span className="text-suave">{fecha(c.fecha)} · </span>
-                {c.sale && <span className="text-baja">sale {nombreDe(c.sale)} </span>}
-                {c.entra && <span className="text-sube">entra {nombreDe(c.entra)} </span>}
-                {c.motivo && <span className="text-suave">{c.sale || c.entra ? '· ' : ''}{c.motivo}</span>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+        {pestana === 'métricas' && (hayCalculo && calc ? <MetricasCartera calc={calc} /> : sinCalculo)}
+
+        {pestana === 'exposición' && (listos ? (
+          <Exposicion
+            fondos={conPeso.map((l) => {
+              const d = datos.get(l.fondo.isin)!
+              return { peso: l.peso, nombre: l.fondo.nombre, c: d.comp, duracion: l.fondo.duracion_efectiva, fechaCartera: d.fechaCartera }
+            })}
+          />
+        ) : sinCalculo)}
+
+        {pestana === 'cambios' && (
+          <Tarjeta titulo="Historial de cambios" extra={<span className="text-[12px] text-suave">del más reciente al más antiguo</span>}>
+            <ol className="relative ml-1 space-y-3 border-l border-borde pl-4 text-[13px]">
+              {historial.map((c, i) => (
+                <li key={i} className="relative">
+                  <span aria-hidden="true" className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-acento" />
+                  <span className="block text-[12px] text-suave">{fecha(c.fecha)}</span>
+                  {c.sale && <span className="mr-2 text-baja">Sale {nombreDe(c.sale)}</span>}
+                  {c.entra && <span className="mr-2 text-sube">Entra {nombreDe(c.entra)}</span>}
+                  {c.motivo && <span className="text-suave">{c.motivo}</span>}
+                </li>
+              ))}
+            </ol>
+          </Tarjeta>
+        )}
+      </div>
+    </article>
   )
 }

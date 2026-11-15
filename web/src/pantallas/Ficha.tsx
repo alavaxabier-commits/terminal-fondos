@@ -94,11 +94,11 @@ const BarraPercentil = ({ p }: { p: number }) => (
     <span className={`text-[11px] tabular ${colorPercentil(p)}`}>p{Math.round(p)}</span>
   </span>
 )
-const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
+export const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
   <span className={`rounded-full bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
 
 /** Métricas de la pestaña, agrupadas por lo que miden, con una línea que explica cada una (claves de FILAS). */
-const GRUPOS: [string, string, [string, string][]][] = [
+export const GRUPOS: [string, string, [string, string][]][] = [
   ['Rentabilidad', 'Lo que ha ganado.', [
     ['rentabilidad', 'De media al año.'],
     ['acumulada', 'En todo el periodo.'],
