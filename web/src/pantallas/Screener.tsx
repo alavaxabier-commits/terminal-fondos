@@ -3,10 +3,11 @@ import { cifra, hoy, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, PLAZOS, pesosEfectivos, type Bloque, type Pesos, type Plazo } from '../calculo/nota'
 import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
 import Bandeja from '../componentes/Bandeja'
-import DetalleFondo from '../componentes/DetalleFondo'
 import Franja from '../componentes/Franja'
-import TablaNota from '../componentes/TablaNota'
 import Tarjeta from '../componentes/Tarjeta'
+import TarjetaFondo from '../componentes/TarjetaFondo'
+import type { Senal } from '../calculo/senales'
+import { revisar } from '../datos/revision'
 import { useTeclasLista } from '../componentes/teclas'
 import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
@@ -48,6 +49,8 @@ export default function Screener() {
   const [orden, setOrden] = useState<Orden>(g.orden ?? 'nota')
   const [plazo, setPlazo] = useState<Plazo | ''>(g.plazo ?? '')
   const [panel, setPanel] = useState<'filtros' | 'pesos' | null>(null)
+  const [cats, setCats] = useState<Awaited<ReturnType<typeof q.categoriasReferencia>> | null>(null)
+  const [senales, setSenales] = useState<Map<string, Senal[]>>(new Map())
   const [nombrePerfil, setNombrePerfil] = useState('')
   const [guardado, setGuardado] = useState('')
   // con el tipo monetario, el ranking cambia a la vista Monetarios (por defecto, por 3M); al salir, vuelve a la nota
@@ -60,6 +63,17 @@ export default function Screener() {
     q.perfiles().then(setPerfiles).catch(falla)
     q.carteras().then(setCarteras).catch(falla)
     q.seguimiento().then((s) => setSeguidos(new Set(s.map((x) => x.isin)))).catch(falla)
+    q.categoriasReferencia().then(setCats).catch(falla)
+    // señales de revisión de los fondos de las carteras, para la tarjeta (si fallan, la tarjeta sale sin ellas)
+    revisar().then((r) => {
+      const m = new Map<string, Senal[]>()
+      for (const c of r.carteras)
+        for (const x of c.fondos) {
+          const antes = m.get(x.fondo.isin) ?? [] // un fondo en dos carteras: cada señal una vez
+          m.set(x.fondo.isin, [...antes, ...x.senales.filter((s) => !antes.some((t) => t.tipo === s.tipo))])
+        }
+      setSenales(m)
+    }).catch(() => {})
   }, [])
   useEffect(() => {
     setEnCartera(new Set()); setDiv(undefined); setAvisoDiv(null)
@@ -80,6 +94,8 @@ export default function Screener() {
     const excluir = excluirSuyos ? enCartera : new Set<string>()
     return datos ? ordenar(puntuar(datos.filter((f) => pasa(f, filtros, hoy(), excluir)), pesos, div, plazo || undefined), ordenEf) : []
   }, [datos, filtros, excluirSuyos, enCartera, pesos, div, ordenEf, plazo])
+  // todo el universo con la misma nota, para las alternativas de la tarjeta (no dependen de los filtros)
+  const todos = useMemo(() => (datos ? puntuar(datos, pesos, div, plazo || undefined) : []), [datos, pesos, div, plazo])
   // shortcut: cuenta clases, no fondos (el percentil cuenta uno por fondo); basta para avisar de categorías casi vacías
   const tamano = useMemo(() => {
     const n = new Map<string, number>()
@@ -321,7 +337,7 @@ export default function Screener() {
       )}
       {error && <p className="text-baja">{error}</p>}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
         <div className="min-w-0 space-y-4">
           {listas.map(([titulo, filas]) => (
             <Tarjeta key={titulo} titulo={titulo ? `${titulo} · ${filas.length}` : undefined}>
@@ -341,7 +357,9 @@ export default function Screener() {
         </div>
         {elegido && (
           <aside className="lg:sticky lg:top-16">
-            <Detalle f={elegido} plazo={plazo} pocos={pocos(elegido)} pesos={pesos} seguido={seguidos.has(elegido.isin)} seguir={seguirFondo} />
+            <TarjetaFondo f={elegido} todos={todos} plazo={plazo} colores={COLOR_BLOQUE} monetario={monetarios} cats={cats} pocos={pocos(elegido)}
+              seguido={seguidos.has(elegido.isin)} seguir={() => seguirFondo(elegido.isin)} senales={senales.get(elegido.isin) ?? []}
+              elegir={(i) => { if (visibles.some((x) => x.isin === i)) setSel(i); else location.hash = `#/fondo/${i}` }} />
           </aside>
         )}
       </div>
@@ -527,33 +545,5 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
         </tbody>
       </table>
     </div>
-  )
-}
-
-/** El fondo seleccionado: sus cifras, su nota con los pesos elegidos y por qué, y los avisos de la nota. */
-function Detalle({ f, plazo, pocos, pesos, seguido, seguir }: { f: Puntuado; plazo: Plazo | ''; pocos: number; pesos: Pesos; seguido: boolean; seguir: (i: string) => void }) {
-  const cifras: [string, string, string?][] = [
-    ['Nota', f.nota == null ? '—' : String(Math.round(f.nota))],
-    ['TER', f.ter == null ? '—' : `${cifra(f.ter)} %`],
-    ['3 años', pct(f.r3), tono(f.r3)],
-    ['SRRI', f.srri == null ? '—' : String(f.srri)],
-  ]
-  return (
-    <DetalleFondo isin={f.isin} nombre={f.nombre} divisa={f.divisa} seguido={seguido} seguir={() => seguir(f.isin)} categoria={f.categoria}
-      linea={`${f.isin} · ${f.gestion === 'indexada' ? 'indexado' : f.gestion === 'activa' ? 'gestión activa' : 'gestión sin dato'}${f.myinvestor ? ' · en MyInvestor' : ''}`}
-      nota={
-        <dl className="grid grid-cols-4 border-y border-borde">
-          {cifras.map(([k, v, cls], i) => (
-            <div key={k} className={`flex flex-col py-2 ${i ? 'border-l border-borde pl-2.5' : ''}`}>
-              <dt className="text-[11px] text-suave">{k}</dt><dd className={`cifra text-xl leading-tight tabular ${cls ?? ''}`}>{v}</dd>
-            </div>
-          ))}
-        </dl>}>
-      {f.nota == null
-        ? <p className="text-[13px] text-suave">{plazo ? `Menos de ${anos(plazo)} de historial: no tiene nota a ese plazo.` : 'Menos de 3 años de historial: no tiene nota.'}</p>
-        : <TablaNota bloques={f.bloques} pesos={pesos} nota={f.nota} />}
-      {pocos > 0 && <p className="text-[13px] text-aviso">Su categoría ({f.categoria}) solo tiene {pocos} fondos en el universo: los percentiles se calculan frente a ellos y la nota dice poco.</p>}
-      {f.solo3a && <p className="text-[12px] text-suave">Menos de 5 años: métricas a 3 años y, en los activos, consistencia solo con el ratio de información.</p>}
-    </DetalleFondo>
   )
 }

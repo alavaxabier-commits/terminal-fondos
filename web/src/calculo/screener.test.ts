@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_DEFECTO } from './nota'
-import { cubierta, grupo, mediana, ordenar, pasa, puntuar, tipoActivo } from './screener'
+import { alternativas, cubierta, grupo, mediana, ordenar, pasa, plazoDe, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
@@ -88,5 +88,24 @@ describe('región o estilo', () => {
     const f = fila({ pct: { '5a|rentabilidad': 50 } })
     expect(puntuar([f], PESOS_DEFECTO)[0].nota).toBe(50)
     expect(puntuar([f], PESOS_DEFECTO, new Map([['X', 100]]))[0].nota).toBeCloseTo((50 * 10 + 100 * 10) / 20)
+  })
+
+  it('alternativas en su categoría: más nota y más barato primero, luego parecida y más barata, luego mucha más nota', () => {
+    const pct = (n: number) => ({ '5a|rentabilidad': n, 'hoy|ter': n })
+    const fs = puntuar([
+      fila({ isin: 'YO', categoria: 'C', ter: 0.4, pct: pct(60) }),
+      fila({ isin: 'MEJOR', categoria: 'C', ter: 0.2, pct: pct(70) }),
+      fila({ isin: 'PARECIDO', categoria: 'C', ter: 0.3, pct: pct(58) }),
+      fila({ isin: 'CARO', categoria: 'C', ter: 0.9, pct: pct(80) }),
+      fila({ isin: 'PEOR', categoria: 'C', ter: 0.1, pct: pct(20) }),
+      fila({ isin: 'OTRA', categoria: 'D', ter: 0.1, pct: pct(99) }),
+    ], PESOS_DEFECTO)
+    const yo = fs.find((f) => f.isin === 'YO')!
+    expect(alternativas(yo, fs, false).map((a) => [a.f.isin, a.motivo])).toEqual([
+      ['MEJOR', 'Más nota y más barato'], ['PARECIDO', 'Nota parecida y 0,10 puntos más barato'], ['CARO', 'Más nota'],
+    ])
+    expect(plazoDe(yo)).toBe('5a')
+    expect(plazoDe(fila({ pct: { '3a|rentabilidad': 50 } }))).toBe('3a')
+    expect(plazoDe(yo, '10a')).toBe('10a')
   })
 })

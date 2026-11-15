@@ -122,3 +122,29 @@ export function puntuar(filas: FilaScreener[], pesos: Pesos, diversificacion?: M
     })
     .sort((a, b) => (b.nota ?? -1) - (a.nota ?? -1) || a.nombre.localeCompare(b.nombre))
 }
+
+/** Plazo de las cifras de la tarjeta: el elegido o, en automático, el de la nota del fondo (5 años si los tiene, si no 3). */
+export const plazoDe = (f: FilaScreener, plazo?: Plazo): Plazo => plazo ?? (f.pct && '5a|rentabilidad' in f.pct ? '5a' : '3a')
+
+/** Hasta tres fondos de la misma categoría que el elegido que merecen una mirada, con el porqué: más nota y más
+ * barato; nota parecida (±3) y al menos 0,05 puntos de TER menos; o claramente más nota (+5). En los monetarios
+ * cuenta lo que rinden a 3 meses en lugar de la nota (parecido = ±0,05 puntos). */
+export function alternativas(f: Puntuado, todos: Puntuado[], monetario: boolean): { f: Puntuado; motivo: string }[] {
+  const valor = (x: Puntuado) => (monetario ? cifraDe(x, '3m|rentabilidad') : x.nota)
+  const v = valor(f)
+  if (v == null) return []
+  const parecido = monetario ? 0.0005 : 3
+  const claro = monetario ? 0.001 : 5
+  const out: { f: Puntuado; motivo: string; orden: number }[] = []
+  for (const x of todos) {
+    const w = valor(x)
+    if (x.isin === f.isin || x.categoria !== f.categoria || w == null) continue
+    const barato = x.ter != null && f.ter != null && x.ter <= f.ter - 0.05
+    const masBarato = x.ter != null && f.ter != null && x.ter < f.ter
+    const que = monetario ? 'Rinde más' : 'Más nota'
+    if (w > v && masBarato) out.push({ f: x, motivo: `${que} y más barato`, orden: 0 })
+    else if (Math.abs(w - v) <= parecido && barato) out.push({ f: x, motivo: `${monetario ? 'Rinde casi igual' : 'Nota parecida'} y ${(f.ter! - x.ter!).toFixed(2).replace('.', ',')} puntos más barato`, orden: 1 })
+    else if (w - v >= claro) out.push({ f: x, motivo: que, orden: 2 })
+  }
+  return out.sort((a, b) => a.orden - b.orden || (valor(b.f) ?? 0) - (valor(a.f) ?? 0)).slice(0, 3).map(({ f, motivo }) => ({ f, motivo }))
+}
