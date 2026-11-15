@@ -125,6 +125,19 @@ export const GRUPOS: [string, string, [string, string][]][] = [
   ]],
 ]
 
+/** Tarjeta «Frente a su categoría» del resumen: cifra y percentil. */
+const FRENTE: [string, string, (v: number) => string][] = [
+  ['Rentabilidad 1 año', '1a|rentabilidad', (v) => pct(v)],
+  ['Rentabilidad 3 años, anual', '3a|rentabilidad', (v) => pct(v)],
+  ['Rentabilidad 5 años, anual', '5a|rentabilidad', (v) => pct(v)],
+  ['Volatilidad 3 años', '3a|volatilidad', (v) => pct(v, 1, false)],
+  ['Máxima caída 3 años', '3a|max_caida', (v) => pct(v)],
+  ['Sharpe 3 años', '3a|sharpe', (v) => cifra(v)],
+  ['Gastos (TER)', 'hoy|ter', (v) => `${cifra(v)} %`],
+  ['Alfa 3 años', '3a|alfa', (v) => pct(v)],
+  ['Consistencia', 'hist|consistencia', (v) => `${cifra(v, 0)} %`],
+]
+
 export default function Ficha({ isin }: { isin: string }) {
   const [datos, setDatos] = useState<Datos | null | undefined>(undefined)
   const [error, setError] = useState('')
@@ -260,28 +273,27 @@ export default function Ficha({ isin }: { isin: string }) {
             </Tarjeta>
 
 
+              {ultimosAnos.length > 0 && (
+                <Tarjeta titulo="Por año natural" extra={<span className="text-[12px] text-suave">cuartil en su categoría · 1 es el mejor</span>}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[420px] table-fixed tabular">
+                      <thead><tr className="text-[11px] text-suave">{ultimosAnos.map((a) => <th key={a} className="pb-1 text-right font-normal">{a}</th>)}{ytd != null && <th className="pb-1 text-right font-normal">Este año</th>}</tr></thead>
+                      <tbody>
+                        <tr className="text-[13px]">
+                          {ultimosAnos.map((a) => { const v = m.get(`${a}|rentabilidad`)?.valor ?? null; return <td key={a} className={`py-1 text-right ${tono(v)}`}>{v == null ? '—' : pct(v, 1, false).replace(' %', '')}</td> })}
+                          {ytd != null && <td className={`py-1 text-right ${tono(ytd)}`}>{pct(ytd, 1, false).replace(' %', '')}</td>}
+                        </tr>
+                        <tr>
+                          {ultimosAnos.map((a) => <td key={a} className="pl-1 text-right"><Cuartil p={m.get(`${a}|rentabilidad`)?.percentil} /></td>)}
+                          {ytd != null && <td className="pl-1 text-right"><Cuartil p={m.get('ytd|rentabilidad')?.percentil} /></td>}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-2 text-[11px] text-suave">Rentabilidad en %, en euros.</p>
+                </Tarjeta>
+              )}
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-4">
-                {ultimosAnos.length > 0 && (
-                  <Tarjeta titulo="Por año natural" extra={<span className="text-[12px] text-suave">cuartil en su categoría · 1 es el mejor</span>}>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[420px] tabular">
-                        <thead><tr className="text-[11px] text-suave">{ultimosAnos.map((a) => <th key={a} className="pb-1 text-right font-normal">{a}</th>)}{ytd != null && <th className="pb-1 text-right font-normal">Este año</th>}</tr></thead>
-                        <tbody>
-                          <tr className="text-[13px]">
-                            {ultimosAnos.map((a) => { const v = m.get(`${a}|rentabilidad`)?.valor ?? null; return <td key={a} className={`py-1 text-right ${tono(v)}`}>{v == null ? '—' : pct(v, 1, false).replace(' %', '')}</td> })}
-                            {ytd != null && <td className={`py-1 text-right ${tono(ytd)}`}>{pct(ytd, 1, false).replace(' %', '')}</td>}
-                          </tr>
-                          <tr>
-                            {ultimosAnos.map((a) => <td key={a} className="pl-1 text-right"><Cuartil p={m.get(`${a}|rentabilidad`)?.percentil} /></td>)}
-                            {ytd != null && <td className="pl-1 text-right"><Cuartil p={m.get('ytd|rentabilidad')?.percentil} /></td>}
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="mt-2 text-[11px] text-suave">Rentabilidad en %, en euros.</p>
-                  </Tarjeta>
-                )}
                 <Tarjeta titulo="Datos del fondo">
                   <dl className="divide-y divide-borde text-[13px]">
                     {([
@@ -300,23 +312,36 @@ export default function Ficha({ isin }: { isin: string }) {
                         ['Calidad media', f.calidad_media ?? '—'],
                       ] : []),
                     ] as [string, React.ReactNode][]).map(([k, v]) => (
-                      <div key={k} className="flex items-center justify-between gap-4 py-1.5">
+                      <div key={k} className="flex items-center justify-between gap-4 py-1">
                         <dt className="text-suave">{k}</dt><dd className="text-right tabular">{v}</dd>
                       </div>
                     ))}
                   </dl>
                 </Tarjeta>
-              </div>
-              <div className="space-y-4">
-                <Tarjeta titulo={`Por qué la nota${b?.solo3a ? ' · con métricas a 3 años' : ''}`}>
-                  {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_DEFECTO} nota={e.nota} /> : <p className="text-suave">—</p>}
-                  <p className="mt-2 text-[11px] text-suave">Pesos por defecto, sin Diversificación (la nota de las señales). Bloques con las métricas de hoy.</p>
-                </Tarjeta>
-                <Tarjeta titulo="Nota por semana">
-                  {datos.notas.length > 1 ? <Grafico lineas={[{ nombre: 'Nota', serie: datos.notas.map((n) => ({ fecha: n.fecha, valor: n.nota })), color: 'acento' }]} alto="h-48" />
-                    : <p className="text-suave">—</p>}
-                </Tarjeta>
-              </div>
+              <Tarjeta titulo="Frente a su categoría" extra={<span className="text-[12px] text-suave">percentil · 100 es el mejor</span>}>
+                <dl className="divide-y divide-borde text-[13px]">
+                  {FRENTE.filter(([, k]) => m.has(k)).slice(0, f.duracion_efectiva != null || f.calidad_media ? 9 : 7).map(([et, k, fmt]) => {
+                    const x = m.get(k)!
+                    return (
+                      <div key={k} className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,9rem)] items-center gap-3 py-1">
+                        <dt className="truncate text-suave">{et}</dt>
+                        <dd className="text-right tabular">{fmt(x.valor)}</dd>
+                        <dd>{x.percentil != null ? <BarraPercentil p={x.percentil} /> : <span className="text-[11px] text-suave">sin percentil</span>}</dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              </Tarjeta>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Tarjeta titulo={`Por qué la nota${b?.solo3a ? ' · con métricas a 3 años' : ''}`}>
+                {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_DEFECTO} nota={e.nota} /> : <p className="text-suave">—</p>}
+                <p className="mt-2 text-[11px] text-suave">Pesos por defecto, sin Diversificación (la nota de las señales). Bloques con las métricas de hoy.</p>
+              </Tarjeta>
+              <Tarjeta titulo="Nota por semana">
+                {datos.notas.length > 1 ? <Grafico lineas={[{ nombre: 'Nota', serie: datos.notas.map((n) => ({ fecha: n.fecha, valor: n.nota })), color: 'acento' }]} alto="h-56" />
+                  : <p className="text-suave">—</p>}
+              </Tarjeta>
             </div>
           </>
         )}
