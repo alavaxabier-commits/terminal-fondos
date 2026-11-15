@@ -1,12 +1,16 @@
 import { Fragment, useEffect, useState } from 'react'
 import { cifra, fecha } from '../calculo/formato'
 import { TIPOS, tipoActivo } from '../calculo/screener'
+import { encaje, type Diversificacion } from '../calculo/encaje'
+import { pct } from '../calculo/formato'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
+import { variacion } from '../calculo/series'
 import Bandeja from '../componentes/Bandeja'
 import DetalleFondo from '../componentes/DetalleFondo'
 import { useTeclasLista } from '../componentes/teclas'
 import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
+import { serieEur } from '../datos/series'
 
 type Fila = Awaited<ReturnType<typeof q.seguidos>>[number]
 type Vista = 'activos' | 'candidato' | 'descartado'
@@ -21,6 +25,9 @@ export default function Seguimiento() {
   const [notas, setNotas] = useState<Map<string, NotaSemanal[]>>(new Map())
   const [vista, setVista] = useState<Vista>('activos')
   const [sel, setSel] = useState<string | null>(null)
+  const [carteras, setCarteras] = useState<NonNullable<Awaited<ReturnType<typeof q.cartera>>>[]>([])
+  const [div, setDiv] = useState<Diversificacion[]>([])
+  const [desdeAlta, setDesdeAlta] = useState<Map<string, number | null>>(new Map())
   const [error, setError] = useState('')
   const falla = (e: Error) => setError(e.message)
 
@@ -30,12 +37,22 @@ export default function Seguimiento() {
       const m = new Map<string, NotaSemanal[]>()
       for (const n of await q.notasDe(f.map((x) => x.isin))) m.set(n.isin, [...(m.get(n.isin) ?? []), n])
       setNotas(m)
+      setVista((v) => (v === 'activos' && f.some((x) => x.estado === 'candidato') ? 'candidato' : v)) // lo primero que se mira: los candidatos
+      q.diversificacionDe(f.map((x) => x.isin)).then(setDiv).catch(falla)
+      // La rentabilidad desde el alta es accesoria: si una serie falla, ese fondo va sin ella.
+      for (const x of f) serieEur(x.isin, x.fondo.divisa).then((s) => setDesdeAlta((d) => new Map(d).set(x.isin, variacion(s, x.alta.slice(0, 10))))).catch(() => {})
     }).catch(falla)
+    q.carteras().then((cs) => Promise.all(cs.map((c) => q.cartera(c.id)))).then((d) => setCarteras(d.filter((x) => x != null))).catch(falla)
   }, [])
 
   const cambiar = (isin: string, c: Partial<Pick<Fila, 'estado' | 'nota'>>) => {
     setFilas((fs) => fs!.map((f) => (f.isin === isin ? { ...f, ...c } : f)))
     q.cambiarSeguimiento(isin, c).catch(falla)
+  }
+  const estado = (f: Fila, e: Fila['estado']) => {
+    if (e !== 'descartado') return cambiar(f.isin, { estado: e })
+    const motivo = prompt('¿Por qué lo descartas? (se guarda en tu nota)', f.nota ?? '')
+    if (motivo !== null) cambiar(f.isin, { estado: e, nota: motivo || null })
   }
   const quitar = (isin: string) => {
     if (!confirm('¿Dejar de seguir este fondo? Se borra también tu nota.')) return
@@ -94,6 +111,7 @@ export default function Seguimiento() {
                 <th className="font-normal">Nota</th>
                 <th className="font-normal">Semana</th>
                 <th className="font-normal">12 meses</th>
+                <th className="font-normal">Desde alta</th>
                 <th className="font-normal">TER</th>
                 <th className="text-left font-normal">MyInvestor</th>
                 <th className="text-left font-normal">Mi nota</th>
@@ -108,7 +126,7 @@ export default function Seguimiento() {
                   <Fragment key={f.isin}>
                   {nueva && (
                     <tr className="border-b border-borde">
-                      <th colSpan={9} scope="colgroup" className="pt-4 pb-1 text-left text-[11px] font-normal uppercase tracking-widest text-acento">
+                      <th colSpan={10} scope="colgroup" className="pt-4 pb-1 text-left text-[11px] font-normal uppercase tracking-widest text-acento">
                         {categoria(f)} <span className="text-suave">· {porCategoria(categoria(f))}</span>
                       </th>
                     </tr>
@@ -121,7 +139,7 @@ export default function Seguimiento() {
                       <span className="block text-suave">desde {fecha(f.alta)}</span>
                     </td>
                     <td className="text-left">
-                      <select value={f.estado} aria-label="Estado" onChange={(x) => cambiar(f.isin, { estado: x.target.value as Fila['estado'] })}
+                      <select value={f.estado} aria-label="Estado" onChange={(x) => estado(f, x.target.value as Fila['estado'])}
                         className={`${control} ${f.estado === 'candidato' ? 'text-acento' : ''}`}>
                         <option>vigilando</option><option>candidato</option><option>descartado</option>
                       </select>
@@ -129,10 +147,11 @@ export default function Seguimiento() {
                     <td>{e ? <><span className="text-acento">{Math.round(e.nota)}</span>{e.percentil != null && <span className="text-suave"> p{Math.round(e.percentil)}</span>}</> : <span className="text-suave">sin nota</span>}</td>
                     <td>{cambio(e?.semana ?? null)}</td>
                     <td>{cambio(e?.periodo ?? null)}</td>
+                    <td>{desdeAlta.get(f.isin) == null ? <span className="text-suave">—</span> : pct(desdeAlta.get(f.isin))}</td>
                     <td>{f.fondo.ter == null ? '—' : `${cifra(f.fondo.ter)} %`}</td>
                     <td className={`text-left ${f.myinvestor ? 'text-sube' : 'text-suave'}`}>{f.myinvestor ? 'sí' : 'no'}</td>
                     <td className="text-left">
-                      <input defaultValue={f.nota ?? ''} placeholder="por qué lo sigo" aria-label="Mi nota"
+                      <input key={f.nota} defaultValue={f.nota ?? ''} placeholder="por qué lo sigo" aria-label="Mi nota"
                         onBlur={(x) => x.target.value !== (f.nota ?? '') && cambiar(f.isin, { nota: x.target.value || null })}
                         className={`${control} w-44`} />
                     </td>
@@ -153,7 +172,10 @@ export default function Seguimiento() {
                     <span className="block"><span className="text-suave">semana </span>{cambio(ev.semana)}<span className="text-suave"> · 12 meses </span>{cambio(ev.periodo)}</span></p>
                 : <p className="text-suave">Sin nota: fuera del universo o menos de 3 años de historia.</p>}>
               <p><span className="text-suave">estado </span><span className={elegido.estado === 'candidato' ? 'text-acento' : ''}>{elegido.estado}</span>
-                <span className="text-suave"> · desde {fecha(elegido.alta)}</span>{elegido.nota && <span className="block text-suave">«{elegido.nota}»</span>}</p>
+                <span className="text-suave"> · desde {fecha(elegido.alta)}</span>
+                {desdeAlta.get(elegido.isin) != null && <span className="text-suave"> · {pct(desdeAlta.get(elegido.isin))} desde entonces</span>}
+                {elegido.nota && <span className="block text-suave">«{elegido.nota}»</span>}</p>
+              <Encajes e={encaje({ isin: elegido.isin, categoria: elegido.fondo.categoria }, carteras, div)} isin={elegido.isin} />
             </DetalleFondo>
           </aside>
         )}
@@ -161,6 +183,33 @@ export default function Seguimiento() {
       )}
       <Bandeja />
       <p className="text-suave">El estado y tu nota se guardan al momento (la nota, al salir del campo). MyInvestor sale de su catálogo, que se renueva cada semana. Los fondos en seguimiento que no estén descartados tienen precios diarios desde la siguiente descarga.</p>
+    </div>
+  )
+}
+
+/** Qué aportaría el fondo a cada cartera: su correlación con ella, el fondo de su categoría al que sustituiría y el simulador. */
+function Encajes({ e, isin }: { e: ReturnType<typeof encaje>; isin: string }) {
+  if (!e.length) return null
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-widest text-suave">Encaje en tus carteras</p>
+      <ul className="divide-y divide-borde/50">
+        {e.map((x) => (
+          <li key={x.cartera.id} className="py-1">
+            <a href={`#/cartera/${x.cartera.id}`} className="hover:text-acento">{x.cartera.nombre}</a>
+            {x.dentro ? <span className="text-suave"> · ya está en ella</span> : (
+              <>
+                <span className="block text-suave">
+                  {x.correlacion == null ? 'sin correlación calculada (fuera del universo o cartera nueva)' : `correlación ${cifra(x.correlacion)}${x.percentil == null ? '' : ` · diversifica más que el ${Math.round(x.percentil)} % de su categoría`}`}
+                </span>
+                {x.sustituye
+                  ? <a href={`#/simular/${x.cartera.id}/${x.sustituye.isin}/${isin}`} className="block hover:text-acento">probar en lugar de {x.sustituye.nombre} ({cifra(x.sustituye.peso, 0)} %) →</a>
+                  : <span className="block text-suave">ningún fondo de su categoría al que sustituir</span>}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

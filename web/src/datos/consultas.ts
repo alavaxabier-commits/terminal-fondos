@@ -379,6 +379,15 @@ export async function diversificacion(carteraId: number): Promise<{ percentiles:
   return { percentiles, base: await baseDiversificacion(carteraId) }
 }
 
+/** Correlación y percentil de diversificación de unos fondos frente a todas las carteras (los que están fuera del universo no tienen). */
+export async function diversificacionDe(isins: string[]): Promise<import('../calculo/encaje').Diversificacion[]> {
+  if (!isins.length) return []
+  const { data, error: e } = await supabase.from('diversificacion').select('cartera_id,isin,correlacion,percentil').in('isin', isins).limit(1000)
+  error(e)
+  return ((data ?? []) as { cartera_id: number; isin: string; correlacion: string; percentil: string | null }[])
+    .map((r) => ({ ...r, correlacion: Number(r.correlacion), percentil: r.percentil == null ? null : Number(r.percentil) }))
+}
+
 /** Con qué fondos de una cartera se calculó su diversificación, y cuándo. */
 export async function baseDiversificacion(carteraId: number): Promise<{ isins: string[]; calculada_en: string } | null> {
   const { data, error: e } = await supabase.from('diversificacion_base').select('isins,calculada_en').eq('cartera_id', carteraId).maybeSingle()
