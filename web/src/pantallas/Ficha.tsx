@@ -374,9 +374,9 @@ export default function Ficha({ isin }: { isin: string }) {
               <Tarjeta titulo="Rendimiento reciente" extra={<span className="text-[12px] text-suave">monetario · anualizado, con la serie diaria y neto de gastos</span>}>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[520px] tabular">
-                    <thead><tr className="text-[12px] text-suave"><th />{['1 mes', '2 meses', '3 meses'].map((t) => <th key={t} className="w-[20%] pb-1.5 pl-4 text-right font-normal">{t}</th>)}</tr></thead>
+                    <thead><tr className="text-[12px] text-suave"><th />{['Último mes', '2 meses', '3 meses'].map((t) => <th key={t} className="w-[20%] pb-1.5 pl-4 text-right font-normal">{t}</th>)}</tr></thead>
                     <tbody>
-                      {([['rentabilidad', 'Rentabilidad anualizada', '(final / inicial) elevado a 12/N, menos 1.'], ['diferencial_estr', 'Frente al €STR', 'Lo que rinde de más sobre el €STR medio de esos meses.']] as const).map(([k, et, ayuda]) => (
+                      {([['rentabilidad', 'Lo que rinde ahora, en % anual', 'Lo ganado en ese tiempo, pasado a un año.'], ['diferencial_estr', 'Frente al €STR', 'Lo que rinde de más sobre el €STR medio de esos meses.']] as const).map(([k, et, ayuda]) => (
                         <tr key={k} className="border-t border-borde/60">
                           <td className="py-2 pr-4 text-left"><span className="block">{et}</span><span className="block text-[12px] text-suave">{ayuda}</span></td>
                           {['1m', '2m', '3m'].map((v) => {
@@ -389,7 +389,7 @@ export default function Ficha({ isin }: { isin: string }) {
                   </table>
                 </div>
                 <dl className="mt-3 grid gap-x-8 border-t border-borde pt-3 text-[13px] sm:grid-cols-2">
-                  {([['hoy|tendencia', 'Tendencia (1M − 3M)', (v: number) => `${v >= 0 ? '▲' : '▼'} ${pct(v, 2)}`], ['12m|meses_negativos', 'Meses negativos (12 meses)', (v: number) => cifra(v, 0)]] as const).map(([k, et, fmt]) => {
+                  {([['hoy|tendencia', '¿Sube o baja? (último mes vs 3 meses)', (v: number) => `${v >= 0 ? '▲ sube' : '▼ baja'} ${cifra(Math.abs(v) * 100, 2)} pts`], ['12m|meses_negativos', 'Meses negativos (12 meses)', (v: number) => cifra(v, 0)]] as const).map(([k, et, fmt]) => {
                     const x = m.get(k)
                     return (
                       <div key={k} className="grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,8rem)] items-center gap-3 py-1">
@@ -399,7 +399,7 @@ export default function Ficha({ isin }: { isin: string }) {
                     )
                   })}
                 </dl>
-                <p className="mt-2 text-[11px] text-suave">Una ventana corta es ruidosa: mira las tres juntas y la tendencia. En clases de distribución el cupón no entra y la cifra sale baja.</p>
+                <p className="mt-2 text-[11px] text-suave">Un mes solo es ruidoso: mira los tres plazos juntos. «Sube o baja» compara el último mes con la media de 3, en puntos. En clases de distribución el cupón no entra y la cifra sale baja.</p>
               </Tarjeta>
             )}
             {GRUPOS.map(([grupo, ayudaGrupo, claves]) => (

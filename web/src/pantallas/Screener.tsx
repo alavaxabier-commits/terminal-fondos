@@ -148,9 +148,9 @@ export default function Screener() {
   const franja = monetarios ? [
     { etiqueta: 'Pasan los filtros', valor: cifra(puntuados.length, 0), pie: datos ? `de ${cifra(datos.length, 0)} fondos` : '' },
     { etiqueta: 'En MyInvestor', valor: cifra(mi, 0), pie: puntuados.length ? pct(mi / puntuados.length, 0, false) : '—' },
-    { etiqueta: '3 meses, anualizada (mediana)', valor: pct(mediana(puntuados.map((f) => cifraDe(f, '3m|rentabilidad'))), 2),
+    { etiqueta: 'Rinde ahora, 3 meses (mediana)', valor: pct(mediana(puntuados.map((f) => cifraDe(f, '3m|rentabilidad'))), 2),
       pie: `mejor: ${pct(Math.max(...puntuados.map((f) => cifraDe(f, '3m|rentabilidad') ?? -Infinity)), 2)}` },
-    { etiqueta: '3M − €STR (mediana)', valor: pct(mediana(puntuados.map((f) => cifraDe(f, '3m|diferencial_estr'))), 2), pie: 'neto de gastos' },
+    { etiqueta: 'Por encima del €STR (mediana)', valor: pct(mediana(puntuados.map((f) => cifraDe(f, '3m|diferencial_estr'))), 2), pie: 'en % anual, neto de gastos' },
     { etiqueta: 'TER mediano', valor: ters.some((t) => t != null) ? `${cifra(mediana(ters))} %` : '—', pie: `mínimo ${cifra(Math.min(...ters.filter((t): t is number => t != null)))} %` },
   ] : [
     { etiqueta: 'Pasan los filtros', valor: cifra(puntuados.length, 0), pie: datos ? `de ${cifra(datos.length, 0)} fondos` : '' },
@@ -335,7 +335,7 @@ export default function Screener() {
           ))}
           <p className="text-[12px] text-suave">
             {monetarios
-              ? 'Monetarios: rentabilidad anualizada de los últimos 1, 2 y 3 meses (con la serie diaria, neta de gastos), la de 12 meses, su diferencia con el €STR, la tendencia (1M − 3M) y los meses negativos del último año. En clases de distribución, el cupón no entra y la cifra sale baja. Pasa el cursor por una cifra para ver su percentil.'
+              ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. «¿Sube o baja?»: el último mes frente a la media de 3 meses, en puntos. En clases de distribución el cupón no entra y la cifra sale baja. Pasa el cursor por una cifra para ver su percentil.'
               : 'La barra de la nota se reparte por bloques, con los colores de los pesos. 3A: métricas a 3 años · «de N»: categoría con pocos fondos · ★ ya en seguimiento. Al final, los fondos con menos de 3 años, sin nota. Sin gestión conocida, un fondo cuenta como activo.'}
           </p>
         </div>
@@ -401,7 +401,7 @@ function Cabecera({ o, texto, titulo, orden, setOrden, clase = '' }: { o: Orden;
 /** Nombre, etiquetas y categoría de un fondo en la lista. */
 function CeldaFondo({ f, conCategoria, extra }: { f: Puntuado; conCategoria: boolean; extra?: React.ReactNode }) {
   return (
-    <td className="py-2 pl-3 text-left">
+    <td className="whitespace-normal py-2 pl-3 text-left">
       <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.nombre}</a>
       {f.myinvestor && <span className="ml-1.5 rounded-full bg-acento/15 px-1.5 align-[1px] text-[10px] text-acento" title="Se puede comprar en MyInvestor">MI</span>}
       {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-full bg-borde/60 px-1.5 align-[1px] text-[10px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
@@ -434,7 +434,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
   const cab = { orden, setOrden }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[46rem] text-right text-[13px] tabular">
+      <table className="w-full min-w-[46rem] whitespace-nowrap text-right text-[13px] tabular">
         <thead className="text-[12px] text-suave">
           <tr>
             <th className="w-8 pb-1.5 pl-1 text-left font-normal">#</th>
@@ -486,18 +486,23 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
   const c = (f: Puntuado, k: string) => [cifraDe(f, k), percentilDe(f, k)] as const
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[52rem] text-right text-[13px] tabular">
+      <table className="w-full min-w-[50rem] whitespace-nowrap text-right text-[13px] tabular">
         <thead className="text-[12px] text-suave">
+          <tr className="text-[11px]">
+            <th colSpan={2} />
+            <th colSpan={3} className="border-b border-borde pb-1 pl-3 text-center font-normal">Lo que rinde ahora, en % anual</th>
+            <th colSpan={6} />
+          </tr>
           <tr>
             <th className="w-8 pb-1.5 pl-1 text-left font-normal">#</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
-            <Cabecera o="m1" texto="1M" titulo="Rentabilidad anualizada del último mes" {...cab} />
-            <Cabecera o="m2" texto="2M" titulo="Rentabilidad anualizada de los últimos 2 meses" {...cab} />
-            <Cabecera o="m3" texto="3M" titulo="Rentabilidad anualizada de los últimos 3 meses" {...cab} />
-            <Cabecera o="m12" texto="12M" titulo="Rentabilidad de los últimos 12 meses" {...cab} />
-            <Cabecera o="dif" texto="3M − €STR" titulo="Diferencia entre la rentabilidad a 3 meses y el €STR medio de esos meses" {...cab} />
-            <Cabecera o="tend" texto="Tendencia" titulo="1M − 3M: positiva si el rendimiento sube" {...cab} />
-            <Cabecera o="mneg" texto="Meses < 0" titulo="Meses naturales negativos en los últimos 12" {...cab} />
+            <Cabecera o="m1" texto="Último mes" titulo="Lo que ha ganado el último mes, pasado a un año (% anual)" {...cab} />
+            <Cabecera o="m2" texto="2 meses" titulo="Lo que ha ganado en los últimos 2 meses, pasado a un año (% anual)" {...cab} />
+            <Cabecera o="m3" texto="3 meses" titulo="Lo que ha ganado en los últimos 3 meses, pasado a un año (% anual)" {...cab} />
+            <Cabecera o="dif" texto="vs €STR" titulo="3 meses: puntos que rinde por encima (o por debajo) del €STR medio de esos 3 meses" {...cab} />
+            <Cabecera o="m12" texto="12 meses" titulo="Lo que ha ganado de verdad en los últimos 12 meses" {...cab} />
+            <Cabecera o="tend" texto="¿Sube o baja?" titulo="Último mes frente a 3 meses: ▲ rinde más ahora que de media en los 3 meses; ▼ rinde menos (por ejemplo, porque bajan los tipos)" {...cab} />
+            <Cabecera o="mneg" texto="Meses < 0" titulo="Meses naturales en pérdidas en los últimos 12; un monetario no debería tener ninguno" {...cab} />
             <Cabecera o="ter" texto="TER" {...cab} />
             <th className="w-8"><span className="sr-only">Seguir</span></th>
           </tr>
@@ -510,12 +515,13 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
             return (
               <Fila key={f.isin} f={f} i={i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
                 <CeldaFondo f={f} conCategoria={conCategoria} />
-                {(['1m|rentabilidad', '2m|rentabilidad', '3m|rentabilidad', '1a|rentabilidad'] as const).map((k) => {
+                {(['1m|rentabilidad', '2m|rentabilidad', '3m|rentabilidad'] as const).map((k) => {
                   const [v, p] = c(f, k)
                   return <ConPct key={k} v={v} p={p} texto={pct(v, 2, false)} clase={k === '3m|rentabilidad' ? 'font-medium' : ''} />
                 })}
                 <ConPct v={dif} p={pDif} texto={pct(dif, 2)} clase={tono(dif)} />
-                <ConPct v={tend} p={pTend} texto={`${tend != null && tend >= 0 ? '▲' : '▼'} ${pct(tend, 2)}`} clase={tono(tend)} />
+                <ConPct v={cifraDe(f, '1a|rentabilidad')} p={percentilDe(f, '1a|rentabilidad')} texto={pct(cifraDe(f, '1a|rentabilidad'), 2, false)} />
+                <ConPct v={tend} p={pTend} texto={tend == null ? '' : `${tend >= 0 ? '▲ sube' : '▼ baja'} ${cifra(Math.abs(tend) * 100, 2)}`} clase={tono(tend)} />
                 <ConPct v={neg} p={pNeg} texto={cifra(neg, 0)} clase={neg ? 'text-baja' : ''} />
                 <td className="pl-3">{f.ter == null ? <span className="text-suave">—</span> : `${cifra(f.ter)} %`}</td>
               </Fila>
