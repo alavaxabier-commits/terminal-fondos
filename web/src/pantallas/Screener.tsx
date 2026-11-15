@@ -364,7 +364,7 @@ function Detalle({ f, plazo, pocos, pesos, seguido, seguir }: { f: Puntuado; pla
       linea={`${f.isin} · ${f.gestion ?? 'gestión sin dato'} · TER ${f.ter == null ? '—' : `${cifra(f.ter)} %`} · SRRI ${f.srri ?? '—'}`}
       nota={f.nota == null
         ? <p className="text-suave">{plazo ? `Menos de ${anos(plazo)} de historial: no tiene nota a ese plazo.` : 'Menos de 3 años de historial: no tiene nota.'}</p>
-        : <p className="tabular"><span className="text-3xl text-acento">{Math.round(f.nota)}</span><span className="text-suave"> nota{plazo ? ` a ${anos(plazo)}` : ''} · {f.categoria}</span></p>}>
+        : <p className="tabular"><span className="cifra text-4xl text-acento">{Math.round(f.nota)}</span><span className="text-suave"> nota{plazo ? ` a ${anos(plazo)}` : ''} · {f.categoria}</span></p>}>
       {f.nota != null && <TablaNota bloques={f.bloques} pesos={pesos} nota={f.nota} />}
       {pocos > 0 && <p className="text-aviso">Su categoría ({f.categoria}) solo tiene {pocos} fondos en el universo: los percentiles se calculan frente a ellos y la nota dice poco.</p>}
       {f.solo3a && <p className="text-suave">Menos de 5 años: métricas a 3 años y, en los activos, consistencia solo con el ratio de información.</p>}

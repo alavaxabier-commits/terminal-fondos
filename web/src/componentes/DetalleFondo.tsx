@@ -19,7 +19,7 @@ export default function DetalleFondo({ isin, nombre, divisa, linea, nota, childr
     serieEur(isin, divisa).then((s) => vigente && setSerie(s)).catch(() => vigente && setSerie([]))
     return () => { vigente = false }
   }, [isin, divisa])
-  const lineas = useMemo(() => (serie?.length ? [{ nombre: 'Base 100 · 3A', serie: base100(serie, haceAnos(serie.at(-1)!.fecha, 3)), color: '#5cc8e6' }] : []), [serie])
+  const lineas = useMemo(() => (serie?.length ? [{ nombre: 'Base 100 · 3A', serie: base100(serie, haceAnos(serie.at(-1)!.fecha, 3)), color: 'acento' }] : []), [serie])
 
   const boton = 'min-h-8 border px-3'
   return (

@@ -1,27 +1,55 @@
 @import "tailwindcss";
 
-/* Estética de terminal: fondo casi negro, monoespaciada, cian de acento, verde/rojo solo para subir/bajar y ámbar para avisos. */
+/* Estética «serifa · petróleo y arena»: Geist para leer, Instrument Serif para títulos y cifras grandes, petróleo de acento,
+   verde/rojo solo para subir/bajar y arena para avisos. Tema claro por defecto; oscuro con data-tema="oscuro" o, en «sistema», si el sistema lo pide. */
 @theme {
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --color-fondo: #0b0e0d;
-  --color-panel: #121715;
-  --color-borde: #24302b;
-  --color-texto: #d6e2dc;
-  --color-suave: #7d8f86;
-  --color-acento: #5cc8e6;
-  --color-sube: #4fd18b;
-  --color-baja: #ff6b6b;
-  --color-aviso: #f2b84b;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --color-fondo: #eef2f2;
+  --color-panel: #ffffff;
+  --color-borde: #d8e1e0;
+  --color-texto: #10211f;
+  --color-suave: #5a6967;
+  --color-acento: #0f5e66;
+  --color-sube: #177a4f;
+  --color-baja: #b5462f;
+  --color-aviso: #95701f;
+  /* Líneas de más en gráficos y comparador. */
+  --color-serie2: #b8913a;
+  --color-serie3: #5f83a8;
+  --color-serie4: #c26a4f;
+  --color-serie5: #7a6aa8;
+}
+@utility cifra { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
+
+@layer base {
+  :root[data-tema="oscuro"] {
+    --color-fondo: #0b1415; --color-panel: #122022; --color-borde: #22373a; --color-texto: #e1ecea; --color-suave: #8fa5a3;
+    --color-acento: #5fb6bd; --color-sube: #5fd0a2; --color-baja: #ff8b73; --color-aviso: #e3bd6a;
+    --color-serie2: #e0bf73; --color-serie3: #93b4d6; --color-serie4: #e8927a; --color-serie5: #b3a3e0;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema]) {
+      --color-fondo: #0b1415; --color-panel: #122022; --color-borde: #22373a; --color-texto: #e1ecea; --color-suave: #8fa5a3;
+      --color-acento: #5fb6bd; --color-sube: #5fd0a2; --color-baja: #ff8b73; --color-aviso: #e3bd6a;
+      --color-serie2: #e0bf73; --color-serie3: #93b4d6; --color-serie4: #e8927a; --color-serie5: #b3a3e0;
+      color-scheme: dark;
+    }
+  }
 }
 
 html, body, #raiz { height: 100%; }
 body {
   background: var(--color-fondo);
   color: var(--color-texto);
-  font-family: var(--font-mono);
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
 }
-::selection { background: #1f4b58; }
+::selection { background: color-mix(in srgb, var(--color-acento) 25%, transparent); }
 input { font: inherit; }
 .tabular { font-variant-numeric: tabular-nums; }
+/* Fuera de capa a propósito: manda sobre text-lg/font-bold de los h1 de cada pantalla. */
+h1 { font-family: var(--font-serif); font-weight: 400; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; }

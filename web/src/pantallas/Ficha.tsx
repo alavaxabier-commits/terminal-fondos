@@ -110,8 +110,8 @@ export default function Ficha({ isin }: { isin: string }) {
     if (!datos?.serie.length) return []
     const ultima = datos.serie.at(-1)!.fecha
     const desde = inicioComun([datos.serie, datos.serieRef], haceAnos(ultima, rango))
-    const out = [{ nombre: 'Fondo', serie: base100(datos.serie, desde), color: '#5cc8e6' }]
-    if (datos.serieRef.length) out.push({ nombre: datos.ref.indice?.nombre ?? 'Índice', serie: base100(datos.serieRef, desde), color: '#7d8f86' })
+    const out = [{ nombre: 'Fondo', serie: base100(datos.serie, desde), color: 'acento' }]
+    if (datos.serieRef.length) out.push({ nombre: datos.ref.indice?.nombre ?? 'Índice', serie: base100(datos.serieRef, desde), color: 'suave' })
     return out
   }, [datos, rango])
 
@@ -155,7 +155,7 @@ export default function Ficha({ isin }: { isin: string }) {
         <div className="flex flex-col items-end gap-2">
           {e ? (
             <p className="text-right tabular" title="Nota del screener (pesos por defecto, sin Diversificación)">
-              <span className="text-3xl text-acento">{Math.round(e.nota)}</span>
+              <span className="cifra text-4xl text-acento">{Math.round(e.nota)}</span>
               <span className="block text-suave">
                 {e.percentil != null && <>p{Math.round(e.percentil)} de su categoría</>}
                 {e.periodo != null && <span className={e.periodo >= 0 ? 'text-sube' : 'text-baja'}> · {e.periodo >= 0 ? '+' : ''}{cifra(e.periodo, 0)} en 12 meses</span>}
@@ -235,7 +235,7 @@ export default function Ficha({ isin }: { isin: string }) {
               </div>
               <div className="space-y-2">
                 <h2 className={titulo}>Nota del screener por semana</h2>
-                {datos.notas.length > 1 ? <Grafico lineas={[{ nombre: 'Nota', serie: datos.notas.map((n) => ({ fecha: n.fecha, valor: n.nota })), color: '#5cc8e6' }]} alto="h-48" />
+                {datos.notas.length > 1 ? <Grafico lineas={[{ nombre: 'Nota', serie: datos.notas.map((n) => ({ fecha: n.fecha, valor: n.nota })), color: 'acento' }]} alto="h-48" />
                   : <p className="text-suave">—</p>}
               </div>
             </section>

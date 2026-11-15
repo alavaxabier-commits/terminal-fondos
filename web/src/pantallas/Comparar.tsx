@@ -14,7 +14,7 @@ import { serieEur } from '../datos/series'
 type Datos = { fondo: q.Fondo; serie: Punto[]; metricas: Map<string, q.Metrica>; comp: Composicion | null }
 
 export const MAX_COMPARAR = 5
-const COLORES = ['#5cc8e6', '#e0b84f', '#4fd18b', '#e0736f', '#c58cf0']
+const COLORES = ['acento', 'serie2', 'serie3', 'serie4', 'serie5'] // tokens de estilos.css
 const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
 
 async function cargar(isin: string): Promise<Datos | null> {
@@ -67,7 +67,7 @@ export default function Comparar({ isins }: { isins: string[] }) {
         <ul className="flex flex-wrap gap-2">
           {isins.map((i, k) => (
             <li key={i} className="flex items-center gap-2 border border-borde px-2 py-1">
-              <span style={{ color: COLORES[k] }} aria-hidden="true">■</span>
+              <span style={{ color: `var(--color-${COLORES[k]})` }} aria-hidden="true">■</span>
               <a href={`#/fondo/${i}`} className="hover:text-acento">{datos.get(i)?.fondo.nombre ?? i}</a>
               <button onClick={() => ir(isins.filter((x) => x !== i))} aria-label={`Quitar ${datos.get(i)?.fondo.nombre ?? i}`} className="text-suave hover:text-baja">×</button>
             </li>
@@ -105,7 +105,7 @@ export default function Comparar({ isins }: { isins: string[] }) {
                   <th className="py-1 text-left font-normal">{ventana.toUpperCase()}</th>
                   {fondos.map((d) => (
                     <th key={d.fondo.isin} className="max-w-48 py-1 font-normal normal-case tracking-normal" title={d.fondo.nombre}>
-                      <span style={{ color: COLORES[isins.indexOf(d.fondo.isin)] }} aria-hidden="true">■ </span>{d.fondo.nombre.split(' ').slice(0, 4).join(' ')}
+                      <span style={{ color: `var(--color-${COLORES[isins.indexOf(d.fondo.isin)]})` }} aria-hidden="true">■ </span>{d.fondo.nombre.split(' ').slice(0, 4).join(' ')}
                     </th>
                   ))}
                 </tr>

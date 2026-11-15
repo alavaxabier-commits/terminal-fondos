@@ -233,7 +233,7 @@ export function MatrizCorrelacion({ nombres, matriz }: { nombres: string[]; matr
                 <td
                   key={j}
                   className="py-2"
-                  style={i !== j && v != null ? { background: `rgba(79, 209, 139, ${Math.max(0, v) * 0.6})`, color: v >= 0.6 ? '#0b0e0d' : undefined } : undefined}
+                  style={i !== j && v != null ? { background: `color-mix(in srgb, var(--color-acento) ${Math.max(0, v) * 60}%, transparent)`, color: v >= 0.6 ? 'var(--color-fondo)' : undefined } : undefined}
                   title={`${f} · ${nombres[j]}`}
                 >
                   {i === j ? '·' : cifra(v)}

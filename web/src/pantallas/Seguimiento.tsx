@@ -149,7 +149,7 @@ export default function Seguimiento() {
             <DetalleFondo isin={elegido.isin} nombre={elegido.fondo.nombre} divisa={elegido.fondo.divisa} seguido seguir={() => {}}
               linea={`${elegido.isin} · ${categoria(elegido)} · ${elegido.fondo.gestion ?? 'gestión sin dato'} · TER ${elegido.fondo.ter == null ? '—' : `${cifra(elegido.fondo.ter)} %`} · SRRI ${elegido.fondo.srri ?? '—'} · MyInvestor ${elegido.myinvestor ? 'sí' : 'no'}`}
               nota={ev
-                ? <p className="tabular"><span className="text-3xl text-acento">{Math.round(ev.nota)}</span>{ev.percentil != null && <span className="text-suave"> p{Math.round(ev.percentil)} de su categoría</span>}
+                ? <p className="tabular"><span className="cifra text-4xl text-acento">{Math.round(ev.nota)}</span>{ev.percentil != null && <span className="text-suave"> p{Math.round(ev.percentil)} de su categoría</span>}
                     <span className="block"><span className="text-suave">semana </span>{cambio(ev.semana)}<span className="text-suave"> · 12 meses </span>{cambio(ev.periodo)}</span></p>
                 : <p className="text-suave">Sin nota: fuera del universo o menos de 3 años de historia.</p>}>
               <p><span className="text-suave">estado </span><span className={elegido.estado === 'candidato' ? 'text-acento' : ''}>{elegido.estado}</span>

@@ -4,6 +4,7 @@ import { PANTALLAS } from './calculo/ordenes'
 import { estadoDescargas, type Tarea } from './calculo/vigilancia'
 import Buscador from './componentes/Buscador'
 import { escribiendo } from './componentes/teclas'
+import { leerTema, ponerTema, TEMAS, type Tema } from './componentes/tema'
 import { tamanoBase, vigilancia } from './datos/consultas'
 import { revisar, type Revision as DatosRevision } from './datos/revision'
 import { supabase } from './datos/supabase'
@@ -62,6 +63,7 @@ export default function App() {
   const [sesion, setSesion] = useState<Session | null | undefined>(undefined)
   const [estado, setEstado] = useState<Estado>({ descargas: null, base: null, revision: null, error: '' })
   const [ayuda, setAyuda] = useState(false)
+  const [tema, setTema] = useState<Tema>(leerTema)
   const ruta = useRuta()
   useAtajos(ruta)
 
@@ -105,16 +107,24 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-full max-w-7xl flex-col">
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-borde bg-fondo/95 px-4 py-2 backdrop-blur">
-        <a href="#/" className="shrink-0 font-bold tracking-widest text-acento">
-          TERMINAL<span className="hidden sm:inline"> DE FONDOS</span>
+        <a href="#/" className="flex shrink-0 items-center gap-2 font-serif text-xl text-texto">
+          <i aria-hidden="true" className="inline-block h-4 w-4 rounded-full bg-acento" />
+          <span className="hidden sm:inline">Terminal de fondos</span>
         </a>
-        <nav aria-label="Pantallas" className="flex shrink-0 gap-1">
+        <nav aria-label="Pantallas" className="flex shrink-0 gap-0.5 overflow-x-auto rounded-full bg-borde/50 p-0.5">
           {PANTALLAS.map(([h, t]) => (
             <a key={h} href={h} aria-current={((ruta || '#/') === h || (h === '#/comparar' && !!comparar)) ? 'page' : undefined}
-              className={`px-2 py-1 ${(ruta || '#/') === h || (h === '#/comparar' && comparar) ? 'border border-borde bg-panel text-acento' : 'text-suave hover:text-texto'}`}>{t}</a>
+              className={`rounded-full px-3 py-1 ${(ruta || '#/') === h || (h === '#/comparar' && comparar) ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{t}</a>
           ))}
         </nav>
         <Buscador />
+        <label className="shrink-0 text-suave">
+          <span className="sr-only">Tema</span>
+          <select value={tema} onChange={(e) => { const t = e.target.value as Tema; setTema(t); ponerTema(t) }}
+            title="Tema" className="min-h-8 cursor-pointer rounded-full border border-borde bg-panel px-2 text-suave hover:text-texto">
+            {TEMAS.map((t) => <option key={t} value={t}>tema: {t}</option>)}
+          </select>
+        </label>
         <button
           onClick={() => supabase.auth.signOut()}
           className="shrink-0 text-suave hover:text-texto"

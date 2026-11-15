@@ -6,7 +6,7 @@ import {
 import { cifra, fecha, pct } from '../calculo/formato'
 
 type FondoX = Fondo & { fechaCartera: string | null }
-const COLOR: Record<string, string> = { Acciones: '#4fd18b', Bonos: '#5b9bd5', Liquidez: '#7d8f86' } // el resto, ámbar
+const COLOR: Record<string, string> = { Acciones: 'var(--color-acento)', Bonos: 'var(--color-serie3)', Liquidez: 'var(--color-suave)' } // el resto, arena
 
 /** X-Ray de una cartera (o de uno de sus fondos): tipo de activo y, a elegir, la parte de renta variable o la de renta fija. */
 export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
@@ -132,12 +132,12 @@ function Reparto({ filas }: { filas: Fila[] }) {
   return (
     <div>
       <div className="flex h-3 w-full overflow-hidden bg-panel" role="img" aria-label={`Tipo de activo: ${filas.map(([n, v]) => `${n} ${pct(v / 100, 0, false)}`).join(', ')}`}>
-        {positivos.map(([n, v]) => <span key={n} style={{ width: `${v}%`, background: COLOR[n] ?? '#f2b84b' }} />)}
+        {positivos.map(([n, v]) => <span key={n} style={{ width: `${v}%`, background: COLOR[n] ?? 'var(--color-serie2)' }} />)}
       </div>
       <p className="mt-1 flex flex-wrap gap-x-4 text-suave">
         {filas.map(([n, v]) => (
           <span key={n}>
-            <i aria-hidden="true" className="mr-1 inline-block h-2 w-2" style={{ background: COLOR[n] ?? '#f2b84b' }} />
+            <i aria-hidden="true" className="mr-1 inline-block h-2 w-2" style={{ background: COLOR[n] ?? 'var(--color-serie2)' }} />
             {n} <b className="tabular font-normal text-texto">{pct(v / 100, 1, false)}</b>
           </span>
         ))}
@@ -208,7 +208,7 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
           ...cols.map((c, j) => {
             const v = valores[String(i * 3 + j + 1)] ?? 0
             return (
-              <span key={`${f}-${c}`} className="py-3 tabular" style={{ background: `rgba(79, 209, 139, ${Math.min(v / 50, 1) * 0.7})`, color: v >= 25 ? '#0b0e0d' : undefined }} title={`${f} · ${c}: ${pct(v / 100, 1, false)}`}>
+              <span key={`${f}-${c}`} className="py-3 tabular" style={{ background: `color-mix(in srgb, var(--color-acento) ${Math.min(v / 50, 1) * 70}%, transparent)`, color: v >= 25 ? 'var(--color-fondo)' : undefined }} title={`${f} · ${c}: ${pct(v / 100, 1, false)}`}>
                 {Math.round(v)}
               </span>
             )
