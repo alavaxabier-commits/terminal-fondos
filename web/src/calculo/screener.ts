@@ -1,19 +1,7 @@
 // Screener: filtros y nota de cada fondo del universo con los pesos elegidos (sin red).
 import type { FilaScreener } from '../datos/consultas'
-import { bloques, nota, type Bloque, type Pesos, type Plazo } from './nota'
-
-export const TIPOS = ['renta variable', 'renta fija', 'mixto', 'monetario', 'otros'] as const
-export type Tipo = (typeof TIPOS)[number]
-
-/** Tipo de activo por el nombre de la categoría de Morningstar (Equity, Bond, Allocation, Money Market…). */
-export function tipoActivo(categoria: string | null): Tipo {
-  const c = categoria ?? ''
-  if (/allocation/i.test(c)) return 'mixto' // antes que equity: «GBP Allocation 80%+ Equity»
-  if (/equity/i.test(c)) return 'renta variable'
-  if (/bond|fixed|debt|credit/i.test(c)) return 'renta fija'
-  if (/money market/i.test(c)) return 'monetario'
-  return 'otros'
-}
+import { bloques, nota, tipoActivo, type Bloque, type PesosTipo, type Plazo, type Tipo } from './nota'
+export { TIPOS, tipoActivo, type Tipo } from './nota'
 
 /** Segundo nivel dentro del tipo: región o estilo, por el nombre de la categoría (el orden de las reglas importa). */
 const GRUPOS: Partial<Record<Tipo, [string, RegExp][]>> = {
@@ -82,7 +70,7 @@ export function pasa(f: FilaScreener, x: Filtros, hoy: string, excluir: Set<stri
   return true
 }
 
-/** Nota de cada fondo con los pesos dados, de mejor a peor; los que no tienen nota (menos de 3 años), al final.
+/** Nota de cada fondo con los pesos de su tipo de activo, de mejor a peor; los que no tienen nota (menos de 3 años), al final.
  * `diversificacion`: percentil de cada fondo frente a la cartera elegida (sin cartera, el bloque no tiene datos). */
 /** Con menos fondos en la categoría, su percentil (y la nota) dice poco: «el mejor de 3» saca 100. */
 export const MIN_CATEGORIA = 5
@@ -120,13 +108,13 @@ export function mediana(xs: (number | null | undefined)[]): number | null {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2
 }
 
-export function puntuar(filas: FilaScreener[], pesos: Pesos, diversificacion?: Map<string, number>, plazo?: Plazo): Puntuado[] {
+export function puntuar(filas: FilaScreener[], pesos: PesosTipo, diversificacion?: Map<string, number>, plazo?: Plazo): Puntuado[] {
   return filas
     .map((f) => {
       const b = bloques(f.pct ?? {}, indexada(f), plazo)
       const d = diversificacion?.get(f.isin)
       const bs = b ? (d == null ? b.bloques : { ...b.bloques, diversificacion: d }) : {}
-      return { ...f, bloques: bs, solo3a: b?.solo3a ?? false, nota: b ? nota(bs, pesos) : null }
+      return { ...f, bloques: bs, solo3a: b?.solo3a ?? false, nota: b ? nota(bs, pesos[tipoActivo(f.categoria)]) : null }
     })
     .sort((a, b) => (b.nota ?? -1) - (a.nota ?? -1) || a.nombre.localeCompare(b.nombre))
 }

@@ -243,3 +243,12 @@ def test_monetario_rendimiento_reciente():
     assert ('hoy', 'tendencia') not in out
     assert out[('12m', 'meses_negativos')] == 1
     assert metricas_monetario({D(2026, 1, 2): 1.0, D(2026, 1, 5): 1.0}, {}) == {}  # sin un mes de historia
+
+
+def test_tipo_activo_y_pesos_por_tipo():
+    from fondos.nucleo.metricas import PESOS_NOTA, PESOS_TIPO, tipo_activo
+    assert tipo_activo('GBP Allocation 80%+ Equity') == 'mixto' and tipo_activo('EUR Money Market') == 'monetario'
+    assert tipo_activo('Global Large-Cap Blend Equity') == 'renta variable' and tipo_activo('EUR Corporate Bond') == 'renta fija'
+    assert tipo_activo(None) == 'otros' and set(PESOS_TIPO) == {'renta variable', 'renta fija', 'mixto', 'monetario', 'otros'}
+    pct = {('5a', 'rentabilidad'): 100, ('hoy', 'ter'): 0}
+    assert nota(pct, False, {'coste': 1})[0] == 0 and nota(pct, False, PESOS_TIPO['renta fija']) == nota(pct, False, PESOS_NOTA)

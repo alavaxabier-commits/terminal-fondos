@@ -12,6 +12,35 @@ export const NOMBRE_BLOQUE: Record<Bloque, string> = {
 }
 export const PESOS_DEFECTO: Pesos = { riesgo: 20, consistencia: 10, coste: 40, proteccion: 20, rentabilidad: 10, diversificacion: 10 }
 
+/** Tipos de activo (como TIPOS y tipo_activo en fondos/nucleo/metricas.py): cada uno tiene sus pesos. */
+export const TIPOS = ['renta variable', 'renta fija', 'mixto', 'monetario', 'otros'] as const
+export type Tipo = (typeof TIPOS)[number]
+export type PesosTipo = Record<Tipo, Pesos>
+
+/** Tipo de activo por el nombre de la categoría de Morningstar (Equity, Bond, Allocation, Money Market…). */
+export function tipoActivo(categoria: string | null): Tipo {
+  const c = categoria ?? ''
+  if (/allocation/i.test(c)) return 'mixto' // antes que equity: «GBP Allocation 80%+ Equity»
+  if (/equity/i.test(c)) return 'renta variable'
+  if (/bond|fixed|debt|credit/i.test(c)) return 'renta fija'
+  if (/money market/i.test(c)) return 'monetario'
+  return 'otros'
+}
+
+/** Pesos por defecto de cada tipo: de momento los mismos (PESOS_TIPO en Python). */
+export const PESOS_TIPO_DEFECTO: PesosTipo = Object.fromEntries(TIPOS.map((t) => [t, PESOS_DEFECTO])) as PesosTipo
+
+/** Pesos guardados (perfil o pestaña) → pesos por tipo: un juego único (perfiles antiguos) vale para todos los tipos;
+ * lo que falte, por defecto. */
+export function aPesosTipo(p: unknown): PesosTipo {
+  const o = (p && typeof p === 'object' ? p : {}) as Record<string, unknown>
+  const plano = BLOQUES.some((b) => typeof o[b] === 'number')
+  return Object.fromEntries(TIPOS.map((t) => {
+    const x = (plano ? o : o[t]) as Partial<Pesos> | undefined
+    return [t, { ...PESOS_TIPO_DEFECTO[t], ...(x && typeof x === 'object' ? x : {}) }]
+  })) as PesosTipo
+}
+
 export const PLAZOS = ['1a', '3a', '5a', '10a'] as const
 export type Plazo = (typeof PLAZOS)[number]
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { exposicion, type Composicion, type Fila } from '../calculo/exposicion'
 import { cifra, colorPercentil, millones, pct } from '../calculo/formato'
 import { rendimientos, riesgo, semanal } from '../calculo/metricas'
-import { BLOQUES, bloques, NOMBRE_BLOQUE, nota, PESOS_DEFECTO, type Plazo } from '../calculo/nota'
+import { BLOQUES, bloques, NOMBRE_BLOQUE, nota, PESOS_TIPO_DEFECTO, tipoActivo, type Plazo } from '../calculo/nota'
 import { base100, caidas, haceAnos, inicioComun, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import Dispersion from '../componentes/Dispersion'
@@ -206,7 +206,7 @@ function Resumen({ fondos, color, ventana }: Props & { ventana: string }) {
   const notas = fondos.map((d) => {
     const pcts = Object.fromEntries([...d.metricas].filter(([, x]) => x.percentil != null).map(([k, x]) => [k, x.percentil!]))
     const b = bloques(pcts, d.fondo.gestion === 'indexada', ventana as Plazo)
-    return b && { bloques: b.bloques, nota: nota(b.bloques, PESOS_DEFECTO) }
+    return b && { bloques: b.bloques, nota: nota(b.bloques, PESOS_TIPO_DEFECTO[tipoActivo(d.fondo.categoria)]) }
   })
   const barra = (v: number | null | undefined, resaltar: boolean) => v == null ? <span className="text-suave">—</span> : (
     <span className="inline-flex w-full max-w-36 items-center gap-2">
@@ -242,7 +242,7 @@ function Resumen({ fondos, color, ventana }: Props & { ventana: string }) {
         </Tabla>
       </Tarjeta>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
-        <Tarjeta titulo="Nota" extra={<span className="text-[12px] text-suave">a {plazo}, con los pesos por defecto · 100 es lo mejor</span>}>
+        <Tarjeta titulo="Nota" extra={<span className="text-[12px] text-suave">a {plazo}, con los pesos por defecto de su tipo · 100 es lo mejor</span>}>
           <Tabla fondos={fondos} color={color}>
             {filaNota('Nota', notas.map((n) => n?.nota), true)}
             {BLOQUES.filter((k) => notas.some((n) => n?.bloques[k] != null)).map((k) => filaNota(NOMBRE_BLOQUE[k], notas.map((n) => n?.bloques[k])))}

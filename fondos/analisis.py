@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-import re
 from collections import defaultdict
 from statistics import correlation, fmean
 
@@ -40,15 +39,8 @@ MIN_CATEGORIA = 5  # fondos de la categoría en la muestra para que cuente
 
 
 def tipo(categoria: str | None) -> str:
-    """Como tipoActivo de la web (calculo/screener.ts)."""
-    c = categoria or ''
-    if re.search('allocation', c, re.I):
-        return 'mixto'
-    if re.search('equity', c, re.I):
-        return 'renta variable'
-    if re.search('bond|fixed|debt|credit', c, re.I):
-        return 'renta fija'
-    return 'otros'
+    """Tipo de activo de la categoría (el de la nota)."""
+    return m.tipo_activo(categoria)
 
 
 def cortes(desde: dt.date, hasta: dt.date) -> list[dt.date]:

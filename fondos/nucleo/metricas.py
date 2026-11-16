@@ -8,6 +8,7 @@ from __future__ import annotations
 import calendar
 import datetime as dt
 import math
+import re
 from statistics import correlation, fmean, pstdev, stdev
 
 Semana = tuple[int, int]            # (año ISO, semana ISO)
@@ -448,6 +449,25 @@ def correlacion_media(r: dict[Semana, float], cartera: list[dict[Semana, float]]
 # Elegidos con `python -m fondos analisis` (noviembre de 2026): el coste es lo que mejor se repite y la protección
 # predice las caídas; antes, 25/20/20/15/10.
 PESOS_NOTA = {'riesgo': 20, 'consistencia': 10, 'coste': 40, 'proteccion': 20, 'rentabilidad': 10}
+# Pesos por tipo de activo (como TIPOS y tipoActivo en web/src/calculo/nota.ts). De momento todos iguales: la validación
+# fuera de muestra (`analisis`, noviembre de 2026) no encontró un reparto mejor que aguante en renta fija y mixtos, y la
+# renta variable se queda como está.
+TIPOS = ('renta variable', 'renta fija', 'mixto', 'monetario', 'otros')
+PESOS_TIPO = {t: PESOS_NOTA for t in TIPOS}
+
+
+def tipo_activo(categoria: str | None) -> str:
+    """Tipo de activo por el nombre de la categoría de Morningstar (Equity, Bond, Allocation, Money Market…)."""
+    c = categoria or ''
+    if re.search('allocation', c, re.I):  # antes que equity: «GBP Allocation 80%+ Equity»
+        return 'mixto'
+    if re.search('equity', c, re.I):
+        return 'renta variable'
+    if re.search('bond|fixed|debt|credit', c, re.I):
+        return 'renta fija'
+    if re.search('money market', c, re.I):
+        return 'monetario'
+    return 'otros'
 
 
 def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, float] = PESOS_NOTA

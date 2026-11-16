@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
-import { PESOS_DEFECTO } from './nota'
+import { PESOS_TIPO_DEFECTO } from './nota'
 import { alternativas, cubierta, grupo, grupos, mediana, ordenar, pasa, plazoDe, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
@@ -32,7 +32,7 @@ describe('screener', () => {
       fila({ isin: 'A', nombre: 'A', pct: { '1a|rentabilidad': 90 } }),
       fila({ isin: 'B', nombre: 'B', pct: { '5a|rentabilidad': 20 } }),
       fila({ isin: 'C', nombre: 'C', pct: { '5a|rentabilidad': 80, 'hoy|ter': 100 } }),
-    ], PESOS_DEFECTO)
+    ], PESOS_TIPO_DEFECTO)
     expect(r.map((x) => x.isin)).toEqual(['C', 'B', 'A'])
     expect(r[0].nota).toBeCloseTo((80 * 10 + 100 * 40) / 50)
     expect(r[2].nota).toBeNull()
@@ -64,7 +64,7 @@ describe('región o estilo', () => {
   })
 
   it('ordena por TER o rentabilidad, sin dato al final', () => {
-    const fs = puntuar([fila({ isin: 'A', ter: 1, r5: 0.02 }), fila({ isin: 'B', ter: null, r5: null, r3: 0.05 }), fila({ isin: 'C', ter: 0.5, r5: null })], PESOS_DEFECTO)
+    const fs = puntuar([fila({ isin: 'A', ter: 1, r5: 0.02 }), fila({ isin: 'B', ter: null, r5: null, r3: 0.05 }), fila({ isin: 'C', ter: 0.5, r5: null })], PESOS_TIPO_DEFECTO)
     expect(ordenar(fs, 'ter').map((f) => f.isin)).toEqual(['C', 'A', 'B'])
     expect(ordenar(fs, 'r5').map((f) => f.isin)).toEqual(['A', 'B', 'C'])
     expect(ordenar(fs, 'r3').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
@@ -75,7 +75,7 @@ describe('región o estilo', () => {
       fila({ isin: 'A', cifras: { '3a|volatilidad': [0.12, 40], '3m|rentabilidad': [0.031, 90], '12m|meses_negativos': [1, 10] } }),
       fila({ isin: 'B', cifras: { '3a|volatilidad': [0.08, 80], '3m|rentabilidad': [0.028, 30], '12m|meses_negativos': [0, 80] } }),
       fila({ isin: 'C' }),
-    ], PESOS_DEFECTO)
+    ], PESOS_TIPO_DEFECTO)
     expect(ordenar(fs, 'v3').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
     expect(ordenar(fs, 'm3').map((f) => f.isin)).toEqual(['A', 'B', 'C'])
     expect(ordenar(fs, 'mneg').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
@@ -86,8 +86,8 @@ describe('región o estilo', () => {
 
   it('la diversificación entra en la nota si hay cartera', () => {
     const f = fila({ pct: { '5a|rentabilidad': 50 } })
-    expect(puntuar([f], PESOS_DEFECTO)[0].nota).toBe(50)
-    expect(puntuar([f], PESOS_DEFECTO, new Map([['X', 100]]))[0].nota).toBeCloseTo((50 * 10 + 100 * 10) / 20)
+    expect(puntuar([f], PESOS_TIPO_DEFECTO)[0].nota).toBe(50)
+    expect(puntuar([f], PESOS_TIPO_DEFECTO, new Map([['X', 100]]))[0].nota).toBeCloseTo((50 * 10 + 100 * 10) / 20)
   })
 
   it('alternativas en su categoría: más nota y más barato primero, luego parecida y más barata, luego mucha más nota', () => {
@@ -99,7 +99,7 @@ describe('región o estilo', () => {
       fila({ isin: 'CARO', categoria: 'C', ter: 0.9, pct: pct(80) }),
       fila({ isin: 'PEOR', categoria: 'C', ter: 0.1, pct: pct(20) }),
       fila({ isin: 'OTRA', categoria: 'D', ter: 0.1, pct: pct(99) }),
-    ], PESOS_DEFECTO)
+    ], PESOS_TIPO_DEFECTO)
     const yo = fs.find((f) => f.isin === 'YO')!
     expect(alternativas(yo, fs, false).map((a) => [a.f.isin, a.motivo])).toEqual([
       ['MEJOR', 'Más nota y más barato'], ['PARECIDO', 'Nota parecida y 0,10 puntos más barato'], ['CARO', 'Más nota'],

@@ -270,7 +270,7 @@ export async function screener(): Promise<FilaScreener[]> {
   }
 }
 
-export type Perfil = { id: number; nombre: string; pesos: import('../calculo/nota').Pesos; filtros: Record<string, unknown>; modo: string }
+export type Perfil = { id: number; nombre: string; pesos: import('../calculo/nota').PesosTipo; filtros: Record<string, unknown>; modo: string }
 
 export async function perfiles(): Promise<Perfil[]> {
   const { data, error: e } = await supabase.from('perfil_screener').select('id,nombre,pesos,filtros,modo').order('id')

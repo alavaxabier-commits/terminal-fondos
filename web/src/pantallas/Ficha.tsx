@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, colorPercentil, fecha, millones, pct } from '../calculo/formato'
 import type { Composicion } from '../calculo/exposicion'
-import { bloques, PESOS_DEFECTO } from '../calculo/nota'
+import { bloques, PESOS_TIPO_DEFECTO, tipoActivo } from '../calculo/nota'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
 import { cubierta } from '../calculo/screener'
 import { base100, combinar, haceAnos, inicioComun, variacion, type Punto } from '../calculo/series'
@@ -335,8 +335,8 @@ export default function Ficha({ isin }: { isin: string }) {
                   </dl>
                 </Tarjeta>
               <Tarjeta titulo={`Por qué la nota${b?.solo3a ? ' · con métricas a 3 años' : ''}`}>
-                {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_DEFECTO} nota={e.nota} /> : <p className="text-suave">—</p>}
-                <p className="mt-2 text-[11px] text-suave">Pesos por defecto, sin Diversificación (la nota de las señales). Bloques con las métricas de hoy.</p>
+                {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_TIPO_DEFECTO[tipoActivo(f.categoria)]} nota={e.nota} /> : <p className="text-suave">—</p>}
+                <p className="mt-2 text-[11px] text-suave">Pesos por defecto de su tipo de activo, sin Diversificación (la nota de las señales). Bloques con las métricas de hoy.</p>
               </Tarjeta>
               <Tarjeta titulo="Nota por semana">
                 {datos.notas.length > 1 ? <Grafico lineas={[{ nombre: 'Nota', serie: datos.notas.map((n) => ({ fecha: n.fecha, valor: n.nota })), color: 'acento' }]} alto="h-56" />

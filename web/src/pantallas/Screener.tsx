@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, hoy, pct } from '../calculo/formato'
-import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, PLAZOS, pesosEfectivos, type Bloque, type Pesos, type Plazo } from '../calculo/nota'
+import { aPesosTipo, BLOQUES, NOMBRE_BLOQUE, PESOS_TIPO_DEFECTO, PLAZOS, pesosEfectivos, type Bloque, type PesosTipo, type Plazo, type Tipo } from '../calculo/nota'
 import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
 import Franja from '../componentes/Franja'
 import Tarjeta from '../componentes/Tarjeta'
@@ -23,7 +23,7 @@ const COLOR_BLOQUE: Record<Bloque, string> = {
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
 const CLAVE = 'screener'
-type Guardado = { pesos: Pesos; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; orden: Orden; plazo: Plazo | ''; y: number }
+type Guardado = { pesos: PesosTipo; tipoPesos: Tipo; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; orden: Orden; plazo: Plazo | ''; y: number }
 const anos = (p: Plazo) => (p === '1a' ? '1 año' : `${parseInt(p)} años`)
 const leer = (): Partial<Guardado> => { try { return JSON.parse(sessionStorage.getItem(CLAVE) ?? '{}') } catch { return {} } }
 const escribir = (g: Partial<Guardado>) => { try { sessionStorage.setItem(CLAVE, JSON.stringify({ ...leer(), ...g })) } catch { /* sin almacenamiento: se pierde al salir */ } }
@@ -36,7 +36,9 @@ export default function Screener() {
   const [carteras, setCarteras] = useState<q.Cartera[]>([])
   const [seguidos, setSeguidos] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
-  const [pesos, setPesos] = useState<Pesos>(g.pesos ?? PESOS_DEFECTO)
+  const [pesos, setPesos] = useState<PesosTipo>(() => aPesosTipo(g.pesos))
+  // tipo de activo cuyos pesos se editan: el del filtro si hay uno
+  const [tipoPesos, setTipoPesos] = useState<Tipo>(g.tipoPesos ?? 'renta variable')
   const [filtros, setFiltros] = useState<Filtros>(g.filtros ?? {})
   const [modo, setModo] = useState<Modo>(g.modo ?? 'juntos')
   const [carteraId, setCarteraId] = useState<number | ''>(g.carteraId ?? '')
@@ -85,7 +87,8 @@ export default function Screener() {
       setAvisoDiv(q.avisoDiversificacion(d.base, isins))
     }).catch(falla)
   }, [carteraId])
-  useEffect(() => escribir({ pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden, plazo }), [pesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden, plazo])
+  useEffect(() => escribir({ pesos, tipoPesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden, plazo }), [pesos, tipoPesos, filtros, modo, carteraId, excluirSuyos, sel, mostrar, orden, plazo])
+  useEffect(() => { if (filtros.tipo) setTipoPesos(filtros.tipo) }, [filtros.tipo])
   useEffect(() => () => escribir({ y: scrollY }), []) // al salir (p. ej. a una ficha), dónde estaba la lista
   useEffect(() => { if (datos && g.y) scrollTo(0, g.y) }, [datos, g])
 
@@ -107,8 +110,9 @@ export default function Screener() {
     ? [['Indexados', puntuados.filter(indexada)], ['Activos', puntuados.filter((f) => !indexada(f))]]
     : [['', modo === 'juntos' ? puntuados : puntuados.filter((f) => indexada(f) === (modo === 'indexados'))]]
   // lo que pesa de verdad cada bloque: su barra entre la suma de las barras (sin Diversificación si no hay cartera)
-  const totalPesos = BLOQUES.reduce((s, k) => s + (k === 'diversificacion' && !div ? 0 : pesos[k]), 0)
-  const pesoReal = (k: Bloque) => (k === 'diversificacion' && !div ? 0 : pesos[k] / (totalPesos || 1))
+  const editados = pesos[tipoPesos]
+  const totalPesos = BLOQUES.reduce((s, k) => s + (k === 'diversificacion' && !div ? 0 : editados[k]), 0)
+  const pesoReal = (k: Bloque) => (k === 'diversificacion' && !div ? 0 : editados[k] / (totalPesos || 1))
   const elegido = puntuados.find((f) => f.isin === sel) ?? null
   const categorias = useMemo(() => {
     const n = new Map<string, number>()
@@ -129,7 +133,7 @@ export default function Screener() {
   const aplicarPerfil = (id: string) => {
     const p = perfiles.find((x) => String(x.id) === id)
     if (!p) return
-    setPesos({ ...PESOS_DEFECTO, ...p.pesos })
+    setPesos(aPesosTipo(p.pesos))
     setFiltros(p.filtros as Filtros)
     setModo(p.modo as Modo)
   }
@@ -324,13 +328,18 @@ export default function Screener() {
       {avisoDiv && <p role="status" className="text-[13px] text-aviso">{avisoDiv}</p>}
 
       {panel === 'pesos' && (
-        <Tarjeta titulo="Pesos de la nota" extra={
+        <Tarjeta titulo="Pesos de la nota" extra={<div className="flex flex-wrap items-center gap-2">
+          <label className="text-[12px] text-suave">Tipo{' '}
+            <select value={tipoPesos} onChange={(e) => setTipoPesos(e.target.value as Tipo)} aria-label="Tipo de activo cuyos pesos se editan" className={`${control} text-[12px]`}>
+              {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
           <div role="group" aria-label="Plazo de las métricas de la nota" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
             {(['', ...PLAZOS] as const).map((p) => (
               <button key={p} aria-pressed={plazo === p} onClick={() => setPlazo(p)}
                 className={`rounded-sm px-3 py-0.5 ${plazo === p ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{p ? p.toUpperCase() : 'Auto'}</button>
             ))}
-          </div>}>
+          </div></div>}>
           <div className="mb-3 flex h-2.5 gap-0.5 overflow-hidden rounded-sm bg-borde/60" aria-hidden="true">
             {BLOQUES.map((k) => <span key={k} style={{ width: `${pesoReal(k) * 100}%`, background: COLOR_BLOQUE[k] }} />)}
           </div>
@@ -339,12 +348,13 @@ export default function Screener() {
               <label key={k} className={`grid grid-cols-[10px_1fr_auto] items-center gap-x-2 gap-y-1 text-[13px] ${k === 'diversificacion' && !div ? 'text-suave' : ''}`}>
                 <i aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: COLOR_BLOQUE[k] }} />
                 <span>{NOMBRE_BLOQUE[k]}</span><span className="text-right tabular">{k === 'diversificacion' && !div ? '—' : `${Math.round(pesoReal(k) * 100)} %`}</span>
-                <input type="range" min={0} max={50} value={pesos[k]} disabled={k === 'diversificacion' && !div} aria-label={`Peso de ${NOMBRE_BLOQUE[k]}`}
-                  onChange={(e) => setPesos((p) => ({ ...p, [k]: +e.target.value }))} className="col-start-2 col-end-4 accent-acento" />
+                <input type="range" min={0} max={50} value={editados[k]} disabled={k === 'diversificacion' && !div} aria-label={`Peso de ${NOMBRE_BLOQUE[k]}`}
+                  onChange={(e) => setPesos((p) => ({ ...p, [tipoPesos]: { ...p[tipoPesos], [k]: +e.target.value } }))} className="col-start-2 col-end-4 accent-acento" />
               </label>
             ))}
           </div>
           <p className="mt-3 text-[12px] text-suave">
+            Cada tipo de activo tiene sus pesos: estos son los de {tipoPesos}{filtros.tipo ? '' : ' (con todos los tipos a la vista, cada fondo usa los de su tipo)'}.{' '}
             {plazo ? `Métricas a ${anos(plazo)}; los fondos sin ese historial no tienen nota.` : 'Plazo auto: el más largo de cada fondo (5 años, o 3), como la nota guardada y las señales.'}{' '}
             {div ? 'Diversificación: 1 − correlación media con los fondos de la cartera elegida (3 años), en percentil de su categoría.' : 'Sin cartera elegida, el peso de Diversificación se reparte entre los demás.'}
           </p>
@@ -353,7 +363,7 @@ export default function Screener() {
             <input id="nombre-perfil" value={nombrePerfil} onChange={(e) => { setNombrePerfil(e.target.value); setGuardado('') }}
               placeholder="Nombre (si ya existe, se sustituye)" className={`${control} min-w-0 flex-1 sm:max-w-72`} />
             <button type="submit" disabled={!nombrePerfil.trim()} className="boton-pri">Guardar</button>
-            <button type="button" onClick={() => setPesos(PESOS_DEFECTO)} className="boton">Pesos por defecto</button>
+            <button type="button" onClick={() => setPesos(PESOS_TIPO_DEFECTO)} className="boton">Pesos por defecto (todos los tipos)</button>
             {guardado && <span role="status" className="text-[13px] text-sube">Guardado «{guardado}»: guarda pesos, filtros y modo.</span>}
           </form>
         </Tarjeta>
@@ -470,7 +480,7 @@ function Fila({ f, i, sel, setSel, seguidos, seguir, children }: { f: Puntuado; 
 const ConPct = ({ v, p, texto, clase = '' }: { v: number | null; p: number | null; texto: string; clase?: string }) =>
   <td className={`pl-3 ${v == null ? 'text-suave' : clase}`} title={p == null ? undefined : `Percentil ${Math.round(p)} en su categoría (100 = mejor)`}>{v == null ? '—' : texto}</td>
 
-function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, pesos }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; pesos: Pesos }) {
+function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, pesos }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; pesos: PesosTipo }) {
   const cab = { orden, setOrden }
   return (
     <div className="overflow-x-auto">
@@ -490,7 +500,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
         </thead>
         <tbody>
           {filas.map((f, i) => {
-            const w = pesosEfectivos(f.bloques, pesos)
+            const w = pesosEfectivos(f.bloques, pesos[tipoActivo(f.categoria)])
             return (
               <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
                 <CeldaFondo f={f} conCategoria={conCategoria} extra={<>
