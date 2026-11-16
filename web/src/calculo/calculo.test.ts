@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cifra, colorPercentil, fecha, millones, pct } from './formato'
 import { simularCartera } from './metricas'
-import { aEur, base100, combinar, haceAnos, haceDias, inicioComun, lineasCartera, muestra, variacion } from './series'
+import { aEur, base100, caidas, combinar, haceAnos, haceDias, inicioComun, lineasCartera, muestra, variacion } from './series'
 
 describe('series', () => {
   it('variacion frente al último dato en o antes de la fecha; null si la serie no llega', () => {
@@ -12,6 +12,11 @@ describe('series', () => {
     expect(variacion(s, '2026-01-09')).toBeNull() // la base sería el propio último
     expect(haceDias('2026-03-01', 7)).toBe('2026-02-22')
     expect(muestra(s, '2026-01-01', 2)).toEqual([100, 121])
+  })
+
+  it('caidas desde el máximo anterior', () => {
+    const s = [100, 120, 90, 130, 117].map((valor, i) => ({ fecha: `2026-01-0${i + 1}`, valor }))
+    expect(caidas(s).map((p) => Math.round(p.valor))).toEqual([0, 0, -25, 0, -10])
   })
 
   it('pasa a EUR con el último tipo disponible', () => {

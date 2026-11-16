@@ -208,12 +208,11 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
       <div className="flex flex-wrap gap-1.5">
         <button onClick={seguir} disabled={seguido} className={`${boton} bg-acento text-panel disabled:bg-borde/50 disabled:text-suave`}>{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
         <button onClick={() => alternar({ isin: f.isin, nombre: f.nombre })} disabled={!enBandeja && bandeja.length >= MAX_BANDEJA} aria-pressed={enBandeja}
-          title={!enBandeja && bandeja.length >= MAX_BANDEJA ? `Como mucho ${MAX_BANDEJA} fondos en la bandeja` : undefined}
-          className={`${boton} bg-borde/50 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Bandeja' : '+ Bandeja'}</button>
-        <a href={`#/comparar/${f.isin}`} className={`${boton} bg-borde/50 text-texto hover:bg-borde`}>Comparar</a>
+          title={!enBandeja && bandeja.length >= MAX_BANDEJA ? `Como mucho ${MAX_BANDEJA} fondos en el comparador` : undefined}
+          className={`${boton} bg-borde/50 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
         <a href={`#/fondo/${f.isin}`} className={`${boton} bg-borde/50 text-texto hover:bg-borde`}>Ficha</a>
       </div>
-      <p className="text-[11px] text-suave">j/k mover · Intro ficha{seguido ? '' : ' · s seguir'} · b bandeja</p>
+      <p className="text-[11px] text-suave">j/k mover · Intro ficha{seguido ? '' : ' · s seguir'} · b comparar</p>
     </section>
   )
 }

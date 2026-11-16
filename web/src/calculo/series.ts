@@ -22,6 +22,12 @@ export function base100(serie: Punto[], desde: string): Punto[] {
   return tramo.map((p) => ({ fecha: p.fecha, valor: (p.valor / v0) * 100 }))
 }
 
+/** Caída desde el máximo anterior, en % (0 en los máximos, negativa por debajo). */
+export function caidas(serie: Punto[]): Punto[] {
+  let max = -Infinity
+  return serie.map((p) => { max = Math.max(max, p.valor); return { fecha: p.fecha, valor: (p.valor / max - 1) * 100 } })
+}
+
 /** Índice combinado (p. ej. 60/40) rebalanceado en cada fecha común a todos sus componentes. */
 export function combinar(componentes: { serie: Punto[]; peso: number }[]): Punto[] {
   if (!componentes.length || componentes.some((c) => !c.serie.length)) return []

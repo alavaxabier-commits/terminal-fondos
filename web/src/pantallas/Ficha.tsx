@@ -215,10 +215,9 @@ export default function Ficha({ isin }: { isin: string }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={`#/comparar/${f.isin}`} className="flex min-h-8 items-center rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Comparar</a>
           <button onClick={() => alternar({ isin: f.isin, nombre: f.nombre })} disabled={llena} aria-pressed={enBandeja}
-            title={llena ? `Como mucho ${MAX_BANDEJA} fondos en la bandeja` : undefined}
-            className={`min-h-8 rounded-full bg-borde/50 px-4 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Bandeja' : '+ Bandeja'}</button>
+            title={llena ? `Como mucho ${MAX_BANDEJA} fondos en el comparador` : undefined}
+            className={`min-h-8 rounded-full bg-borde/50 px-4 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
           <button onClick={seguir} disabled={seguido}
             className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
         </div>

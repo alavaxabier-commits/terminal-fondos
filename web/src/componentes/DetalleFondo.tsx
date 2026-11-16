@@ -5,7 +5,7 @@ import { serieEur } from '../datos/series'
 import Grafico from './Grafico'
 
 /** Panel del fondo seleccionado en una lista (Screener, Seguimiento): nombre, línea de datos, nota, lo que añada cada
- *  pantalla (`children`), su evolución a 3 años en base 100 y los botones de seguir, bandeja y ficha. */
+ *  pantalla (`children`), su evolución a 3 años en base 100 y los botones de seguir, comparar y ficha. */
 export default function DetalleFondo({ isin, nombre, divisa, linea, nota, children, seguido, seguir, categoria }: {
   isin: string; nombre: string; divisa: string | null; linea: string; nota: ReactNode; children?: ReactNode; seguido: boolean; seguir: () => void
   categoria?: string | null
@@ -39,11 +39,11 @@ export default function DetalleFondo({ isin, nombre, divisa, linea, nota, childr
       <div className="flex flex-wrap gap-2">
         <button onClick={seguir} disabled={seguido} className={`${boton} bg-acento text-panel disabled:bg-borde/50 disabled:text-suave`}>{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
         <button onClick={() => alternar({ isin, nombre })} disabled={!enBandeja && bandeja.length >= MAX_BANDEJA} aria-pressed={enBandeja}
-          title={!enBandeja && bandeja.length >= MAX_BANDEJA ? `Como mucho ${MAX_BANDEJA} fondos en la bandeja` : undefined}
-          className={`${boton} bg-borde/50 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Bandeja' : '+ Bandeja'}</button>
+          title={!enBandeja && bandeja.length >= MAX_BANDEJA ? `Como mucho ${MAX_BANDEJA} fondos en el comparador` : undefined}
+          className={`${boton} bg-borde/50 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
         <a href={`#/fondo/${isin}`} className={`${boton} bg-borde/50 text-texto hover:bg-borde`}>Abrir ficha</a>
       </div>
-      <p className="text-[11px] text-suave">j/k mover · Intro ficha{seguido ? '' : ' · s seguir'} · b bandeja</p>
+      <p className="text-[11px] text-suave">j/k mover · Intro ficha{seguido ? '' : ' · s seguir'} · b comparar</p>
     </section>
   )
 }

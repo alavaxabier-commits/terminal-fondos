@@ -2,9 +2,11 @@ import type { Session } from '@supabase/supabase-js'
 import { Fragment, useEffect, useState } from 'react'
 import { PANTALLAS } from './calculo/ordenes'
 import { estadoDescargas, type Tarea } from './calculo/vigilancia'
+import Bandeja from './componentes/Bandeja'
 import Buscador from './componentes/Buscador'
 import { escribiendo } from './componentes/teclas'
 import { leerTema, ponerTema, type Tema } from './componentes/tema'
+import { rutaCon, useBandeja } from './datos/bandeja'
 import { tamanoBase, vigilancia } from './datos/consultas'
 import { revisar, type Revision as DatosRevision } from './datos/revision'
 import { supabase } from './datos/supabase'
@@ -37,7 +39,7 @@ function useAtajos(ruta: string) {
       if (escribiendo(e)) return
       const fondo = ruta.match(/^#\/fondo\/([A-Z0-9]{12})$/)?.[1]
       const cartera = ruta.match(/^#\/cartera\/(\d+)$/)?.[1]
-      const destino = ({ '1': '#/', '3': '#/screener', '4': '#/seguimiento', r: '#/revision', c: fondo ? `#/comparar/${fondo}` : '#/comparar', m: cartera && `#/simular/${cartera}` } as Record<string, string | undefined>)[e.key]
+      const destino = ({ '1': '#/', '3': '#/screener', '4': '#/seguimiento', r: '#/revision', c: fondo ? rutaCon(fondo) : '#/comparar', m: cartera && `#/simular/${cartera}` } as Record<string, string | undefined>)[e.key]
       if (destino) location.hash = destino
     }
     addEventListener('keydown', tecla)
@@ -49,11 +51,11 @@ function useAtajos(ruta: string) {
 const ATAJOS: [string, string][] = [
   ['/', 'barra de órdenes: fondo, cartera o pantalla (↑↓ mover, Intro abrir, Esc cerrar)'],
   ['1 · 3 · 4 · r', 'inicio · screener · seguimiento · revisión'],
-  ['c', 'comparador (con la ficha de un fondo abierta, con ese fondo)'],
+  ['c', 'comparador (con la ficha de un fondo abierta, lo añade)'],
   ['m', 'simulador (con una cartera abierta)'],
   ['j / ↓ · k / ↑', 'mover la selección en screener y seguimiento'],
-  ['Intro · s · b', 'abrir la ficha · seguir · poner o quitar de la bandeja'],
-  ['← / →', 'pestañas de la ficha'],
+  ['Intro · s · b', 'abrir la ficha · seguir · poner o quitar del comparador'],
+  ['← / →', 'pestañas de la ficha y del comparador'],
   ['?', 'esta ayuda (Esc la cierra)'],
 ]
 
@@ -65,6 +67,7 @@ export default function App() {
   const [ayuda, setAyuda] = useState(false)
   const [tema, setTema] = useState<Tema>(leerTema)
   const ruta = useRuta()
+  const bandeja = useBandeja()
   useAtajos(ruta)
 
   // Estado de las descargas, de la base y de las revisiones: una vez por visita, para la barra de estado y para Inicio.
@@ -136,10 +139,11 @@ export default function App() {
           salir
         </button>
       </header>
-      <main className="flex-1 px-4 py-4">
+      <main className="flex-1 space-y-4 px-4 py-4">
+        {!comparar && <Bandeja />}
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
           : simular ? <Simular key={simular[0]} id={+simular[1]} sale={simular[2]} entra={simular[3]} />
-          : comparar ? <Comparar isins={[...new Set((comparar[1] ?? '').split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
+          : comparar ? <Comparar isins={comparar[1] ? [...new Set(comparar[1].split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5) : bandeja.map((x) => x.isin)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
       </main>
       <BarraEstado estado={estado} />
       {ayuda && (

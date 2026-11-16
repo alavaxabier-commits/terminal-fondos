@@ -4,7 +4,6 @@ import { TIPOS, tipoActivo } from '../calculo/screener'
 import { encaje, type Diversificacion } from '../calculo/encaje'
 import { evolucion, type NotaSemanal, type Senal } from '../calculo/senales'
 import { variacion } from '../calculo/series'
-import Bandeja from '../componentes/Bandeja'
 import DetalleFondo from '../componentes/DetalleFondo'
 import { useTeclasLista } from '../componentes/teclas'
 import { alternar } from '../datos/bandeja'
@@ -206,7 +205,6 @@ export default function Seguimiento() {
         )}
         </div>
       )}
-      <Bandeja />
       <p className="text-suave">Cifras de las métricas del fondo, en euros («3 años», anualizada). Rentabilidades en verde o rojo según su signo; la posición frente a su categoría, en el color de la nota y al pasar el ratón. Merecen mirarse los fondos con alguna señal de Revisión (salvo «Redundante») o con la nota 2 puntos arriba o abajo en la semana. Tu nota se guarda al salir del campo.</p>
     </div>
   )

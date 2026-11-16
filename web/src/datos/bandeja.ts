@@ -1,9 +1,9 @@
-// Bandeja de candidatos: fondos apartados desde el screener o el seguimiento para compararlos juntos.
+// Lista del comparador («bandeja»): los fondos que se comparan, apartados desde cualquier pantalla o elegidos en el comparador.
 // shortcut: vive en la pestaña (sessionStorage), no en la base; pasar a tabla si se quiere conservar entre dispositivos
 import { useSyncExternalStore } from 'react'
 
 export type EnBandeja = { isin: string; nombre: string }
-export const MAX_BANDEJA = 5 // como el comparador
+export const MAX_BANDEJA = 5
 const CLAVE = 'bandeja'
 const avisos = new Set<() => void>()
 let lista: EnBandeja[] | null = null
@@ -29,6 +29,13 @@ export function alternar(f: EnBandeja) {
 }
 export const quitarDeBandeja = (isin: string) => escribir(bandeja().filter((x) => x.isin !== isin))
 export const vaciarBandeja = () => escribir([])
+/** La deja igual que la lista del comparador (solo escribe si cambia). */
+export function fijarBandeja(l: EnBandeja[]) {
+  if (JSON.stringify(l) !== JSON.stringify(bandeja())) escribir(l.slice(0, MAX_BANDEJA))
+}
+/** Ruta del comparador con la lista y este fondo al final (si está llena, sale el primero). */
+export const rutaCon = (isin: string) =>
+  `#/comparar/${[...bandeja().map((x) => x.isin).filter((i) => i !== isin), isin].slice(-MAX_BANDEJA).join(',')}`
 
 /** La bandeja, y que el componente se repinte cuando cambia. */
 export function useBandeja(): EnBandeja[] {

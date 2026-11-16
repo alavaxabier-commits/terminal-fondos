@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { cifra, hoy, pct } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, PESOS_DEFECTO, PLAZOS, pesosEfectivos, type Bloque, type Pesos, type Plazo } from '../calculo/nota'
 import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
-import Bandeja from '../componentes/Bandeja'
 import Franja from '../componentes/Franja'
 import Tarjeta from '../componentes/Tarjeta'
 import TarjetaFondo from '../componentes/TarjetaFondo'
@@ -386,7 +385,6 @@ export default function Screener() {
           </aside>
         )}
       </div>
-      <Bandeja />
     </div>
   )
 }
