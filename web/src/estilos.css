@@ -4,8 +4,9 @@
    las cifras grandes, DM Mono para códigos y etiquetas, esquinas rectas. Azul de acento; verde/rojo solo para subir/bajar
    (siempre con signo o símbolo) y ámbar para avisos. Claro cálido sin blanco puro; oscuro con data-tema="oscuro" o, sin
    elección, si el sistema lo pide. Contraste del texto ≥ 4,5:1 medido en los dos temas.
-   Series (serie1…5): paleta categórica de dataviz, validada con su script en los dos temas y en este orden; el azul va
-   el último para no confundirse con el acento. */
+   Base «suavizada»: los mismos tonos con menos saturación, nada fluorescente.
+   Series (serie1…3): tinta, teja y ciruela, apagadas y sin verde (para no confundirse con «sube»); validadas con el
+   script de dataviz con todos los pares a la vez, en los dos temas. Del 4.º fondo en adelante, gris. */
 @theme {
   --font-sans: "Urbanist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -16,35 +17,33 @@
   --color-fondo: #f3efe8;
   --color-panel: #faf8f4;
   --color-borde: #e2ddd3;
-  --color-texto: #0a0d14;
-  --color-suave: #5a5b5f;
-  --color-acento: #1d64a8;
+  --color-texto: #1a1814;
+  --color-suave: #5e5a54;
+  --color-acento: #2f5f93;
   --color-sobre-acento: #faf8f4;
-  --color-sube: #136a44;
-  --color-baja: #a23d28;
-  --color-aviso: #7d5d14;
-  --color-gris: #aaa79f;
-  --color-serie1: #eb6834;
-  --color-serie2: #1baf7a;
-  --color-serie3: #eda100;
-  --color-serie4: #e87ba4;
-  --color-serie5: #2a78d6;
+  --color-sube: #2e6a4c;
+  --color-baja: #9a4535;
+  --color-aviso: #7a5e22;
+  --color-gris: #9a978f;
+  --color-serie1: #5e82c5;
+  --color-serie2: #ba6b4c;
+  --color-serie3: #853e69;
 }
 /* Cifra grande: la misma letra que el resto (dataviz: nada de serifa en las cifras), proporcional y algo apretada. */
 @utility cifra { font-weight: 500; letter-spacing: -0.02em; }
 
 @layer base {
   :root[data-tema="oscuro"] {
-    --color-fondo: #0a0d14; --color-panel: #131824; --color-borde: #222a38; --color-texto: #e9edf3; --color-suave: #8891a1;
-    --color-acento: #5ab9fc; --color-sobre-acento: #0a0d14; --color-sube: #5fd0a2; --color-baja: #ff8b73; --color-aviso: #e3bd6a; --color-gris: #4a5263;
-    --color-serie1: #d95926; --color-serie2: #199e70; --color-serie3: #c98500; --color-serie4: #d55181; --color-serie5: #3987e5;
+    --color-fondo: #0d1117; --color-panel: #161b24; --color-borde: #262d39; --color-texto: #e6e8ec; --color-suave: #8e95a2;
+    --color-acento: #7fb2de; --color-sobre-acento: #0d1117; --color-sube: #7cc39f; --color-baja: #e8978a; --color-aviso: #d6b574; --color-gris: #5d6577;
+    --color-serie1: #678ccf; --color-serie2: #c47455; --color-serie3: #944d77;
     color-scheme: dark;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-tema]) {
-      --color-fondo: #0a0d14; --color-panel: #131824; --color-borde: #222a38; --color-texto: #e9edf3; --color-suave: #8891a1;
-      --color-acento: #5ab9fc; --color-sobre-acento: #0a0d14; --color-sube: #5fd0a2; --color-baja: #ff8b73; --color-aviso: #e3bd6a; --color-gris: #4a5263;
-      --color-serie1: #d95926; --color-serie2: #199e70; --color-serie3: #c98500; --color-serie4: #d55181; --color-serie5: #3987e5;
+      --color-fondo: #0d1117; --color-panel: #161b24; --color-borde: #262d39; --color-texto: #e6e8ec; --color-suave: #8e95a2;
+      --color-acento: #7fb2de; --color-sobre-acento: #0d1117; --color-sube: #7cc39f; --color-baja: #e8978a; --color-aviso: #d6b574; --color-gris: #5d6577;
+      --color-serie1: #678ccf; --color-serie2: #c47455; --color-serie3: #944d77;
       color-scheme: dark;
     }
   }

@@ -14,10 +14,11 @@ import * as q from '../datos/consultas'
 const POR_PAGINA = 100
 const control = 'rounded-md border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento'
 const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
-/** Color de cada bloque de la nota: el mismo en los pesos, en la barra de cada fondo y en la leyenda. */
+/** Color de cada bloque de la nota: el mismo en los pesos, en la barra de cada fondo y en la leyenda. Seis bloques no caben en
+ *  una paleta legible (dataviz): el acento en dos intensidades alternas, separados por un hueco, y el nombre en la leyenda y el orden. */
+const FUERTE = 'var(--color-acento)', FLOJO = 'color-mix(in srgb, var(--color-acento) 45%, var(--color-panel))'
 const COLOR_BLOQUE: Record<Bloque, string> = {
-  riesgo: 'var(--color-serie1)', consistencia: 'var(--color-serie2)', coste: 'var(--color-serie3)',
-  proteccion: 'var(--color-serie4)', rentabilidad: 'var(--color-serie5)', diversificacion: 'var(--color-gris)',
+  riesgo: FUERTE, consistencia: FLOJO, coste: FUERTE, proteccion: FLOJO, rentabilidad: FUERTE, diversificacion: 'var(--color-gris)',
 }
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
@@ -330,7 +331,7 @@ export default function Screener() {
                 className={`rounded-sm px-3 py-0.5 ${plazo === p ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{p ? p.toUpperCase() : 'Auto'}</button>
             ))}
           </div>}>
-          <div className="mb-3 flex h-2.5 overflow-hidden rounded-sm bg-borde/60" aria-hidden="true">
+          <div className="mb-3 flex h-2.5 gap-0.5 overflow-hidden rounded-sm bg-borde/60" aria-hidden="true">
             {BLOQUES.map((k) => <span key={k} style={{ width: `${pesoReal(k) * 100}%`, background: COLOR_BLOQUE[k] }} />)}
           </div>
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -500,7 +501,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
                   {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span> : (
                     <span className="inline-flex items-center gap-2">
                       <span className="cifra w-7 text-right text-xl leading-none">{Math.round(f.nota)}</span>
-                      <span aria-hidden className="flex h-1.5 w-20 overflow-hidden rounded-sm bg-borde/60">
+                      <span aria-hidden className="flex h-1.5 w-20 gap-px overflow-hidden rounded-sm bg-borde/60">
                         {BLOQUES.filter((k) => w[k]).map((k) => <span key={k} style={{ width: `${w[k]! * f.bloques[k]!}%`, background: COLOR_BLOQUE[k] }} />)}
                       </span>
                     </span>

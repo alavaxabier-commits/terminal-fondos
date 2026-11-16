@@ -225,7 +225,7 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
 /** Desarrollados frente a emergentes en una sola barra partida. */
 function Mercados({ filas }: { filas: Fila[] }) {
   const total = filas.reduce((t, [, v]) => t + Math.max(v, 0), 0) || 1
-  const colores = ['var(--color-acento)', 'var(--color-serie1)', 'var(--color-gris)']
+  const colores = ['var(--color-serie1)', 'var(--color-serie2)', 'var(--color-gris)']
   return (
     <div className="mt-5">
       <Titulo>Mercados</Titulo>
