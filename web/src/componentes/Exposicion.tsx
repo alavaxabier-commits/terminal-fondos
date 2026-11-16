@@ -55,7 +55,7 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
     <div className="space-y-4">
       <Tarjeta titulo="Exposición" extra={conDatos.length > 1 && (
         <select value={elegido} onChange={(e) => setElegido(e.target.value)} aria-label="Ver la exposición de"
-          className="max-w-full rounded-full border border-borde bg-panel px-3 py-1 text-texto">
+          className="max-w-full rounded border border-borde bg-panel px-3 py-1 text-texto">
           <option value="">Toda la cartera</option>
           {conDatos.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
         </select>
@@ -72,10 +72,10 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           {partes.length > 1 && (
-            <div role="group" aria-label="Parte de la cartera" className="flex flex-wrap gap-0.5 rounded-full bg-borde/50 p-0.5 text-[13px]">
+            <div role="group" aria-label="Parte de la cartera" className="flex flex-wrap gap-0.5 rounded bg-borde/50 p-0.5 text-[13px]">
               {partes.map(([k, t, v]) => (
                 <button key={k} type="button" aria-pressed={k === tab} onClick={() => setParte(k)}
-                  className={`rounded-full px-3 py-1 ${k === tab ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>
+                  className={`rounded px-3 py-1 ${k === tab ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>
                   {t} · {pct(v / 100, 0, false)}
                 </button>
               ))}

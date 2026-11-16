@@ -22,12 +22,12 @@ export default function DetalleFondo({ isin, nombre, divisa, linea, nota, childr
   }, [isin, divisa])
   const lineas = useMemo(() => (serie?.length ? [{ nombre: 'Base 100 · 3A', serie: base100(serie, haceAnos(serie.at(-1)!.fecha, 3)), color: 'acento' }] : []), [serie])
 
-  const boton = 'flex min-h-8 items-center rounded-full px-4'
+  const boton = 'flex min-h-8 items-center rounded px-4'
   return (
     <section aria-label="Detalle del fondo" className="flex flex-col gap-3 rounded-lg border border-borde bg-panel p-4 text-[13px]">
       <div className="space-y-1">
-        {categoria && <p className="text-[11px] uppercase tracking-widest text-acento">{categoria}</p>}
-        <a href={`#/fondo/${isin}`} className="block font-serif text-2xl leading-tight hover:text-acento">{nombre}</a>
+        {categoria && <p className="etiqueta text-acento">{categoria}</p>}
+        <a href={`#/fondo/${isin}`} className="block font-ancha text-2xl leading-tight hover:text-acento">{nombre}</a>
         <p className="text-[12px] text-suave">{linea}</p>
       </div>
       {nota}

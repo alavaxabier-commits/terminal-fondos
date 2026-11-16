@@ -96,7 +96,7 @@ const BarraPercentil = ({ p }: { p: number }) => (
   </span>
 )
 export const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
-  <span className={`rounded-full bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
+  <span className={`rounded bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
 
 /** Métricas de la pestaña, agrupadas por lo que miden, con una línea que explica cada una (claves de FILAS). */
 export const GRUPOS: [string, string, [string, string][]][] = [
@@ -203,7 +203,7 @@ export default function Ficha({ isin }: { isin: string }) {
     <article className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         <div className="min-w-0 space-y-2">
-          <p className="text-[11px] uppercase tracking-widest text-acento">{f.categoria ?? 'sin categoría'}</p>
+          <p className="etiqueta text-acento">{f.categoria ?? 'sin categoría'}</p>
           <h1 className="text-3xl! sm:text-4xl!">{f.nombre}</h1>
           <div className="flex flex-wrap gap-1.5 text-suave">
             <Pastilla className="font-mono">{f.isin}</Pastilla>
@@ -217,9 +217,9 @@ export default function Ficha({ isin }: { isin: string }) {
         <div className="flex flex-wrap gap-2">
           <button onClick={() => alternar({ isin: f.isin, nombre: f.nombre })} disabled={llena} aria-pressed={enBandeja}
             title={llena ? `Como mucho ${MAX_BANDEJA} fondos en el comparador` : undefined}
-            className={`min-h-8 rounded-full bg-borde/50 px-4 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
+            className={`min-h-8 rounded bg-borde/50 px-4 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
           <button onClick={seguir} disabled={seguido}
-            className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
+            className="min-h-8 rounded bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
         </div>
       </header>
       <Franja cifras={[
@@ -256,14 +256,14 @@ export default function Ficha({ isin }: { isin: string }) {
               <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span className="cifra text-5xl tabular">{ultimo ? `${cifra(ultimo.valor, ultimo.valor < 100 ? 4 : 2)} €` : '—'}</span>
-                  {dia != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(dia)} ${dia >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(dia, 2)} último día</span>}
-                  {ytd != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
+                  {dia != null && <span className={`rounded px-2 text-[12px] tabular ${tono(dia)} ${dia >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(dia, 2)} último día</span>}
+                  {ytd != null && <span className={`rounded px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
                   {ultimo && <span className="text-[12px] text-suave">valor en euros del {fecha(ultimo.fecha)}</span>}
                 </div>
-                <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+                <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded bg-borde/50 p-0.5 text-[12px]">
                   {RANGOS.map(([etiqueta, n]) => (
                     <button key={etiqueta} onClick={() => setRango(n)} aria-pressed={rango === n}
-                      className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{etiqueta.toUpperCase()}</button>
+                      className={`rounded px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{etiqueta.toUpperCase()}</button>
                   ))}
                 </div>
               </div>
@@ -462,7 +462,7 @@ export default function Ficha({ isin }: { isin: string }) {
                     <tr key={c.isin} className={`border-b border-borde/60 ${c.isin === f.isin ? 'bg-acento/10' : ''}`}>
                       <td className="py-2 pl-2 text-left">
                         <a href={`#/fondo/${c.isin}`} className="hover:text-acento">{c.nombre}</a>
-                        {c.isin === f.isin && <span className="ml-2 rounded-full bg-acento/15 px-2 text-[11px] text-acento">esta</span>}
+                        {c.isin === f.isin && <span className="ml-2 rounded bg-acento/15 px-2 text-[11px] text-acento">esta</span>}
                         <span className="block text-[12px] text-suave"><span className="font-mono">{c.isin}</span>{c.en_universo ? '' : ' · fuera del universo'}</span>
                       </td>
                       <td>{c.divisa ?? '—'}{cubierta(c.nombre) && <span className="text-suave"> cubierta</span>}</td>
