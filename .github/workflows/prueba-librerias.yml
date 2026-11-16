@@ -9,59 +9,29 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: pip install --quiet morningpy morningstarFetcher || pip install --quiet morningpy; pip install --quiet morningstarFetcher || true
-      - name: Servicios que usan (URLs en su código)
+      - name: Código del screener de morningstarFetcher
         run: |
-          D=$(python -c "import site; print(site.getsitepackages()[0])")
-          for p in morningpy morningstarFetcher morningstarfetcher; do
-            [ -d "$D/$p" ] && echo "== $p" && grep -rhoE "https?://[a-zA-Z0-9./_{}-]*morningstar[a-zA-Z0-9./_{}?=&%-]*" "$D/$p" | sort -u | head -40
-            [ -d "$D/$p" ] && grep -rlE "selenium|playwright|waf|captcha" "$D/$p" | head -5
-          done
-          pip show morningpy morningstarFetcher 2>/dev/null | grep -E "^(Name|Version|Requires)"
-      - name: Prueba
+          D=$(python -c "import site; print(site.getsitepackages()[0])")/morningstarFetcher
+          sed -n '1,200p' $D/screener.py | grep -nE "http|url|token|header|def |params|query|limit|page" | head -60
+          echo ----- requests
+          grep -nE "http|url|token|header|def |User-Agent|ua_generator|generate" $D/utils/requests.py | head -60
+      - name: Prueba con agente de usuario fijo
         run: |
-          cat > p.py <<'PY'
-          import asyncio, inspect, logging, traceback
-          logging.basicConfig(level=logging.DEBUG, format='%(name)s %(message)s')
-          for n in ('httpx', 'httpcore', 'aiohttp', 'hpack', 'charset_normalizer'):
-              logging.getLogger(n).setLevel(logging.WARNING if n != 'httpx' else logging.INFO)
-
-          def corto(x):
-              try:
-                  import pandas as pd
-                  if isinstance(x, pd.DataFrame):
-                      return f'DataFrame {x.shape} columnas {list(x.columns)[:15]}\n{x.head(3).to_string()[:800]}'
-              except Exception:
-                  pass
-              return repr(x)[:800]
-
-          def probar(nombre, f):
-              print(f'\n==== {nombre}', flush=True)
-              try:
-                  r = f()
-                  if inspect.isawaitable(r):
-                      r = asyncio.run(r)
-                  print('OK', corto(r), flush=True)
-              except Exception as e:
-                  print('FALLA', type(e).__name__, str(e)[:300])
-                  traceback.print_exc(limit=3)
-
+          cat > q.py <<'PY'
+          import logging, traceback
+          logging.basicConfig(level=logging.INFO, format='%(name)s %(message)s')
+          import ua_generator
+          class UA:
+              text = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+              headers = type('H', (), {'get': lambda self: {'user-agent': UA.text}})()
+              def __str__(self): return self.text
+          ua_generator.generate = lambda *a, **k: UA()
+          import morningstarFetcher as mf
           try:
-              import morningpy.api.ticker as t
-              print('morningpy.ticker:', [x for x in dir(t) if not x.startswith('_')])
-              if hasattr(t, 'get_all_funds'):
-                  probar('morningpy get_all_funds', t.get_all_funds)
-              if hasattr(t, 'search_tickers'):
-                  probar('morningpy search_tickers fund', lambda: t.search_tickers(security_type='fund'))
-              if hasattr(t, 'convert'):
-                  probar('morningpy convert ISIN', lambda: t.convert(isin='IE00B03HD191', convert_to='security_id'))
+              df = mf.Screener().get('mutual_funds', 'es')
+              print('OK', df.shape, list(df.columns)[:25])
+              print(df.head(3).to_string()[:1500])
           except Exception as e:
-              print('morningpy no carga', e)
-          try:
-              import morningstarFetcher as mf
-              print('morningstarFetcher:', [x for x in dir(mf) if not x.startswith('_')])
-              s = mf.Screener()
-              probar('morningstarFetcher Screener mutual_funds es', lambda: s.get('mutual_funds', 'es'))
-          except Exception as e:
-              print('morningstarFetcher no carga', type(e).__name__, e)
+              print('FALLA', type(e).__name__, str(e)[:500]); traceback.print_exc(limit=6)
           PY
-          python p.py 2>&1 | grep -vE "^(urllib3|asyncio) .*(Starting new|Resetting|Using selector)" | head -200
+          python q.py 2>&1 | head -80
