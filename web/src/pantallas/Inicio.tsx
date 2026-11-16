@@ -30,7 +30,7 @@ type ResumenCartera = {
 /** Fondos de una cartera con señales de revisión, por ISIN. */
 type Senales = Map<string, Senal[]>
 type Mercado = { indice: string; isin: string; bolsa: boolean; cambio: Record<Periodo, number | null>; anual: number | null; linea: number[] }
-type Seguido = { isin: string; nombre: string; categoria: string | null; estado: string; myinvestor: boolean; nota: number; semana: number | null; nuevo: boolean; divisa: string | null }
+type Seguido = { isin: string; nombre: string; categoria: string | null; myinvestor: boolean; nota: number; semana: number | null; nuevo: boolean; divisa: string | null }
 
 type Comun = { cats: Awaited<ReturnType<typeof categoriasReferencia>>; rf: Map<string, number> }
 
@@ -99,14 +99,13 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
       return { indice: i.indice, isin: i.isin, bolsa: /^(MSCI|S&P)/.test(i.indice), cambio: cambios(s), anual: variacion(s, haceAnos(ultimo, 1)), linea: muestra(s, haceAnos(ultimo, 1), 10) }
     }))).then(setMercados).catch(setMercados)
     seguidos().then(async (fs) => {
-      const activos = fs.filter((f) => f.estado !== 'descartado')
       const porIsin = new Map<string, NotaSemanal[]>()
-      for (const n of await notasDe(activos.map((f) => f.isin))) porIsin.set(n.isin, [...(porIsin.get(n.isin) ?? []), n])
+      for (const n of await notasDe(fs.map((f) => f.isin))) porIsin.set(n.isin, [...(porIsin.get(n.isin) ?? []), n])
       const semana = Date.now() - 7 * 864e5
-      setSeg(activos.flatMap((f) => {
+      setSeg(fs.flatMap((f) => {
         const notas = porIsin.get(f.isin) ?? []
         const e = evolucion(notas)
-        return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, estado: f.estado, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, divisa: f.fondo.divisa }] : []
+        return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, divisa: f.fondo.divisa }] : []
       }).sort((a, b) => Number(seMueve(b)) - Number(seMueve(a)) || Number(b.nuevo) - Number(a.nuevo) || Math.abs(b.semana ?? 0) - Math.abs(a.semana ?? 0) || b.nota - a.nota))
     }).catch(setSeg)
   }, [])
@@ -303,7 +302,7 @@ function ListaSeguimiento({ seg: dato }: { seg: Seguido[] | Error | null }) {
                 <span className="min-w-0">
                   <span className="block truncate">{f.nombre}</span>
                   <span className="block truncate text-[12px] text-suave">
-                    {f.estado === 'candidato' ? <span className="text-acento">candidato</span> : f.estado}{f.nuevo && <> · <span className="text-acento">nuevo</span></>}{f.myinvestor ? ' · MyInvestor' : ''}{f.categoria ? ` · ${f.categoria}` : ''}
+                    {f.categoria ?? 'Sin categoría'}{f.nuevo && <> · <span className="text-acento">nuevo</span></>}{f.myinvestor ? ' · MyInvestor' : ''}
                   </span>
                 </span>
                 <Mini valores={lineas.get(f.isin) ?? []} color={colorLinea(lineas.get(f.isin) ?? [])} className="h-6 w-16" />
