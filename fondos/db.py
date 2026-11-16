@@ -108,6 +108,49 @@ class Repo:
             insert into fondos.composicion (isin, fecha_cartera, datos) values (%s, %s, %s)
             on conflict (isin) do update set fecha_cartera = excluded.fecha_cartera, datos = excluded.datos,
                                              descargada_en = now()""", (isin, fecha, Jsonb(datos)))
+        self.guardar_historial_rf(isin, fecha, datos)
+
+    def guardar_historial_rf(self, isin: str, fecha: dt.date | None, datos: dict):
+        """Estadísticas de renta fija de la cartera publicada en historial_rf (composicion solo guarda la última)."""
+        s = datos.get('estadisticas_rf')
+        if not fecha or not isinstance(s, dict):
+            return
+        self._ejecutar("""
+            insert into fondos.historial_rf (fondo_id, fecha_cartera, tir, rendimiento, duracion, vencimiento, calidad)
+            select id, %s, %s, %s, %s, %s, %s from fondos.fondo where isin = %s
+            on conflict (fondo_id, fecha_cartera) do update set tir = excluded.tir, rendimiento = excluded.rendimiento,
+              duracion = excluded.duracion, vencimiento = excluded.vencimiento, calidad = excluded.calidad""",
+            (fecha, s.get('YieldToMaturity'), s.get('CurrentYield'), s.get('ModifiedDuration'), s.get('EffectiveMaturity'),
+             s.get('AverageCreditQualityCode'), isin))
+
+    def guardar_gestion(self, isin: str, gestion: dict):
+        """Gestora y equipo gestor en la ficha; si el equipo cambia, una línea en cambio_gestor."""
+        from psycopg.types.json import Jsonb
+        from .proveedores.morningstar import cambio_gestores
+        filas = self._filas('select id, gestores from fondos.fondo where isin = %s', (isin,))
+        if not filas:
+            return
+        fondo_id, antes = filas[0]
+        if cambio := cambio_gestores(antes, gestion.get('gestores')):
+            self._ejecutar("""
+                insert into fondos.cambio_gestor (fondo_id, fecha, entran, salen) values (%s, current_date, %s, %s)
+                on conflict (fondo_id, fecha) do update set entran = excluded.entran, salen = excluded.salen""",
+                (fondo_id, *cambio))
+        self._ejecutar("""
+            update fondos.fondo set gestora = coalesce(%s, gestora), gestores = coalesce(%s, gestores) where id = %s""",
+            (gestion.get('gestora'), Jsonb(gestion['gestores']) if gestion.get('gestores') else None, fondo_id))
+
+    def guardar_historial_patrimonio(self):
+        """Patrimonio de hoy de los fondos del universo (y diarios) en historial_patrimonio, solo si ha cambiado."""
+        self._ejecutar("""
+            insert into fondos.historial_patrimonio (fondo_id, fecha, patrimonio_meur)
+            select f.id, current_date, f.patrimonio_meur
+            from fondos.fondo f
+            left join lateral (select h.patrimonio_meur from fondos.historial_patrimonio h where h.fondo_id = f.id
+                               order by h.fecha desc limit 1) u on true
+            where f.patrimonio_meur is not null and (f.en_universo or f.isin in (select isin from fondos.fondo_diario))
+              and u.patrimonio_meur is distinct from f.patrimonio_meur
+            on conflict (fondo_id, fecha) do update set patrimonio_meur = excluded.patrimonio_meur""")
 
     def guardar_myinvestor(self, filas: list[dict]):
         """Sustituye el catálogo de MyInvestor entero, en una transacción."""

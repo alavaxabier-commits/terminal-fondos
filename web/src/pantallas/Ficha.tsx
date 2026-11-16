@@ -314,6 +314,10 @@ export default function Ficha({ isin }: { isin: string }) {
                   <dl className="divide-y divide-borde text-[13px]">
                     {([
                       ['Gestora', f.gestora ?? '—'],
+                      ['Equipo gestor', f.gestores?.length ? (
+                        <span className="block text-right">{f.gestores.map((g) => (
+                          <span key={g.nombre} className="block">{g.nombre}{g.desde && <span className="text-suave"> · desde {fecha(g.desde)}</span>}</span>
+                        ))}</span>) : '—'],
                       ['Referencia', textoRef ?? '—'],
                       ['Patrimonio', millones(f.patrimonio_meur)],
                       ['Lanzamiento', fecha(f.fecha_lanzamiento)],

@@ -85,8 +85,9 @@ def orden_composicion(repo, tanda: int) -> int:
     ms, c, completas = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}, 0
     for isin, ms_id in repo.fondos_para_composicion(tanda):
         try:
-            fecha, datos = ms.composicion(ms_id)
+            fecha, datos, gestion = ms.composicion(ms_id)
             repo.guardar_composicion(isin, fecha, datos)  # sin desglose también se guarda: no se reintenta hasta el mes que viene
+            repo.guardar_gestion(isin, gestion)
             estado = 'ok' if datos else 'aviso'
             completas += bool(datos.get('posiciones_todas'))
             repo.registrar('morningstar', isin, estado, f"composición: cartera a {fecha}, {len(datos.get('posiciones', []))} posiciones" if datos else 'composición: sin desglose publicado')
@@ -180,6 +181,8 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
         repo.registrar('universo', None, 'ok', f'fichas: {n}')
     mi, alarmas_mi = descargar_myinvestor(repo)
     dentro = repo.marcar_universo(min_patrimonio, min_anos, tope, max_minima)
+    if not limite:
+        repo.guardar_historial_patrimonio()
     mi_ficha, mi_dentro = repo.resumen_myinvestor()
     borrados = repo.limpiar_valores()
     con_minima, fichas = repo.resumen_minimas()
@@ -256,10 +259,6 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     if args.orden == 'prueba-red':
-        if os.environ.get('EXPLORAR'):  # temporal: gestora y equipo gestor
-            from .explorar import explorar
-            explorar(args.isin.upper())
-            return 0
         return orden_prueba_red(args.isin.upper())
 
     from .db import Repo

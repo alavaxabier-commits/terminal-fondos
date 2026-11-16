@@ -161,3 +161,20 @@ def test_sesion_intervalo_minimo_y_freno(monkeypatch):
     s.get('a'); s.get('a')
     with pytest.raises(m.Bloqueo, match='429 3 veces'):
         s.get('a')
+
+
+def test_gestora_y_equipo_gestor():
+    from fondos.proveedores.morningstar import cambio_gestores, leer_gestion
+    d = [{'BrandingCompanyName': 'BNY Mellon', 'ProviderCompany': {'Name': 'BNY Mellon Fund Management (Lux) S.A.'},
+          'ManagerList': [{'GivenName': 'Shaun', 'FamilyName': 'Casey', 'StartDate': '2021-12-03T00:00:00'},
+                          {'GivenName': 'Harvey', 'FamilyName': 'Bradley', 'StartDate': '2021-12-03T00:00:00'},
+                          {'GivenName': ' ', 'FamilyName': None}]}]
+    g = leer_gestion(d)
+    assert g == {'gestora': 'BNY Mellon', 'gestores': [{'nombre': 'Harvey Bradley', 'desde': '2021-12-03'},
+                                                      {'nombre': 'Shaun Casey', 'desde': '2021-12-03'}]}
+    assert leer_gestion({'ProviderCompany': {'Name': 'X S.A.'}}) == {'gestora': 'X S.A.', 'gestores': None}
+    assert leer_gestion(None) == {'gestora': None, 'gestores': None}
+    nuevo = [{'nombre': 'Harvey Bradley'}, {'nombre': 'Harry Jones'}]
+    assert cambio_gestores(g['gestores'], nuevo) == (['Harry Jones'], ['Shaun Casey'])
+    assert cambio_gestores(g['gestores'], g['gestores']) is None
+    assert cambio_gestores(None, nuevo) is None and cambio_gestores(nuevo, None) is None

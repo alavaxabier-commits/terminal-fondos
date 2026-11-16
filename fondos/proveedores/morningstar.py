@@ -162,6 +162,30 @@ def leer_composicion(datos) -> tuple[dt.date | None, dict]:
     return _fecha(p.get('Date')), out
 
 
+def leer_gestion(datos) -> dict:
+    """Ficha de detalle → {'gestora': marca de la gestora, 'gestores': [{nombre, desde}] por nombre, o None}."""
+    d = datos[0] if isinstance(datos, list) and datos else datos
+    if not isinstance(d, dict):
+        return {'gestora': None, 'gestores': None}
+    gestores = []
+    for g in d.get('ManagerList') or []:
+        nombre = ' '.join(x.strip() for x in (g.get('GivenName'), g.get('FamilyName')) if x and x.strip())
+        if nombre:
+            desde = _fecha(g.get('StartDate'))
+            gestores.append({'nombre': nombre, 'desde': desde.isoformat() if desde else None})
+    gestora = d.get('BrandingCompanyName') or (d.get('ProviderCompany') or {}).get('Name')
+    return {'gestora': gestora or None, 'gestores': sorted(gestores, key=lambda g: g['nombre']) or None}
+
+
+def cambio_gestores(antes: list[dict] | None, ahora: list[dict] | None) -> tuple[list[str], list[str]] | None:
+    """(entran, salen) por nombre si el equipo ha cambiado; None si no hay cambio o falta uno de los dos (el primer
+    equipo que se guarda no es un cambio, y una ficha sin equipo no dice que se hayan ido todos)."""
+    if not antes or not ahora:
+        return None
+    a, b = {g['nombre'] for g in antes}, {g['nombre'] for g in ahora}
+    return (sorted(b - a), sorted(a - b)) if a != b else None
+
+
 def leer_serie(datos) -> Serie:
     """Respuesta del servicio de series → {fecha: valor}.
 
@@ -247,12 +271,14 @@ class Morningstar:
                 return ficha(fila)
         return None
 
-    def composicion(self, ms_id: str) -> tuple[dt.date | None, dict]:
-        """Desglose de la cartera de un fondo: ficha de detalle y posiciones completas (dos peticiones)."""
+    def composicion(self, ms_id: str) -> tuple[dt.date | None, dict, dict]:
+        """Desglose de la cartera de un fondo, gestora y equipo gestor: ficha de detalle y posiciones completas (dos
+        peticiones)."""
         r = self.http.get(DETALLE + ms_id, params={'viewId': 'MFsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
                                                    'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
         r.raise_for_status()
         fecha, datos = leer_composicion(r.json())
+        gestion = leer_gestion(r.json())
         if datos:  # todas las posiciones, en lugar de las 10 mayores; si falla, se quedan las 10
             try:
                 p = self.http.get(POSICIONES.format(ms_id), headers={'apikey': CLAVE_WEB}, timeout=120,
@@ -264,7 +290,7 @@ class Morningstar:
                         datos['posiciones_todas'] = True
             except (requests.RequestException, ValueError):
                 pass
-        return fecha, datos
+        return fecha, datos, gestion
 
     def universo(self, tam: int = 500, limite: int | None = None):
         """Todas las fichas del universo, página a página."""

@@ -20,6 +20,7 @@ export type Fondo = {
   gestion?: 'activa' | 'indexada' | null
   inversion_minima?: number | null
   calidad_media?: string | null
+  gestores?: { nombre: string; desde: string | null }[] | null // equipo gestor actual (ficha de detalle de Morningstar)
   vencimiento_efectivo?: number | null
 }
 
