@@ -90,7 +90,7 @@ export default function Seguimiento() {
   const categoria = (f: Fila) => f.fondo.categoria ?? 'Sin categoría'
   const evo = (isin: string) => evolucion(notas.get(isin) ?? [])
   const grupo = (f: Fila) => (senales.get(f.isin)?.length || seMueve(evo(f.isin)?.semana) ? MIRAR : tipoActivo(f.fondo.categoria))
-  const orden = (g: string) => (g === MIRAR ? -1 : TIPOS.indexOf(g))
+  const orden = (g: string) => (g === MIRAR ? -1 : (TIPOS as readonly string[]).indexOf(g))
   const visibles = [...(filas ?? [])].sort((a, b) => orden(grupo(a)) - orden(grupo(b)) || categoria(a).localeCompare(categoria(b), 'es') || a.fondo.nombre.localeCompare(b.fondo.nombre, 'es'))
   // sin selección (o si deja de verse), la primera fila
   const primera = visibles[0]?.isin
