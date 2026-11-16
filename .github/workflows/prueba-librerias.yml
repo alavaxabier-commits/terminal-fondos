@@ -9,6 +9,30 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: pip install --quiet morningpy morningstarFetcher || pip install --quiet morningpy; pip install --quiet morningstarFetcher || true
+      - name: Token público y buscador global, a mano
+        run: |
+          pip install --quiet requests
+          cat > r.py <<'PY'
+          import requests, re
+          UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+          h = {'User-Agent': UA, 'referer': 'https://www.morningstar.com/'}
+          t = requests.get('https://www.morningstar.com/api/v2/stores/maas/token', headers=h, timeout=30)
+          print('token', t.status_code, t.headers.get('content-type'), len(t.text), 'ascii' if t.text.isascii() else 'NO ascii',
+                re.sub(r'[A-Za-z0-9_\-\.]{20,}', '<largo>', t.text[:120]))
+          tok = t.text.strip().strip('"')
+          q = "(investmentType in ('FO','FM')) AND (investmentStatus != \"Closed\")"
+          for loc, mk in (('en-eu', 'ESP'), ('es', 'ESP')):
+              for nombre, extra in (('sin token', {}), ('con token', {'authorization': f'Bearer {tok}', 'apikey': 'lstzFDEOhfFNMLikKa0am9mgEKLBl49T'})):
+                  try:
+                      r = requests.get(f'https://global.morningstar.com/api/v1/{loc}/tools/screener/_data', headers={**h, **extra}, timeout=60,
+                                       params={'query': q, 'fields': 'name,isin,morningstarCategory,ongoingCharge,fundSize', 'marketID': mk,
+                                               'page': 1, 'limit': 5})
+                      cuerpo = r.text[:300] if r.status_code != 200 else str(r.json().get('count')) + ' fondos; ' + str(r.json().get('results', [{}])[0].get('fields', {}).get('isin'))
+                      print(loc, nombre, r.status_code, r.headers.get('x-amzn-waf-action'), cuerpo)
+                  except Exception as e:
+                      print(loc, nombre, type(e).__name__, str(e)[:200])
+          PY
+          python r.py
       - name: Código del screener de morningstarFetcher
         run: |
           D=$(python -c "import site; print(site.getsitepackages()[0])")/morningstarFetcher
