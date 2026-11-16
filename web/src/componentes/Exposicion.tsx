@@ -4,7 +4,7 @@ import {
   type Cifra, type Fila, type Fondo, type Grupo, type PosicionCartera,
 } from '../calculo/exposicion'
 import { cifra, fecha, pct } from '../calculo/formato'
-import Donut from './Donut'
+import Reparto from './Reparto'
 import Tarjeta from './Tarjeta'
 
 type FondoX = Fondo & { fechaCartera: string | null }
@@ -55,13 +55,13 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
     <div className="space-y-4">
       <Tarjeta titulo="Exposición" extra={conDatos.length > 1 && (
         <select value={elegido} onChange={(e) => setElegido(e.target.value)} aria-label="Ver la exposición de"
-          className="max-w-full rounded-full border border-borde bg-panel px-3 py-1 text-texto">
+          className="max-w-full rounded-sm border border-borde bg-panel px-3 py-1 text-texto">
           <option value="">Toda la cartera</option>
           {conDatos.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
         </select>
       )}>
-        <div className="grid items-center gap-x-10 gap-y-5 md:grid-cols-[auto_minmax(0,1fr)]">
-          <Donut activos={x.activos} />
+        <div className="grid items-center gap-x-10 gap-y-5 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+          <Reparto activos={x.activos} />
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
             {esencial.map(([k, v]) => (
               <div key={k} className="min-w-0 border-l-2 border-borde pl-3">
@@ -72,10 +72,10 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           {partes.length > 1 && (
-            <div role="group" aria-label="Parte de la cartera" className="flex flex-wrap gap-0.5 rounded-full bg-borde/50 p-0.5 text-[13px]">
+            <div role="group" aria-label="Parte de la cartera" className="flex flex-wrap gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[13px]">
               {partes.map(([k, t, v]) => (
                 <button key={k} type="button" aria-pressed={k === tab} onClick={() => setParte(k)}
-                  className={`rounded-full px-3 py-1 ${k === tab ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>
+                  className={`rounded-sm px-3 py-1 ${k === tab ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>
                   {t} · {pct(v / 100, 0, false)}
                 </button>
               ))}
@@ -179,8 +179,8 @@ function Lista({ titulo, filas, barras, columnas }: { titulo?: string; filas: Fi
             <li key={nombre} className={`grid items-center gap-2 ${barras ? 'grid-cols-[minmax(0,10rem)_1fr_4rem]' : 'grid-cols-[1fr_4rem]'}`}>
               <span className="truncate">{nombre}</span>
               {barras && (
-                <span className="h-1.5 rounded-full bg-borde/60" aria-hidden="true">
-                  <span className={`block h-1.5 rounded-full ${v < 0 ? 'bg-baja' : 'bg-acento'}`} style={{ width: `${(Math.abs(v) / max) * 100}%` }} />
+                <span className="h-1.5 rounded-sm bg-borde/60" aria-hidden="true">
+                  <span className={`block h-1.5 rounded-sm ${v < 0 ? 'bg-baja' : 'bg-acento'}`} style={{ width: `${(Math.abs(v) / max) * 100}%` }} />
                 </span>
               )}
               <span className="text-right tabular">{pct(v / 100, 1, false)}</span>
@@ -225,11 +225,11 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
 /** Desarrollados frente a emergentes en una sola barra partida. */
 function Mercados({ filas }: { filas: Fila[] }) {
   const total = filas.reduce((t, [, v]) => t + Math.max(v, 0), 0) || 1
-  const colores = ['var(--color-acento)', 'var(--color-serie2)', 'var(--color-suave)']
+  const colores = ['var(--color-acento)', 'var(--color-serie1)', 'var(--color-gris)']
   return (
     <div className="mt-5">
       <Titulo>Mercados</Titulo>
-      <div className="flex h-2 overflow-hidden rounded-full bg-borde/60" aria-hidden="true">
+      <div className="flex h-2 overflow-hidden rounded-sm bg-borde/60" aria-hidden="true">
         {filas.map(([n, v], i) => <span key={n} style={{ width: `${(Math.max(v, 0) / total) * 100}%`, background: colores[i % 3] }} />)}
       </div>
       <p className="mt-1.5 flex flex-wrap gap-x-5 text-[13px]">

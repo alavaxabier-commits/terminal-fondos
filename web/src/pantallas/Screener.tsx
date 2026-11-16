@@ -16,8 +16,8 @@ const control = 'rounded-md border border-borde bg-panel px-2 py-1 text-texto ou
 const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 /** Color de cada bloque de la nota: el mismo en los pesos, en la barra de cada fondo y en la leyenda. */
 const COLOR_BLOQUE: Record<Bloque, string> = {
-  riesgo: 'var(--color-acento)', consistencia: 'var(--color-serie2)', coste: 'var(--color-serie3)',
-  proteccion: 'var(--color-serie4)', rentabilidad: 'var(--color-serie5)', diversificacion: 'var(--color-suave)',
+  riesgo: 'var(--color-serie1)', consistencia: 'var(--color-serie2)', coste: 'var(--color-serie3)',
+  proteccion: 'var(--color-serie4)', rentabilidad: 'var(--color-serie5)', diversificacion: 'var(--color-gris)',
 }
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
@@ -196,13 +196,13 @@ export default function Screener() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
         <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-widest text-acento">{monetarios ? 'Universo · vista monetarios: rendimiento reciente' : 'Universo · nota 0–100 dentro de su categoría'}</p>
+          <p className="rotulo text-acento!">{monetarios ? 'Universo · vista monetarios: rendimiento reciente' : 'Universo · nota 0–100 dentro de su categoría'}</p>
           <h1 className="text-3xl! sm:text-4xl!">Screener</h1>
         </div>
-        <div role="group" aria-label="Modo de ranking" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+        <div role="group" aria-label="Modo de ranking" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
           {(['juntos', 'separados', 'indexados', 'activos'] as Modo[]).map((m) => (
             <button key={m} aria-pressed={modo === m} onClick={() => setModo(m)}
-              className={`rounded-full px-3 py-1 capitalize ${modo === m ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{m}</button>
+              className={`rounded-sm px-3 py-1 capitalize ${modo === m ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{m}</button>
           ))}
         </div>
       </header>
@@ -213,15 +213,15 @@ export default function Screener() {
         {perfiles.length > 0 && <span className="text-[12px] text-suave">Perfiles</span>}
         {perfiles.map((p) => (
           <button key={p.id} onClick={() => aplicarPerfil(String(p.id))}
-            className="rounded-full bg-borde/50 px-3 py-0.5 text-[12px] text-texto hover:bg-borde">{p.nombre}</button>
+            className="rounded-sm bg-borde/50 px-3 py-0.5 text-[12px] text-texto hover:bg-borde">{p.nombre}</button>
         ))}
         <span className="flex-1" />
         <button onClick={() => setPanel(panel === 'filtros' ? null : 'filtros')} aria-expanded={panel === 'filtros'}
-          className={`flex min-h-8 items-center gap-1.5 rounded-full px-4 ${panel === 'filtros' ? 'bg-acento text-panel' : 'bg-borde/50 text-texto hover:bg-borde'}`}>
-          Filtros{activos.length > 0 && <span className={`grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[11px] ${panel === 'filtros' ? 'bg-panel text-acento' : 'bg-acento text-panel'}`}>{activos.length}</span>}
+          className={`flex min-h-8 items-center gap-1.5 rounded-sm px-4 ${panel === 'filtros' ? 'bg-acento text-sobre-acento' : 'bg-borde/50 text-texto hover:bg-borde'}`}>
+          Filtros{activos.length > 0 && <span className={`grid h-[18px] min-w-[18px] place-items-center rounded-sm px-1 text-[11px] ${panel === 'filtros' ? 'bg-panel text-acento' : 'bg-acento text-sobre-acento'}`}>{activos.length}</span>}
         </button>
         <button onClick={() => setPanel(panel === 'pesos' ? null : 'pesos')} aria-expanded={panel === 'pesos'}
-          className={`min-h-8 rounded-full px-4 ${panel === 'pesos' ? 'bg-acento text-panel' : 'bg-borde/50 text-texto hover:bg-borde'}`}>
+          className={`min-h-8 rounded-sm px-4 ${panel === 'pesos' ? 'bg-acento text-sobre-acento' : 'bg-borde/50 text-texto hover:bg-borde'}`}>
           Pesos · plazo {plazo ? plazo.toUpperCase() : 'auto'}
         </button>
       </div>
@@ -229,12 +229,12 @@ export default function Screener() {
       {activos.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           {activos.map(([, t, quitar]) => (
-            <span key={t} className="flex items-center gap-1.5 rounded-full bg-acento/12 px-2.5 py-0.5 text-[12px] text-acento">
+            <span key={t} className="flex items-center gap-1.5 rounded-sm bg-acento/12 px-2.5 py-0.5 text-[12px] text-acento">
               <span className="first-letter:uppercase">{t}</span>
               <button onClick={quitar} aria-label={`Quitar el filtro ${t}`} className="opacity-70 hover:text-baja hover:opacity-100">✕</button>
             </span>
           ))}
-          <button onClick={quitarTodos} className="rounded-full px-2 text-[12px] text-suave hover:text-texto">Quitar todos</button>
+          <button onClick={quitarTodos} className="rounded-sm px-2 text-[12px] text-suave hover:text-texto">Quitar todos</button>
         </div>
       )}
 
@@ -286,7 +286,7 @@ export default function Screener() {
                 <span className="flex gap-0.5" role="group" aria-label="SRRI máximo">
                   {[1, 2, 3, 4, 5, 6, 7].map((i) => (
                     <button key={i} onClick={() => filtrar({ srriMax: filtros.srriMax === i ? undefined : i })} aria-pressed={filtros.srriMax === i}
-                      className={`grid h-5 w-5 place-items-center rounded-sm text-[11px] ${filtros.srriMax === i ? 'bg-acento text-panel' : filtros.srriMax != null && i < filtros.srriMax ? 'bg-acento/25 text-texto' : 'bg-borde/60 text-suave hover:text-texto'}`}>{i}</button>
+                      className={`grid h-5 w-5 place-items-center rounded-sm text-[11px] ${filtros.srriMax === i ? 'bg-acento text-sobre-acento' : filtros.srriMax != null && i < filtros.srriMax ? 'bg-acento/25 text-texto' : 'bg-borde/60 text-suave hover:text-texto'}`}>{i}</button>
                   ))}
                 </span>
               </Campo>
@@ -324,13 +324,13 @@ export default function Screener() {
 
       {panel === 'pesos' && (
         <Tarjeta titulo="Pesos de la nota" extra={
-          <div role="group" aria-label="Plazo de las métricas de la nota" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+          <div role="group" aria-label="Plazo de las métricas de la nota" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
             {(['', ...PLAZOS] as const).map((p) => (
               <button key={p} aria-pressed={plazo === p} onClick={() => setPlazo(p)}
-                className={`rounded-full px-3 py-0.5 ${plazo === p ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{p ? p.toUpperCase() : 'Auto'}</button>
+                className={`rounded-sm px-3 py-0.5 ${plazo === p ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{p ? p.toUpperCase() : 'Auto'}</button>
             ))}
           </div>}>
-          <div className="mb-3 flex h-2.5 overflow-hidden rounded-full bg-borde/60" aria-hidden="true">
+          <div className="mb-3 flex h-2.5 overflow-hidden rounded-sm bg-borde/60" aria-hidden="true">
             {BLOQUES.map((k) => <span key={k} style={{ width: `${pesoReal(k) * 100}%`, background: COLOR_BLOQUE[k] }} />)}
           </div>
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -351,15 +351,15 @@ export default function Screener() {
             <label htmlFor="nombre-perfil" className="text-[13px] text-suave">Guardar como perfil</label>
             <input id="nombre-perfil" value={nombrePerfil} onChange={(e) => { setNombrePerfil(e.target.value); setGuardado('') }}
               placeholder="Nombre (si ya existe, se sustituye)" className={`${control} min-w-0 flex-1 sm:max-w-72`} />
-            <button type="submit" disabled={!nombrePerfil.trim()} className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">Guardar</button>
-            <button type="button" onClick={() => setPesos(PESOS_DEFECTO)} className="min-h-8 rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Pesos por defecto</button>
+            <button type="submit" disabled={!nombrePerfil.trim()} className="boton-pri">Guardar</button>
+            <button type="button" onClick={() => setPesos(PESOS_DEFECTO)} className="boton">Pesos por defecto</button>
             {guardado && <span role="status" className="text-[13px] text-sube">Guardado «{guardado}»: guarda pesos, filtros y modo.</span>}
           </form>
         </Tarjeta>
       )}
       {error && <p className="text-baja">{error}</p>}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
         <div className="min-w-0 space-y-4">
           {listas.map(([titulo, filas]) => (
             <Tarjeta key={titulo} titulo={titulo ? `${titulo} · ${filas.length}` : undefined}>
@@ -367,7 +367,7 @@ export default function Screener() {
                 ? <TablaMonetarios filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} />
                 : <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} pocos={pocos} plazo={plazo} pesos={pesos} />}
               {filas.length > mostrar && (
-                <button onClick={() => setMostrar((n) => n + POR_PAGINA)} className="mt-3 rounded-full bg-borde/50 px-4 py-1 text-[13px] hover:bg-borde">Ver {Math.min(POR_PAGINA, filas.length - mostrar)} más</button>
+                <button onClick={() => setMostrar((n) => n + POR_PAGINA)} className="boton mt-3 text-[13px]">Ver {Math.min(POR_PAGINA, filas.length - mostrar)} más</button>
               )}
             </Tarjeta>
           ))}
@@ -405,7 +405,7 @@ const Campo = ({ etiqueta, children }: { etiqueta: string; children: React.React
 /** Pastilla que se activa o desactiva. */
 const Opcion = ({ on, onClick, disabled, children }: { on: boolean; onClick: () => void; disabled?: boolean; children: React.ReactNode }) => (
   <button type="button" onClick={onClick} aria-pressed={on} disabled={disabled}
-    className={`rounded-full px-2.5 py-0.5 text-[12px] first-letter:uppercase disabled:opacity-50 ${on ? 'bg-acento text-panel' : 'bg-borde/50 text-texto hover:bg-borde'}`}>{children}</button>
+    className={`rounded-sm px-2.5 py-0.5 text-[12px] first-letter:uppercase disabled:opacity-50 ${on ? 'bg-acento text-sobre-acento' : 'bg-borde/50 text-texto hover:bg-borde'}`}>{children}</button>
 )
 
 const numero = (v: string) => {
@@ -442,8 +442,8 @@ function CeldaFondo({ f, conCategoria, extra }: { f: Puntuado; conCategoria: boo
   return (
     <td className="whitespace-normal py-2 pl-3 text-left">
       <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.nombre}</a>
-      {f.myinvestor && <span className="ml-1.5 rounded-full bg-acento/15 px-1.5 align-[1px] text-[10px] text-acento" title="Se puede comprar en MyInvestor">MI</span>}
-      {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-full bg-borde/60 px-1.5 align-[1px] text-[10px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
+      {f.myinvestor && <span className="ml-1.5 rounded-sm bg-acento/15 px-1.5 align-[1px] text-[10px] text-acento" title="Se puede comprar en MyInvestor">MI</span>}
+      {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-sm bg-borde/60 px-1.5 align-[1px] text-[10px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
       {extra}
       {conCategoria && <span className="block text-[12px] text-suave">{f.categoria}</span>}
     </td>
@@ -459,7 +459,7 @@ function Fila({ f, i, sel, setSel, seguidos, seguir, children }: { f: Puntuado; 
       {children}
       <td className="pl-2">
         <button onClick={(e) => { e.stopPropagation(); if (!seguidos.has(f.isin)) seguir(f.isin) }} aria-label={seguidos.has(f.isin) ? 'En seguimiento' : 'Añadir a seguimiento'}
-          className={`min-h-7 min-w-7 rounded-full ${seguidos.has(f.isin) ? 'text-aviso' : 'text-suave hover:bg-borde/50 hover:text-acento'}`}>{seguidos.has(f.isin) ? '★' : '+'}</button>
+          className={`min-h-7 min-w-7 rounded-sm ${seguidos.has(f.isin) ? 'text-aviso' : 'text-suave hover:bg-borde/50 hover:text-acento'}`}>{seguidos.has(f.isin) ? '★' : '+'}</button>
       </td>
     </tr>
   )
@@ -484,7 +484,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
             <Cabecera o="r5" texto="5 años" titulo="Rentabilidad anualizada a 5 años" {...cab} />
             <Cabecera o="v3" texto="Volat. 3a" titulo="Volatilidad a 3 años" {...cab} />
             <Cabecera o="s3" texto="Sharpe 3a" titulo="Sharpe a 3 años" {...cab} />
-            <th className="w-8"><span className="sr-only">Seguir</span></th>
+            <th className="relative w-8"><span className="sr-only">Seguir</span></th>
           </tr>
         </thead>
         <tbody>
@@ -493,14 +493,14 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
             return (
               <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
                 <CeldaFondo f={f} conCategoria={conCategoria} extra={<>
-                  {f.solo3a && <span className="ml-1.5 rounded-full bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
-                  {pocos(f) > 0 && <span className="ml-1.5 rounded-full bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
+                  {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
+                  {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
                 </>} />
                 <td className="pl-3 text-left">
                   {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span> : (
                     <span className="inline-flex items-center gap-2">
                       <span className="cifra w-7 text-right text-xl leading-none">{Math.round(f.nota)}</span>
-                      <span aria-hidden className="flex h-1.5 w-20 overflow-hidden rounded-full bg-borde/60">
+                      <span aria-hidden className="flex h-1.5 w-20 overflow-hidden rounded-sm bg-borde/60">
                         {BLOQUES.filter((k) => w[k]).map((k) => <span key={k} style={{ width: `${w[k]! * f.bloques[k]!}%`, background: COLOR_BLOQUE[k] }} />)}
                       </span>
                     </span>
@@ -542,7 +542,7 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
             <Cabecera o="m12" texto="12 meses" titulo="Lo que ha ganado de verdad en los últimos 12 meses" {...cab} />
             <Cabecera o="mneg" texto="Meses < 0" titulo="Meses naturales en pérdidas en los últimos 12; un monetario no debería tener ninguno" {...cab} />
             <Cabecera o="ter" texto="TER" {...cab} />
-            <th className="w-8"><span className="sr-only">Seguir</span></th>
+            <th className="relative w-8"><span className="sr-only">Seguir</span></th>
           </tr>
         </thead>
         <tbody>

@@ -6,7 +6,7 @@ import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
 import { exposicion } from '../calculo/exposicion'
 import { base100, haceAnos, lineasCartera, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
-import Donut from '../componentes/Donut'
+import Reparto from '../componentes/Reparto'
 import { Aportacion, AnoAno, costeCartera, Crisis, Juntos, MetricasCartera, Solapes } from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
 import Franja from '../componentes/Franja'
@@ -17,6 +17,7 @@ import * as q from '../datos/consultas'
 import { revisar, type FondoRevisado } from '../datos/revision'
 import { serieEur } from '../datos/series'
 import { Pastilla } from './Ficha'
+import Cargando from '../componentes/Cargando'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
 export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
@@ -124,7 +125,7 @@ export default function Cartera({ id }: { id: number }) {
   })
 
   if (error) return <p className="text-baja">No se ha podido leer o guardar la cartera: {error}</p>
-  if (guardada === undefined) return <p className="text-suave">Cargando…</p>
+  if (guardada === undefined) return <Cargando pagina />
   if (!guardada || !cartera) return <p className="text-suave">No existe esa cartera.</p>
 
   const suma = lineas.reduce((s, l) => s + l.peso, 0)
@@ -187,9 +188,9 @@ export default function Cartera({ id }: { id: number }) {
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         {borrador ? (
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-[11px] uppercase tracking-widest text-acento">Cartera modelo · editando</p>
+            <p className="rotulo text-acento!">Cartera modelo · editando</p>
             <input value={borrador.nombre} onChange={(e) => editar({ nombre: e.target.value })} aria-label="Nombre de la cartera"
-              className={`${campo} font-serif text-3xl`} />
+              className={`${campo} text-3xl font-medium tracking-tight`} />
             <div className="flex flex-wrap items-center gap-2 text-[13px]">
               <label className="flex items-center gap-2 text-suave">
                 Rebalanceo
@@ -229,7 +230,7 @@ export default function Cartera({ id }: { id: number }) {
           </div>
         ) : (
           <div className="min-w-0 space-y-2">
-            <p className="text-[11px] uppercase tracking-widest text-acento">Cartera modelo{cartera.objetivo && ` · ${cartera.objetivo}`}</p>
+            <p className="rotulo text-acento!">Cartera modelo{cartera.objetivo && ` · ${cartera.objetivo}`}</p>
             <h1 className="text-3xl! sm:text-4xl!">{cartera.nombre}</h1>
             <div className="flex flex-wrap gap-1.5 text-suave">
               <Pastilla>{lineas.length} {lineas.length === 1 ? 'fondo' : 'fondos'}</Pastilla>
@@ -243,18 +244,18 @@ export default function Cartera({ id }: { id: number }) {
             {borrador ? (
               <>
                 {guardada.fondos.length > 0 && (
-                  <button onClick={() => setBorrador(null)} disabled={ocupado} className="min-h-8 rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Cancelar</button>
+                  <button onClick={() => setBorrador(null)} disabled={ocupado} className="boton">Cancelar</button>
                 )}
                 <button onClick={() => hacer(guardar)} disabled={!puedeGuardar || ocupado}
-                  className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">Guardar</button>
+                  className="boton-pri">Guardar</button>
               </>
             ) : (
               <>
-                <a href={`#/simular/${id}`} title="Atajo: m" className="flex min-h-8 items-center rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Simular cambios</a>
-                <button onClick={() => hacer(duplicar)} disabled={ocupado} className="min-h-8 rounded-full bg-borde/50 px-4 text-texto hover:bg-borde">Duplicar</button>
-                <button onClick={() => hacer(archivar)} disabled={ocupado} className="min-h-8 rounded-full bg-borde/50 px-4 text-texto hover:bg-borde hover:text-baja">Archivar</button>
+                <a href={`#/simular/${id}`} title="Atajo: m" className="boton">Simular cambios</a>
+                <button onClick={() => hacer(duplicar)} disabled={ocupado} className="boton">Duplicar</button>
+                <button onClick={() => hacer(archivar)} disabled={ocupado} className="boton hover:text-baja">Archivar</button>
                 <button onClick={() => { setBorrador({ ...guardada.cartera, fondos: guardada.fondos, motivo: '' }); setPestana('fondos') }}
-                  className="min-h-8 rounded-full bg-acento px-4 text-panel">Editar</button>
+                  className="boton-pri">Editar</button>
               </>
             )}
           </div>
@@ -308,13 +309,13 @@ export default function Cartera({ id }: { id: number }) {
                       <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
                         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                           <span className="cifra text-5xl tabular">{cifra(grafica[0]?.serie.at(-1)?.valor, 1)}</span>
-                          {ytd != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
+                          {ytd != null && <span className={`rounded-sm px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
                           <span className="text-[12px] text-suave">valor simulado, base 100 al inicio del periodo</span>
                         </div>
-                        <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+                        <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
                           {rangos.map(([etiqueta, n]) => (
                             <button key={etiqueta} onClick={() => setRango(n)} aria-pressed={rango === n}
-                              className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{etiqueta}</button>
+                              className={`rounded-sm px-3 py-0.5 ${rango === n ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{etiqueta}</button>
                           ))}
                         </div>
                       </div>
@@ -329,7 +330,7 @@ export default function Cartera({ id }: { id: number }) {
                 {lineas.length > 0 && (
                   <div className="flex min-w-0 flex-col border-borde lg:border-l lg:pl-6">
                     <div className="mb-3 flex items-baseline justify-between gap-3">
-                      <h2 className="font-serif text-xl">Fondos</h2>
+                      <h2 className="text-[15px] font-semibold tracking-tight">Fondos</h2>
                       <button onClick={() => setPestana('fondos')} className="text-[12px] text-suave hover:text-acento">Ver todos →</button>
                     </div>
                     <ul className="space-y-2">
@@ -346,9 +347,9 @@ export default function Cartera({ id }: { id: number }) {
                               </span>
                               <span className="shrink-0 tabular">{pct(peso / 100, 0, false)}</span>
                             </div>
-                            <div className="relative mt-1 h-1 rounded-full bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
-                              <span className={`absolute inset-y-0 left-0 rounded-full ${isin ? 'bg-acento' : 'bg-suave'}`} style={{ width: `${Math.min(peso, 100)}%` }} />
-                              {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2 w-0.5 rounded-full bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
+                            <div className="relative mt-1 h-1 rounded-sm bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
+                              <span className={`absolute inset-y-0 left-0 rounded-sm ${isin ? 'bg-acento' : 'bg-suave'}`} style={{ width: `${Math.min(peso, 100)}%` }} />
+                              {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2 w-0.5 rounded-sm bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
                             </div>
                           </li>
                         )
@@ -365,7 +366,7 @@ export default function Cartera({ id }: { id: number }) {
             <div className="grid gap-4 lg:grid-cols-2">
               {calc && <Crisis calc={calc} />}
               <Tarjeta titulo="Tipo de activo">
-                {expo ? <Donut activos={expo.activos} cobertura={expo.cobertura} /> : <p className="text-suave">Cargando…</p>}
+                {expo ? <Reparto activos={expo.activos} cobertura={expo.cobertura} /> : <Cargando alto="h-14" />}
               </Tarjeta>
             </div>
           </>
@@ -416,12 +417,12 @@ export default function Cartera({ id }: { id: number }) {
                           <td className={`pl-3 ${tono(mf?.get('5a|rentabilidad'))}`}>{pct(mf?.get('5a|rentabilidad'))}</td>
                           <td className="pl-3">{r?.nota ? <>{Math.round(r.nota.nota)}{r.nota.percentil != null && <span className="text-suave"> p{Math.round(r.nota.percentil)}</span>}</> : <span className="text-suave">—</span>}</td>
                           <td className="whitespace-normal pl-3 text-left">
-                            {r?.senales.map((s) => <a key={s.tipo} href="#/revision" title={s.motivo} className="mr-1 inline-block rounded-full bg-aviso/15 px-2 text-[11px] text-aviso">{s.tipo}</a>)}
+                            {r?.senales.map((s) => <a key={s.tipo} href="#/revision" title={s.motivo} className="mr-1 inline-block rounded-sm bg-aviso/15 px-2 text-[11px] text-aviso">{s.tipo}</a>)}
                           </td>
                           {borrador && (
                             <td className="pl-3">
                               <button onClick={() => editar({ fondos: lineas.filter((_, j) => j !== k) })} aria-label={`Quitar ${f.nombre}`}
-                                className="min-h-8 rounded-full px-3 text-suave hover:bg-baja/10 hover:text-baja">Quitar</button>
+                                className="min-h-8 rounded-sm px-3 text-suave hover:bg-baja/10 hover:text-baja">Quitar</button>
                             </td>
                           )}
                         </tr>
@@ -466,7 +467,7 @@ export default function Cartera({ id }: { id: number }) {
             <ol className="relative ml-1 space-y-3 border-l border-borde pl-4 text-[13px]">
               {historial.map((c, i) => (
                 <li key={i} className="relative">
-                  <span aria-hidden="true" className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-acento" />
+                  <span aria-hidden="true" className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-sm bg-acento" />
                   <span className="block text-[12px] text-suave">{fecha(c.fecha)}</span>
                   {c.sale && <span className="mr-2 text-baja">Sale {nombreDe(c.sale)}</span>}
                   {c.entra && <span className="mr-2 text-sube">Entra {nombreDe(c.entra)}</span>}

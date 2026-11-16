@@ -6,7 +6,7 @@ import { haceAnos, haceDias, muestra, variacion, type Punto } from '../calculo/s
 import type { Tarea } from '../calculo/vigilancia'
 import { evolucion, type NotaSemanal, type Senal } from '../calculo/senales'
 import type { Estado } from '../App'
-import Donut from '../componentes/Donut'
+import Reparto from '../componentes/Reparto'
 import Mini from '../componentes/Mini'
 import { exposicion, type Fila } from '../calculo/exposicion'
 import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, seguidos, sustitutos, type Cartera } from '../datos/consultas'
@@ -69,7 +69,7 @@ const tono = (v?: number | null) => (v == null ? 'text-suave' : v >= 0 ? 'text-s
 const Seccion = ({ titulo, extra, children, className = '' }: { titulo: string; extra?: React.ReactNode; children: React.ReactNode; className?: string }) => (
   <section className={className}>
     <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-borde pb-1">
-      <h2 className="font-serif text-2xl">{titulo}</h2>{extra}
+      <h2 className="text-xl font-semibold tracking-tight">{titulo}</h2>{extra}
     </div>
     {children}
   </section>
@@ -164,7 +164,7 @@ const Cifras = ({ r }: { r: ResumenCartera }) => {
   )
 }
 const PildoraSemana = ({ v }: { v: number | null }) => v == null ? null
-  : <span className={`rounded-full px-2 text-[12px] tabular ${tono(v)} ${v >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(v)} semana</span>
+  : <span className={`rounded-sm px-2 text-[12px] tabular ${tono(v)} ${v >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(v)} semana</span>
 const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' : 'acento')
 
 /** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el tipo de activo con los avisos de sus fondos. */
@@ -193,7 +193,7 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
       </div>
       <div className="flex flex-col gap-3 md:col-span-2 lg:col-span-1">
         <span className="text-[12px] text-suave">Tipo de activo</span>
-        <Donut activos={r.activos} cobertura={r.cobertura} />
+        <Reparto activos={r.activos} cobertura={r.cobertura} />
         <div className="mt-auto text-[12px]">
           {senales === undefined ? null : avisos.length
             ? avisos.slice(0, 3).map((a) => <a key={a.k} href={a.href} title={a.title} className="block truncate py-1 text-aviso hover:underline">▲ {a.texto}{a.title && <span className="sr-only"> ({a.title})</span>}</a>)
@@ -214,14 +214,14 @@ function Carrusel({ carteras, ancha }: { carteras: Cartera[]; ancha: (c: Cartera
   const [actual, setActual] = useState(0)
   const paso = (p: HTMLElement) => (p.scrollWidth + 16) / carteras.length // ancho de una diapositiva más el hueco (gap-4)
   const ir = (i: number) => { const p = pista.current; if (p) p.scrollTo({ left: i * paso(p) }) }
-  const flecha = 'grid h-8 w-8 shrink-0 place-items-center rounded-full border border-borde bg-panel text-suave hover:text-texto disabled:opacity-40 disabled:hover:text-suave'
+  const flecha = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm border border-borde bg-panel text-suave hover:text-texto disabled:opacity-40 disabled:hover:text-suave'
   return (
     <div role="region" aria-roledescription="carrusel" aria-label="Carteras modelo">
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex min-w-0 gap-0.5 overflow-x-auto rounded-full bg-borde/50 p-0.5 text-[12px]">
+        <div className="flex min-w-0 gap-0.5 overflow-x-auto rounded-sm bg-borde/50 p-0.5 text-[12px]">
           {carteras.map((c, i) => (
             <button key={c.id} onClick={() => ir(i)} aria-current={i === actual || undefined}
-              className={`shrink-0 rounded-full px-2.5 py-1 ${i === actual ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{c.nombre}</button>
+              className={`shrink-0 rounded-sm px-2.5 py-1 ${i === actual ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{c.nombre}</button>
           ))}
         </div>
         <span className="ml-auto shrink-0 text-[12px] tabular text-suave">{actual + 1} de {carteras.length}</span>
@@ -243,7 +243,7 @@ function Mercados({ mercados }: { mercados: Mercado[] | Error | null }) {
   const [periodo, setPeriodo] = useState<Periodo>('semana')
   const grupo = (titulo: string, ms: Mercado[]) => (
     <div>
-      <h3 className="mb-1 text-[11px] uppercase tracking-widest text-suave">{titulo}</h3>
+      <h3 className="mb-1 rotulo">{titulo}</h3>
       <ul>
         {ms.map((m) => {
           const v = m.cambio[periodo]
@@ -262,10 +262,10 @@ function Mercados({ mercados }: { mercados: Mercado[] | Error | null }) {
   )
   return (
     <Seccion titulo="Mercados" extra={
-      <div role="group" aria-label="Periodo" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+      <div role="group" aria-label="Periodo" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
         {PERIODOS.map((p) => (
           <button key={p} onClick={() => setPeriodo(p)} aria-pressed={periodo === p}
-            className={`rounded-full px-2.5 py-1 ${periodo === p ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{p}</button>
+            className={`rounded-sm px-2.5 py-1 ${periodo === p ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{p}</button>
         ))}
       </div>
     }>
@@ -329,7 +329,7 @@ function AlarmasDescargas({ tareas }: { tareas: Tarea[] }) {
   if (!mal.length) return null
   return (
     <section role="alert" className="rounded-lg border border-baja/60 p-3">
-      <h2 className="mb-1 text-[11px] uppercase tracking-widest text-baja">Alarmas de las descargas</h2>
+      <h2 className="mb-1 rotulo text-baja!">Alarmas de las descargas</h2>
       <ul className="space-y-1">
         {mal.flatMap((t) => [
           ...t.alarmas.map((a) => <li key={t.tarea + a}><span className="text-suave">{t.tarea} · {hora(t.ts)} · </span>{a}</li>),

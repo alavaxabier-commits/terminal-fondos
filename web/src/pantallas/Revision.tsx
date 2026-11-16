@@ -67,10 +67,10 @@ export default function Revision() {
           {m.alternativas.length > 0 && (
             <div className="overflow-x-auto px-3 pb-3">
               <table className="w-full min-w-[40rem] text-right tabular [&_tr>*+*]:pl-3">
-                <thead className="text-[11px] uppercase tracking-widest text-suave">
+                <thead className="rotulo">
                   <tr className="border-b border-borde">
                     <th className="py-1 text-left font-normal">Alternativa</th><th className="font-normal">Nota</th><th className="font-normal">TER</th>
-                    <th className="font-normal">Correl.</th><th className="text-left font-normal">MyInvestor</th><th><span className="sr-only">Acciones</span></th>
+                    <th className="font-normal">Correl.</th><th className="text-left font-normal">MyInvestor</th><th className="relative"><span className="sr-only">Acciones</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -99,7 +99,7 @@ export default function Revision() {
       )}
 
       <section className="space-y-2">
-        <h2 className="text-[11px] uppercase tracking-widest text-suave">Umbrales de las señales</h2>
+        <h2 className="rotulo">Umbrales de las señales</h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[34rem] tabular">
             <tbody>
