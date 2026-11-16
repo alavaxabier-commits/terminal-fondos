@@ -178,3 +178,18 @@ def test_gestora_y_equipo_gestor():
     assert cambio_gestores(g['gestores'], nuevo) == (['Harry Jones'], ['Shaun Casey'])
     assert cambio_gestores(g['gestores'], g['gestores']) is None
     assert cambio_gestores(None, nuevo) is None and cambio_gestores(nuevo, None) is None
+
+
+def test_ficha_por_isin_sin_buscador():
+    import datetime as dt
+    from fondos.proveedores.morningstar import ficha_detalle
+    d = [{'Id': 'F00000P777', 'Isin': 'IE00B6VXJV34', 'Name': 'BNY Mellon Absolute Ret Bd EUR R Acc',
+          'InceptionDate': '2012-11-09T00:00:00', 'OngoingCharge': '1.13', 'Currency': {'Id': 'EUR'},
+          'CollectedSRRI': {'Rank': 3}, 'PurchaseDetails': [{'InitialInvestment': {'Unit': 1, 'Value': 5000.0}}]}]
+    resumen = {'fundId': 'FS00009E9A', 'netAsset': 15257996854.0}
+    sector = {'FIXEDINCOME': {'categoryName': 'EAA Fund Global Flexible Bond - EUR Hedged'}, 'assetType': 'FIXEDINCOME'}
+    f = ficha_detalle(d, resumen, sector)
+    assert (f['isin'], f['ms_id'], f['fund_id'], f['categoria'], f['divisa'], f['ter'], f['srri']) == \
+        ('IE00B6VXJV34', 'F00000P777', 'FS00009E9A', 'Global Flexible Bond - EUR Hedged', 'EUR', 1.13, 3)
+    assert f['patrimonio_meur'] == 15258.0 and f['inversion_minima'] == 5000 and f['fecha_lanzamiento'] == dt.date(2012, 11, 9)
+    assert ficha_detalle(d)['categoria'] is None and ficha_detalle({}) is None

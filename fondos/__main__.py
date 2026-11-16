@@ -43,7 +43,7 @@ def orden_alta(repo, isins: list[str]) -> int:
     for isin in isins:
         f = ms.buscar(isin)
         if not f:
-            print(f'{isin}: no está en el buscador de Morningstar España')
+            print(f'{isin}: no está en Morningstar')
             fallos += 1
             continue
         repo.guardar_fondo(f)
@@ -259,10 +259,6 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     if args.orden == 'prueba-red':
-        if os.environ.get('EXPLORAR'):  # temporal: búsqueda por ISIN
-            from .explorar import explorar
-            explorar(args.isin.upper())
-            return 0
         return orden_prueba_red(args.isin.upper())
 
     from .db import Repo
