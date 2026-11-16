@@ -52,7 +52,18 @@ class Repo:
         return [FondoIngesta(*f) for f in filas]
 
     def guardar_fondo(self, f: dict):
+        """Una ficha. La capitalización media de la ficha de detalle viene en la divisa de la cartera: se guarda en euros
+        con el último cambio del BCE (sin cambio conocido, se queda la que había)."""
+        cap, divisa = f.get('capitalizacion_media'), f.get('divisa_cartera')
+        if divisa:
+            f = {**f, 'capitalizacion_media': None}
         self.guardar_fondos([f])
+        if divisa and cap:
+            self._ejecutar("""
+                update fondos.fondo set capitalizacion_media = round((%s / x.por_eur)::numeric, 2)
+                from (select 1.0 as por_eur where %s = 'EUR'
+                      union all (select por_eur from fondos.tipo_cambio where divisa = %s order by fecha desc limit 1)) x
+                where isin = %s""", (cap, divisa, divisa, f['isin']))
 
     def guardar_fondos(self, fichas: list[dict]):
         """Muchas fichas en un solo viaje a la base (fila a fila, el universo tarda horas)."""

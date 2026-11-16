@@ -85,14 +85,16 @@ def ficha(fila: dict) -> dict | None:
 
 def estadisticas_cartera(detalle) -> dict:
     """Ficha de detalle → cajas de estilo, duración, vencimiento y calidad media de la última cartera publicada (lo que
-    antes traía el buscador). La capitalización media no: el X-Ray la da en otra divisa que el buscador."""
+    antes traía el buscador) y la capitalización media (millones, en la divisa de la cartera: `divisa_cartera`; al guardar
+    se pasa a euros).""" 
     d = detalle[0] if isinstance(detalle, list) and detalle else detalle
     p = next((x for x in (d or {}).get('Portfolios') or [] if x.get('EquityStatistics') or x.get('BondStatistics')), {}) \
         if isinstance(d, dict) else {}
     rv, rf = p.get('EquityStatistics') or {}, p.get('BondStatistics') or {}
     out = {'estilo_rv': _entero(rv.get('StyleBox')), 'estilo_rf': _entero(rf.get('StyleBox')),
            'duracion_efectiva': _num(rf.get('ModifiedDuration')), 'vencimiento_efectivo': _num(rf.get('EffectiveMaturity')),
-           'calidad_media': rf.get('AverageCreditQualityCode') or None}
+           'calidad_media': rf.get('AverageCreditQualityCode') or None,
+           'capitalizacion_media': _num(rv.get('MarketCapital')), 'divisa_cartera': (p.get('CurrencyId') or '').upper()[:3] or None}
     for k in ('estilo_rv', 'estilo_rf'):
         if out[k] not in range(1, 10):
             out[k] = None
@@ -113,7 +115,7 @@ def leer_quote(q) -> dict:
 
 def ficha_detalle(detalle, quote: dict | None = None, resumen: dict | None = None) -> dict | None:
     """Ficha de detalle + resumen de cotización (+ resumen del fondo, para el FundId de un alta) → ficha como `ficha()`.
-    Lo que no trae (si es indexado, capitalización media) va en None: al guardar se conserva lo que ya hubiera."""
+    Lo que no trae (si es indexado) va en None: al guardar se conserva lo que ya hubiera."""
     d = detalle[0] if isinstance(detalle, list) and detalle else detalle
     if not isinstance(d, dict) or not d.get('Id') or len(str(d.get('Isin') or '')) != 12:
         return None
@@ -127,7 +129,7 @@ def ficha_detalle(detalle, quote: dict | None = None, resumen: dict | None = Non
         'ter': q['ter'] if q['ter'] is not None else _num(d.get('OngoingCharge')),
         'fecha_lanzamiento': _fecha(d.get('InceptionDate')),
         'inversion_minima': _num((compra.get('InitialInvestment') or {}).get('Value')),
-        'capitalizacion_media': None, 'gestion': None, 'srri': srri if srri in range(1, 8) else None,
+        'gestion': None, 'srri': srri if srri in range(1, 8) else None,
         **estadisticas_cartera(d),
     }
 
