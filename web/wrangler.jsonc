@@ -6,5 +6,7 @@
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
-  }
+  },
+  // Vistas previas de cada rama con Worker Previews (`npx wrangler preview`); vacío basta.
+  "previews": {}
 }
