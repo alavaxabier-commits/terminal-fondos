@@ -160,6 +160,11 @@ class Repo:
                           'values (%(isin)s, %(nombre)s, %(gestora)s, %(ter)s, %(minimo)s, %(sin_retrocesion)s, %(abierto)s)',
                           filas)
 
+    def myinvestor_sin_ficha(self, tope: int) -> list[str]:
+        """ISIN del catálogo de MyInvestor (abiertos) que aún no tienen ficha."""
+        return [r[0] for r in self._filas('''select m.isin from fondos.myinvestor m left join fondos.fondo f using (isin)
+                                             where f.isin is null and m.abierto order by m.isin limit %s''', (tope,))]
+
     def resumen_myinvestor(self) -> tuple[int, int]:
         """(fondos del catálogo de MyInvestor con ficha de Morningstar, de ellos en el universo)."""
         return self._filas('select count(f.isin), count(*) filter (where f.en_universo) '

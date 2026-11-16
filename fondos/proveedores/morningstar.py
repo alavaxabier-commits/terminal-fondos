@@ -26,8 +26,9 @@ CAMPOS = CAMPOS_MINIMA + '|EquityStyleBox|BondStyleBox|AverageMarketCapital|Effe
 DETALLE = SCREENER.rsplit('/security/', 1)[0] + '/security_details/'
 # Posiciones completas: API de la web de Morningstar, con su clave pública (la misma que publica mstarpy 10)
 POSICIONES = 'https://api-global.morningstar.com/sal-service/v1/fund/portfolio/holding/v2/{}/data'
-# Ficha por ISIN sin el buscador (que desde noviembre de 2026 responde 401 a todo): ficha de detalle por ISIN y, de la API
-# de la web, el resumen del fondo (FundId, patrimonio del fondo) y el desglose sectorial (trae el nombre de la categoría)
+# El buscador responde 401 a todo desde noviembre de 2026 (y el nuevo de global.morningstar.com tiene protección anti-bots):
+# las fichas salen de la ficha de detalle y, de la API de la web, del resumen de cotización (quote/v7: patrimonio del
+# fondo, categoría y gastos) y, en un alta, del resumen del fondo (parentSummary: FundId; sus cifras son de la gestora)
 SAL = 'https://api-global.morningstar.com/sal-service/v1/fund/{}/{}/data'
 CLAVE_WEB = "lstzFDEOhfFNMLikKa0am9mgEKLBl49T"
 
@@ -82,28 +83,52 @@ def ficha(fila: dict) -> dict | None:
     }
 
 
-def ficha_detalle(detalle, resumen: dict | None = None, sector: dict | None = None) -> dict | None:
-    """Ficha de detalle (por ISIN) + resumen del fondo + desglose sectorial de la API de la web → ficha como `ficha()`.
-    Lo que no trae (estilos, duración, gestión…) va en None: al guardar se conserva lo que ya hubiera."""
+def estadisticas_cartera(detalle) -> dict:
+    """Ficha de detalle → cajas de estilo, duración, vencimiento y calidad media de la última cartera publicada (lo que
+    antes traía el buscador). La capitalización media no: el X-Ray la da en otra divisa que el buscador."""
+    d = detalle[0] if isinstance(detalle, list) and detalle else detalle
+    p = next((x for x in (d or {}).get('Portfolios') or [] if x.get('EquityStatistics') or x.get('BondStatistics')), {}) \
+        if isinstance(d, dict) else {}
+    rv, rf = p.get('EquityStatistics') or {}, p.get('BondStatistics') or {}
+    out = {'estilo_rv': _entero(rv.get('StyleBox')), 'estilo_rf': _entero(rf.get('StyleBox')),
+           'duracion_efectiva': _num(rf.get('ModifiedDuration')), 'vencimiento_efectivo': _num(rf.get('EffectiveMaturity')),
+           'calidad_media': rf.get('AverageCreditQualityCode') or None}
+    for k in ('estilo_rv', 'estilo_rf'):
+        if out[k] not in range(1, 10):
+            out[k] = None
+    return out
+
+
+def leer_quote(q) -> dict:
+    """Resumen de cotización de la API de la web → patrimonio del fondo (todas sus clases, millones de su divisa),
+    categoría y gastos corrientes (los más recientes)."""
+    q = q if isinstance(q, dict) else {}
+    categoria = q.get('categoryName')
+    if categoria:  # «EAA Fund Global Flexible Bond - EUR Hedged» → como en el buscador
+        categoria = re.sub(r'^EAA (Fund|OE) ', '', categoria)
+    tamano, ter = _num(q.get('fundSize')), _num(q.get('onGoingCharge'))
+    return {'patrimonio_meur': round(tamano / 1e6, 2) if tamano else None, 'categoria': categoria or None,
+            'ter': round(ter * 100, 4) if ter is not None else None}  # viene en tanto por uno
+
+
+def ficha_detalle(detalle, quote: dict | None = None, resumen: dict | None = None) -> dict | None:
+    """Ficha de detalle + resumen de cotización (+ resumen del fondo, para el FundId de un alta) → ficha como `ficha()`.
+    Lo que no trae (si es indexado, capitalización media) va en None: al guardar se conserva lo que ya hubiera."""
     d = detalle[0] if isinstance(detalle, list) and detalle else detalle
     if not isinstance(d, dict) or not d.get('Id') or len(str(d.get('Isin') or '')) != 12:
         return None
-    resumen, sector = resumen or {}, sector or {}
-    categoria = next((x.get('categoryName') for x in sector.values() if isinstance(x, dict) and x.get('categoryName')), None)
-    if categoria:  # «EAA Fund Global Flexible Bond - EUR Hedged» → como en el buscador
-        categoria = re.sub(r'^EAA (Fund|OE) ', '', categoria)
+    q = leer_quote(quote)
     compra = next((x for x in d.get('PurchaseDetails') or [] if (x.get('InitialInvestment') or {}).get('Unit') == 1), {})
-    patrimonio = _num(resumen.get('netAsset'))
     srri = _entero((d.get('CollectedSRRI') or {}).get('Rank'))
     return {
-        'isin': str(d['Isin']).upper(), 'nombre': d.get('Name') or d['Isin'], 'ms_id': d['Id'], 'fund_id': resumen.get('fundId'),
-        'patrimonio_meur': round(patrimonio / 1e6, 2) if patrimonio else None, 'categoria': categoria,
-        'divisa': ((d.get('Currency') or {}).get('Id') or '').upper()[:3] or None, 'ter': _num(d.get('OngoingCharge')),
+        'isin': str(d['Isin']).upper(), 'nombre': d.get('Name') or d['Isin'], 'ms_id': d['Id'],
+        'fund_id': (resumen or {}).get('fundId'), 'patrimonio_meur': q['patrimonio_meur'], 'categoria': q['categoria'],
+        'divisa': ((d.get('Currency') or {}).get('Id') or '').upper()[:3] or None,
+        'ter': q['ter'] if q['ter'] is not None else _num(d.get('OngoingCharge')),
         'fecha_lanzamiento': _fecha(d.get('InceptionDate')),
         'inversion_minima': _num((compra.get('InitialInvestment') or {}).get('Value')),
-        'estilo_rv': None, 'estilo_rf': None, 'capitalizacion_media': None, 'duracion_efectiva': None,
-        'vencimiento_efectivo': None, 'calidad_media': None, 'gestion': None,
-        'srri': srri if srri in range(1, 8) else None,
+        'capitalizacion_media': None, 'gestion': None, 'srri': srri if srri in range(1, 8) else None,
+        **estadisticas_cartera(d),
     }
 
 
@@ -294,18 +319,9 @@ class Morningstar:
         return pedir(CAMPOS_BASICOS)
 
     def buscar(self, isin: str) -> dict | None:
-        """Ficha de un fondo por ISIN: con el buscador y, si responde con error (401 desde noviembre de 2026), con la
-        ficha de detalle y la API de la web (tres peticiones)."""
+        """Ficha de un fondo por ISIN. El buscador responde 401 a todo desde noviembre de 2026: ficha de detalle por
+        ISIN, resumen de cotización y resumen del fondo (tres peticiones)."""
         isin = isin.strip().upper()
-        try:
-            for fila in self._buscador(term=isin).get('rows') or []:
-                if str(fila.get('Isin', '')).upper() == isin:
-                    return ficha(fila)
-            return None
-        except requests.HTTPError:
-            return self.buscar_detalle(isin)
-
-    def buscar_detalle(self, isin: str) -> dict | None:
         r = self.http.get(DETALLE + isin, params={'viewId': 'MFsnapshot', 'idtype': 'isin', 'responseViewFormat': 'json',
                                                   'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
         if r.status_code == 404:
@@ -315,24 +331,26 @@ class Morningstar:
         d0 = d[0] if isinstance(d, list) and d else d
         if not isinstance(d0, dict) or not d0.get('Id'):
             return None
-        extra = {}
-        for ruta in ('parent/parentSummary', 'portfolio/v2/sector'):
-            try:
-                x = self.http.get(SAL.format(ruta, d0['Id']), headers={'apikey': CLAVE_WEB}, timeout=60,
-                                  params={'clientId': 'MDC', 'version': '4.71.0', 'languageId': 'es', 'locale': 'es'})
-                extra[ruta] = x.json() if x.ok else {}
-            except (requests.RequestException, ValueError):
-                extra[ruta] = {}
-        return ficha_detalle(d, extra['parent/parentSummary'], extra['portfolio/v2/sector'])
+        return ficha_detalle(d, self._sal('quote/v7', d0['Id']), self._sal('parent/parentSummary', d0['Id']))
 
-    def composicion(self, ms_id: str) -> tuple[dt.date | None, dict, dict]:
-        """Desglose de la cartera de un fondo, gestora y equipo gestor: ficha de detalle y posiciones completas (dos
-        peticiones)."""
+    def _sal(self, ruta: str, ms_id: str) -> dict:
+        """Una respuesta de la API de la web de Morningstar ({} si falla)."""
+        try:
+            x = self.http.get(SAL.format(ruta, ms_id), headers={'apikey': CLAVE_WEB}, timeout=60,
+                              params={'clientId': 'MDC', 'version': '4.71.0', 'languageId': 'es', 'locale': 'es'})
+            return x.json() if x.ok and isinstance(x.json(), dict) else {}
+        except (requests.RequestException, ValueError):
+            return {}
+
+    def composicion(self, ms_id: str) -> tuple[dt.date | None, dict, dict, dict | None]:
+        """Desglose de la cartera de un fondo, gestora y equipo gestor y su ficha al día (lo que daba el buscador): ficha
+        de detalle, posiciones completas y resumen de cotización (tres peticiones)."""
         r = self.http.get(DETALLE + ms_id, params={'viewId': 'MFsnapshot', 'idtype': 'msid', 'responseViewFormat': 'json',
                                                    'languageId': 'es-ES', 'currencyId': 'EUR'}, timeout=60)
         r.raise_for_status()
         fecha, datos = leer_composicion(r.json())
         gestion = leer_gestion(r.json())
+        ficha_ = ficha_detalle(r.json(), self._sal('quote/v7', ms_id))
         if datos:  # todas las posiciones, en lugar de las 10 mayores; si falla, se quedan las 10
             try:
                 p = self.http.get(POSICIONES.format(ms_id), headers={'apikey': CLAVE_WEB}, timeout=120,
@@ -344,7 +362,7 @@ class Morningstar:
                         datos['posiciones_todas'] = True
             except (requests.RequestException, ValueError):
                 pass
-        return fecha, datos, gestion
+        return fecha, datos, gestion, ficha_
 
     def universo(self, tam: int = 500, limite: int | None = None):
         """Todas las fichas del universo, página a página."""

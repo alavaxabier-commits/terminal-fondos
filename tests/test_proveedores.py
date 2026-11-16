@@ -185,11 +185,17 @@ def test_ficha_por_isin_sin_buscador():
     from fondos.proveedores.morningstar import ficha_detalle
     d = [{'Id': 'F00000P777', 'Isin': 'IE00B6VXJV34', 'Name': 'BNY Mellon Absolute Ret Bd EUR R Acc',
           'InceptionDate': '2012-11-09T00:00:00', 'OngoingCharge': '1.13', 'Currency': {'Id': 'EUR'},
-          'CollectedSRRI': {'Rank': 3}, 'PurchaseDetails': [{'InitialInvestment': {'Unit': 1, 'Value': 5000.0}}]}]
-    resumen = {'fundId': 'FS00009E9A', 'netAsset': 15257996854.0}
-    sector = {'FIXEDINCOME': {'categoryName': 'EAA Fund Global Flexible Bond - EUR Hedged'}, 'assetType': 'FIXEDINCOME'}
-    f = ficha_detalle(d, resumen, sector)
+          'CollectedSRRI': {'Rank': 3}, 'PurchaseDetails': [{'InitialInvestment': {'Unit': 1, 'Value': 5000.0}}],
+          'Portfolios': [{'Date': '2026-09-30', 'BondStatistics': {'StyleBox': 4, 'ModifiedDuration': 2.06,
+                                                                  'EffectiveMaturity': 3.46, 'AverageCreditQualityCode': 'BBB'}}]}]
+    quote = {'fundSize': 241342432, 'categoryName': 'EAA Fund Global Flexible Bond - EUR Hedged', 'onGoingCharge': 0.0117}
+    f = ficha_detalle(d, quote, {'fundId': 'FS00009E9A', 'netAsset': 15257996854.0})
     assert (f['isin'], f['ms_id'], f['fund_id'], f['categoria'], f['divisa'], f['ter'], f['srri']) == \
-        ('IE00B6VXJV34', 'F00000P777', 'FS00009E9A', 'Global Flexible Bond - EUR Hedged', 'EUR', 1.13, 3)
-    assert f['patrimonio_meur'] == 15258.0 and f['inversion_minima'] == 5000 and f['fecha_lanzamiento'] == dt.date(2012, 11, 9)
-    assert ficha_detalle(d)['categoria'] is None and ficha_detalle({}) is None
+        ('IE00B6VXJV34', 'F00000P777', 'FS00009E9A', 'Global Flexible Bond - EUR Hedged', 'EUR', 1.17, 3)
+    assert f['patrimonio_meur'] == 241.34 and f['inversion_minima'] == 5000 and f['fecha_lanzamiento'] == dt.date(2012, 11, 9)
+    assert (f['estilo_rf'], f['estilo_rv'], f['duracion_efectiva'], f['vencimiento_efectivo'], f['calidad_media']) == \
+        (4, None, 2.06, 3.46, 'BBB')
+    # sin resumen de cotización: TER de la ficha de detalle, sin categoría ni patrimonio (se conserva lo guardado)
+    g = ficha_detalle(d)
+    assert (g['ter'], g['categoria'], g['patrimonio_meur'], g['fund_id']) == (1.13, None, None, None)
+    assert ficha_detalle({}) is None

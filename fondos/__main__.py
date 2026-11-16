@@ -21,6 +21,8 @@ import os
 import sys
 from zoneinfo import ZoneInfo
 
+import requests
+
 from . import ingesta, vigilancia
 from .validacion import lunes
 from .proveedores import BCE, FT, Morningstar, MyInvestor, Yahoo
@@ -85,9 +87,11 @@ def orden_composicion(repo, tanda: int) -> int:
     ms, c, completas = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}, 0
     for isin, ms_id in repo.fondos_para_composicion(tanda):
         try:
-            fecha, datos, gestion = ms.composicion(ms_id)
+            fecha, datos, gestion, ficha = ms.composicion(ms_id)
             repo.guardar_composicion(isin, fecha, datos)  # sin desglose también se guarda: no se reintenta hasta el mes que viene
             repo.guardar_gestion(isin, gestion)
+            if ficha and ficha['isin'] == isin:  # TER, patrimonio, categoría, SRRI, estilos… (lo que daba el buscador)
+                repo.guardar_fondo(ficha)
             estado = 'ok' if datos else 'aviso'
             completas += bool(datos.get('posiciones_todas'))
             repo.registrar('morningstar', isin, estado, f"composición: cartera a {fecha}, {len(datos.get('posiciones', []))} posiciones" if datos else 'composición: sin desglose publicado')
@@ -166,38 +170,71 @@ def descargar_myinvestor(repo) -> tuple[list[dict], list[str]]:
 
 
 def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: int, tope: int, max_minima: float) -> int:
-    n, lote = 0, []
-    for f in Morningstar().universo(limite=limite):
-        lote.append(f)
-        n += 1
-        if len(lote) == 500:
-            repo.guardar_fondos(lote)
-            lote = []
-            print(f'{n} fichas…', flush=True)
+    """Fichas, catálogo de MyInvestor y marca del universo. El buscador de Morningstar responde 401 desde noviembre de
+    2026: si sigue así, las fichas se refrescan con la composición (cada uno o dos meses) y los fondos nuevos de
+    MyInvestor se dan de alta aquí por ISIN."""
+    ms, n, lote, cerrado = Morningstar(), 0, [], False
+    try:
+        for f in ms.universo(limite=limite):
+            lote.append(f)
+            n += 1
+            if len(lote) == 500:
+                repo.guardar_fondos(lote)
+                lote = []
+                print(f'{n} fichas…', flush=True)
+    except requests.HTTPError as e:
+        cerrado = True
+        print(f'Buscador de Morningstar cerrado ({e.response.status_code if e.response is not None else e}): '
+              'las fichas se refrescan con la composición', flush=True)
     repo.guardar_fondos(lote)
-    anteriores = repo.ultimo_mensaje('universo', 'fichas: ')
+    anteriores = None if cerrado else repo.ultimo_mensaje('universo', 'fichas: ')
     repo.borrar_registro_antiguo()
-    if not limite:  # una prueba con pocas fichas no cuenta como referencia para la semana siguiente
+    if not limite and not cerrado:  # una prueba con pocas fichas no cuenta como referencia para la semana siguiente
         repo.registrar('universo', None, 'ok', f'fichas: {n}')
     mi, alarmas_mi = descargar_myinvestor(repo)
+    nuevos, fallidos = altas_myinvestor(repo, ms)
     dentro = repo.marcar_universo(min_patrimonio, min_anos, tope, max_minima)
     if not limite:
         repo.guardar_historial_patrimonio()
     mi_ficha, mi_dentro = repo.resumen_myinvestor()
     borrados = repo.limpiar_valores()
     con_minima, fichas = repo.resumen_minimas()
-    texto = (f'### Universo · {hoy()}\n\n{n} fichas de Morningstar España · {dentro} fondos en el universo '
+    texto = (f'### Universo · {hoy()}\n\n'
+             + ('buscador de Morningstar cerrado: fichas refrescadas con la composición · ' if cerrado else f'{n} fichas de Morningstar España · ')
+             + f'{dentro} fondos en el universo '
              f'(patrimonio ≥ {min_patrimonio:g} M€, ≥ {min_anos} años, como mucho {tope} por categoría; '
              f'una clase por fondo, o todas las de MyInvestor si vende alguna) · '
-             f'MyInvestor: {len(mi) or "sin descargar"} fondos, {mi_ficha} con ficha, {mi_dentro} en el universo · '
+             f'MyInvestor: {len(mi) or "sin descargar"} fondos, {mi_ficha} con ficha ({nuevos} nuevas), {mi_dentro} en el universo · '
              f'inversión mínima conocida en {con_minima} de {fichas} fichas · '
              f'{borrados} valores borrados de fondos que salen')
     print(texto)
     resumen_github(texto)
     alarmas = alarmas_mi + vigilancia.universo(n, int(anteriores.split()[-1]) if anteriores else None, *repo.sin_dato_universo())
+    if fallidos > max(5, nuevos):
+        alarmas.append(f'universo: {fallidos} fondos nuevos de MyInvestor sin ficha de Morningstar ({nuevos} dados de alta)')
     if limite:  # una prueba con pocas fichas no se compara con la semana anterior
         alarmas = [a for a in alarmas if 'fichas' not in a]
     return avisar(repo, 'universo', alarmas)
+
+
+def altas_myinvestor(repo, ms, tope: int = 150) -> tuple[int, int]:
+    """Fondos del catálogo de MyInvestor sin ficha: se buscan por ISIN (tres peticiones cada uno) y se guardan; el universo
+    decide después si entran. Devuelve (dados de alta, sin ficha)."""
+    nuevos = fallidos = 0
+    for isin in repo.myinvestor_sin_ficha(tope):
+        try:
+            f = ms.buscar(isin)
+        except Bloqueo:
+            raise
+        except Exception as e:  # noqa: BLE001
+            f = None
+            repo.registrar('morningstar', isin, 'error', f'alta desde MyInvestor: {type(e).__name__}: {e}'[:500])
+        if f:
+            repo.guardar_fondo(f)
+            nuevos += 1
+        else:
+            fallidos += 1
+    return nuevos, fallidos
 
 
 def orden_prueba_red(isin: str) -> int:
