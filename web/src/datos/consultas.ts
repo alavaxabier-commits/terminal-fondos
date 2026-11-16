@@ -157,9 +157,14 @@ export async function carterasDe(isin: string): Promise<{ id: number; nombre: st
 
 /** Métricas de varios fondos a la vez (la tabla de una cartera). */
 export async function metricasDe(isins: string[]): Promise<(Metrica & { isin: string })[]> {
-  const { data, error: e } = await supabase.from('metrica').select('isin,ventana,nombre,valor,percentil').in('isin', isins)
-  error(e)
-  return (data ?? []) as (Metrica & { isin: string })[]
+  const out: (Metrica & { isin: string })[] = []
+  for (let desde = 0; ; desde += 1000) { // unas 70 por fondo: con más de 14 fondos pasa de una página
+    const { data, error: e } = await supabase.from('metrica').select('isin,ventana,nombre,valor,percentil').in('isin', isins)
+      .order('isin').order('ventana').order('nombre').range(desde, desde + 999)
+    error(e)
+    out.push(...((data ?? []) as (Metrica & { isin: string })[]))
+    if ((data ?? []).length < 1000) return out
+  }
 }
 
 /** Composición (X-Ray) de varios fondos: desgloses y posiciones, como los guarda la descarga. */
@@ -304,11 +309,11 @@ export async function notasDe(isins: string[]): Promise<import('../calculo/senal
   }
 }
 
-type FondoSeguido = Pick<Fondo, 'nombre' | 'categoria' | 'ter' | 'divisa' | 'gestion' | 'srri' | 'fund_id'>
+type FondoSeguido = Pick<Fondo, 'nombre' | 'categoria' | 'ter' | 'divisa' | 'gestion' | 'srri' | 'fund_id' | 'patrimonio_meur'>
 
 /** Fondos en seguimiento con su ficha y si se pueden comprar en MyInvestor (catálogo, clase abierta). */
 export async function seguidos(): Promise<(Seguido & { fondo: FondoSeguido; myinvestor: boolean })[]> {
-  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota,fondo(nombre,categoria,ter,divisa,gestion,srri,fund_id)').order('alta', { ascending: false })
+  const { data, error: e } = await supabase.from('seguimiento').select('isin,alta,estado,nota,fondo(nombre,categoria,ter,divisa,gestion,srri,fund_id,patrimonio_meur)').order('alta', { ascending: false })
   error(e)
   const filas = (data ?? []) as unknown as (Seguido & { fondo: FondoSeguido })[]
   const { data: mi, error: e2 } = await supabase.from('myinvestor').select('isin').eq('abierto', true).in('isin', filas.map((f) => f.isin))
