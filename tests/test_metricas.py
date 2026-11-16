@@ -249,7 +249,9 @@ def test_tipo_activo_y_pesos_por_tipo():
     from fondos.nucleo.metricas import PESOS_NOTA, PESOS_TIPO, tipo_activo
     assert tipo_activo('GBP Allocation 80%+ Equity') == 'mixto' and tipo_activo('EUR Money Market') == 'monetario'
     assert tipo_activo('Global Large-Cap Blend Equity') == 'renta variable' and tipo_activo('EUR Corporate Bond') == 'renta fija'
-    assert tipo_activo(None) == 'otros' and set(PESOS_TIPO) == {'renta variable', 'renta fija', 'mixto', 'monetario', 'otros'}
+    assert tipo_activo(None) == 'otros' and set(PESOS_TIPO) == {'renta variable', 'renta fija', 'mixto', 'monetario', 'otros', 'indexados'}
+    from fondos.nucleo.metricas import grupo_pesos
+    assert grupo_pesos('EUR Corporate Bond', True) == 'indexados' and grupo_pesos('EUR Corporate Bond', False) == 'renta fija'
     pct = {('5a', 'rentabilidad'): 100, ('hoy', 'ter'): 0}
     assert nota(pct, False, {'coste': 1})[0] == 0 and nota(pct, False, PESOS_TIPO['renta fija']) == nota(pct, False, PESOS_NOTA)
 

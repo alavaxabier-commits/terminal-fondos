@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import caso from './caso_metricas.json'
-import { aPesosTipo, bloques, nota, PESOS_DEFECTO, PESOS_TIPO_DEFECTO, pesosEfectivos, tipoActivo, type Plazo, type Tipo } from './nota'
+import { aPesosTipo, bloques, grupoPesos, nota, PESOS_DEFECTO, PESOS_TIPO_DEFECTO, pesosEfectivos, tipoActivo, type Plazo, type Tipo } from './nota'
 
 describe('nota del screener (port de Python)', () => {
   it('da lo mismo que Python en el caso común (pesos por defecto, sin Diversificación)', () => {
@@ -35,5 +35,8 @@ describe('pesos por tipo de activo', () => {
     expect(tipoActivo('GBP Allocation 80%+ Equity')).toBe('mixto')
     expect(tipoActivo('EUR Money Market')).toBe('monetario')
     expect(tipoActivo(null)).toBe('otros')
+    expect(grupoPesos('EUR Corporate Bond', true)).toBe('indexados')
+    expect(grupoPesos('EUR Corporate Bond', false)).toBe('renta fija')
+    expect(aPesosTipo({}).indexados.consistencia).toBe(60)
   })
 })

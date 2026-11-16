@@ -15,7 +15,11 @@ export const PESOS_DEFECTO: Pesos = { riesgo: 20, consistencia: 10, coste: 40, p
 /** Tipos de activo (como TIPOS y tipo_activo en fondos/nucleo/metricas.py): cada uno tiene sus pesos. */
 export const TIPOS = ['renta variable', 'renta fija', 'mixto', 'monetario', 'otros'] as const
 export type Tipo = (typeof TIPOS)[number]
-export type PesosTipo = Record<Tipo, Pesos>
+/** Juegos de pesos: uno por tipo de activo y otro para los indexados (de cualquier tipo). */
+export const GRUPOS_PESOS = [...TIPOS, 'indexados'] as const
+export type GrupoPesos = (typeof GRUPOS_PESOS)[number]
+export type PesosTipo = Record<GrupoPesos, Pesos>
+export const grupoPesos = (categoria: string | null, indexada: boolean): GrupoPesos => (indexada ? 'indexados' : tipoActivo(categoria))
 
 /** Tipo de activo por el nombre de la categoría de Morningstar (Equity, Bond, Allocation, Money Market…). */
 export function tipoActivo(categoria: string | null): Tipo {
@@ -27,15 +31,18 @@ export function tipoActivo(categoria: string | null): Tipo {
   return 'otros'
 }
 
-/** Pesos por defecto de cada tipo: de momento los mismos (PESOS_TIPO en Python). */
-export const PESOS_TIPO_DEFECTO: PesosTipo = Object.fromEntries(TIPOS.map((t) => [t, PESOS_DEFECTO])) as PesosTipo
+/** Pesos por defecto de cada grupo (PESOS_TIPO en Python): los indexados, casi todo seguimiento del índice y coste. */
+export const PESOS_TIPO_DEFECTO: PesosTipo = {
+  ...(Object.fromEntries(TIPOS.map((t) => [t, PESOS_DEFECTO])) as Record<Tipo, Pesos>),
+  indexados: { riesgo: 0, consistencia: 60, coste: 30, proteccion: 10, rentabilidad: 0, tir: 0, diversificacion: 10 },
+}
 
 /** Pesos guardados (perfil o pestaña) → pesos por tipo: un juego único (perfiles antiguos) vale para todos los tipos;
  * lo que falte, por defecto. */
 export function aPesosTipo(p: unknown): PesosTipo {
   const o = (p && typeof p === 'object' ? p : {}) as Record<string, unknown>
   const plano = BLOQUES.some((b) => typeof o[b] === 'number')
-  return Object.fromEntries(TIPOS.map((t) => {
+  return Object.fromEntries(GRUPOS_PESOS.map((t) => {
     const x = (plano ? o : o[t]) as Partial<Pesos> | undefined
     return [t, { ...PESOS_TIPO_DEFECTO[t], ...(x && typeof x === 'object' ? x : {}) }]
   })) as PesosTipo

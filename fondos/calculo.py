@@ -152,11 +152,12 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
 
     filas = []
     pct = solo_con_cobertura(percentiles_categoria(resultados, fondos), resultados, fondos, ('hoy', 'tir_neta'))
-    # nota del screener (pesos por defecto de su tipo de activo) y su percentil en la categoría, con la misma regla de una
+    # nota del screener (pesos por defecto de su tipo de activo, o de indexados) y su percentil en la categoría, con la misma regla de una
     # clase por fondo
     notas = {isin: n for isin, p in pct.items()
-             if (n := m.nota(p, fondos[isin].get('gestion') == 'indexada',
-                             m.PESOS_TIPO[t := m.tipo_activo(fondos[isin].get('categoria'))], t)) is not None}
+             if (n := m.nota(p, (ix := fondos[isin].get('gestion') == 'indexada'),
+                             m.PESOS_TIPO[m.grupo_pesos(fondos[isin].get('categoria'), ix)],
+                             m.tipo_activo(fondos[isin].get('categoria')))) is not None}
     pct_nota = percentiles_categoria({i: {('hoy', 'nota'): n[0]} for i, n in notas.items()}, fondos)
     notas_filas = [(i, round(n, 2), pct_nota.get(i, {}).get(('hoy', 'nota')), solo3)
                    for i, (n, solo3) in notas.items()]

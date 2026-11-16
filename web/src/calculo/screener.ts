@@ -1,6 +1,6 @@
 // Screener: filtros y nota de cada fondo del universo con los pesos elegidos (sin red).
 import type { FilaScreener } from '../datos/consultas'
-import { bloques, nota, tipoActivo, type Bloque, type PesosTipo, type Plazo, type Tipo } from './nota'
+import { bloques, grupoPesos, nota, tipoActivo, type Bloque, type PesosTipo, type Plazo, type Tipo } from './nota'
 export { TIPOS, tipoActivo, type Tipo } from './nota'
 
 /** Segundo nivel dentro del tipo: región o estilo, por el nombre de la categoría (el orden de las reglas importa). */
@@ -115,7 +115,7 @@ export function puntuar(filas: FilaScreener[], pesos: PesosTipo, diversificacion
       const b = bloques(f.pct ?? {}, indexada(f), plazo, t)
       const d = diversificacion?.get(f.isin)
       const bs = b ? (d == null ? b.bloques : { ...b.bloques, diversificacion: d }) : {}
-      return { ...f, bloques: bs, solo3a: b?.solo3a ?? false, nota: b ? nota(bs, pesos[t]) : null }
+      return { ...f, bloques: bs, solo3a: b?.solo3a ?? false, nota: b ? nota(bs, pesos[grupoPesos(f.categoria, indexada(f))]) : null }
     })
     .sort((a, b) => (b.nota ?? -1) - (a.nota ?? -1) || a.nombre.localeCompare(b.nombre))
 }

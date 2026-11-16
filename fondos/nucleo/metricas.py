@@ -457,8 +457,16 @@ PESOS_NOTA = {'riesgo': 20, 'consistencia': 10, 'coste': 40, 'proteccion': 20, '
 # Pesos por tipo de activo (como TIPOS y tipoActivo en web/src/calculo/nota.ts). De momento todos iguales: la validación
 # fuera de muestra (`analisis`, noviembre de 2026) no encontró un reparto mejor que aguante en renta fija y mixtos, y la
 # renta variable se queda como está.
+# Los indexados, sea cual sea su tipo, tienen sus pesos: casi todo es seguir bien al índice y costar poco (validado con
+# `analisis`, sección «Bloques propios»: mejor rentabilidad y Sharpe futuros que con los pesos generales).
 TIPOS = ('renta variable', 'renta fija', 'mixto', 'monetario', 'otros')
-PESOS_TIPO = {t: PESOS_NOTA for t in TIPOS}
+PESOS_TIPO = {t: PESOS_NOTA for t in TIPOS} | {
+    'indexados': {'riesgo': 0, 'consistencia': 60, 'coste': 30, 'proteccion': 10, 'rentabilidad': 0, 'tir': 0}}
+
+
+def grupo_pesos(categoria: str | None, indexada: bool) -> str:
+    """Qué pesos usa un fondo: 'indexados' si lo es; si no, su tipo de activo."""
+    return 'indexados' if indexada else tipo_activo(categoria)
 
 
 def tipo_activo(categoria: str | None) -> str:
