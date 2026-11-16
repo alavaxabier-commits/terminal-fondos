@@ -31,6 +31,14 @@ REPARTOS = {
         'renta fija': {'riesgo': 30, 'consistencia': 20, 'coste': 30, 'proteccion': 0, 'rentabilidad': 20},
         'mixto': {'riesgo': 20, 'consistencia': 20, 'coste': 40, 'proteccion': 10, 'rentabilidad': 10},
     },
+    # La propuesta inicial de Fable (pesos de experto) con los bloques que hay hoy: lo que aún no existe (TIR, estructura,
+    # tracking difference) se queda fuera y su peso se reparte. Alfa/ratio de información y % de ventanas que baten al
+    # índice caen los dos en Consistencia.
+    'fable': {
+        'renta variable': {'riesgo': 0, 'consistencia': 45, 'coste': 25, 'proteccion': 20, 'rentabilidad': 0},
+        'renta fija': {'riesgo': 0, 'consistencia': 15, 'coste': 30, 'proteccion': 20, 'rentabilidad': 0},
+        'mixto': {'riesgo': 25, 'consistencia': 15, 'coste': 25, 'proteccion': 35, 'rentabilidad': 0},
+    },
 }
 TIPOS = ('renta variable', 'renta fija', 'mixto')
 NOMBRE = {'rentabilidad': 'Rentabilidad', 'sharpe': 'Sharpe', 'max_caida': 'Caída máxima (percentil alto = cayó menos)'}
@@ -243,7 +251,8 @@ def validar(fotos: dict[dt.date, dict], fondos: dict[str, dict], separacion: dt.
             return fmean(xs) if xs else 0.0
         elegido[t] = max(repartos(), key=puntos)
     candidatos = {'actual': {t: m.PESOS_NOTA for t in TIPOS}, 'por tipo (a mano)': REPARTOS['por tipo'],
-                  'elegido en el entreno': elegido, 'solo coste': {t: {'coste': 100} for t in TIPOS}}
+                  'elegido en el entreno': elegido, 'fable': REPARTOS['fable'],
+                  'solo coste': {t: {'coste': 100} for t in TIPOS}}
 
     lineas = ['## Validación fuera de muestra', '',
               f'Entreno: {len(entreno)} cortes ({entreno[0]} a {entreno[-1]}, resultado a 1 año antes de {separacion}). '
