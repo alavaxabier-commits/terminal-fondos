@@ -259,6 +259,10 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     if args.orden == 'prueba-red':
+        if os.environ.get('EXPLORAR'):  # temporal: búsqueda por ISIN
+            from .explorar import explorar
+            explorar(args.isin.upper())
+            return 0
         return orden_prueba_red(args.isin.upper())
 
     from .db import Repo
