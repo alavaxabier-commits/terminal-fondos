@@ -14,10 +14,12 @@ import { bandeja, fijarBandeja, MAX_BANDEJA, type EnBandeja } from '../datos/ban
 import * as q from '../datos/consultas'
 import { serieEur } from '../datos/series'
 import { FILAS, GRUPOS } from './Ficha'
+import Cargando from '../componentes/Cargando'
 
 type Datos = { fondo: q.Fondo; serie: Punto[]; metricas: Map<string, q.Metrica>; comp: Composicion | null }
 
-const COLORES = ['acento', 'serie2', 'serie3', 'serie4', 'serie5'] // tokens de estilos.css
+// Tres colores validados (dataviz) y dos grises para el 4.º y el 5.º, que se leen por su nombre y por la tabla. Tokens de estilos.css.
+const COLORES = ['serie1', 'serie2', 'serie3', 'serie4', 'serie5']
 const RANGOS = [1, 3, 5, 10] as const
 const PESTANAS = ['resumen', 'evolución', 'cifras', 'composición'] as const
 type Pestana = (typeof PESTANAS)[number]
@@ -99,10 +101,10 @@ export default function Comparar({ isins }: { isins: string[] }) {
       <header className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="text-3xl!">Comparador</h1>
-          <div role="group" aria-label="Plazo" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+          <div role="group" aria-label="Plazo" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
             {RANGOS.map((n) => (
               <button key={n} onClick={() => setRango(n)} aria-pressed={rango === n}
-                className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{n}A</button>
+                className={`rounded-sm px-3 py-0.5 ${rango === n ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{n}A</button>
             ))}
           </div>
         </div>
@@ -128,7 +130,7 @@ export default function Comparar({ isins }: { isins: string[] }) {
 
       {error && <p className="text-baja">No se han podido leer los fondos: {error}</p>}
       {!isins.length && <p className="text-suave">Añade fondos para compararlos: aquí, o con «+ Comparar» (tecla b) en el screener, el seguimiento o la ficha.</p>}
-      {isins.length > 0 && !listos && <p className="text-suave">Cargando…</p>}
+      {isins.length > 0 && !listos && <Cargando alto="h-80" />}
 
       {listos && fondos.length > 0 && (
         <>
@@ -208,7 +210,7 @@ function Resumen({ fondos, color, ventana }: Props & { ventana: string }) {
   })
   const barra = (v: number | null | undefined, resaltar: boolean) => v == null ? <span className="text-suave">—</span> : (
     <span className="inline-flex w-full max-w-36 items-center gap-2">
-      <span className="relative h-1 flex-1 rounded-full bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-full bg-acento" style={{ width: `${v}%` }} /></span>
+      <span className="relative h-1 flex-1 rounded-sm bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${v}%` }} /></span>
       <span className={resaltar ? 'font-semibold text-acento' : ''}>{Math.round(v)}</span>
     </span>
   )
@@ -342,8 +344,8 @@ function ComposicionFondos({ fondos, color, corr }: Props & { corr: ReturnType<t
               const v = m.get(n)
               return xs[k] == null ? <span className="text-suave">—</span> : (
                 <span className="inline-flex w-full max-w-36 items-center gap-2">
-                  <span className="relative h-1 flex-1 rounded-full bg-borde/70">
-                    <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, Math.max(0, v ?? 0))}%`, background: `var(--color-${color(fondos[k])})` }} />
+                  <span className="relative h-1 flex-1 rounded-sm bg-borde/70">
+                    <span className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${Math.min(100, Math.max(0, v ?? 0))}%`, background: `var(--color-${color(fondos[k])})` }} />
                   </span>
                   <span className="w-10">{v == null ? '0' : cifra(v, 1)}</span>
                 </span>

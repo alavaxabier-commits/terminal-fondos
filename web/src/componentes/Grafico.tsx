@@ -1,23 +1,29 @@
 import * as echarts from 'echarts'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { cifra, fecha } from '../calculo/formato'
 import type { Punto } from '../calculo/series'
 import { token, useCambioTema } from './tema'
 
 /** color: nombre de un token (acento, suave, serie2…), que se resuelve con el tema actual. */
 type Linea = { nombre: string; serie: Punto[]; color: string }
+/** Colores grises: esas líneas llevan su nombre al final, que es lo que las distingue. */
+const GRISES = new Set(['gris', 'serie4', 'serie5'])
 
-/** Líneas (en base 100, o la nota semanal) con zoom (rueda o pellizco) y tooltip. Colores del tema actual (se repinta al cambiarlo). */
+/** Líneas (en base 100, o la nota semanal) con zoom (rueda o pellizco) y lectura al pasar el ratón. Colores del tema actual
+ *  (se repinta al cambiarlo). Como pide dataviz: rejilla de filete continuo, el último valor escrito al final de cada línea,
+ *  leyenda solo con varias series y el mismo dato en tabla (botón «Tabla»), para no depender del ratón ni del color. */
 export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Linea[]; alto?: string }) {
   const caja = useRef<HTMLDivElement>(null)
   const tema = useCambioTema()
+  const [tabla, setTabla] = useState(false)
 
   useEffect(() => {
-    if (!caja.current) return
+    if (!caja.current || tabla) return
     const g = echarts.init(caja.current, undefined, { renderer: 'canvas' })
     const ajusta = () => g.resize()
     addEventListener('resize', ajusta)
     return () => { removeEventListener('resize', ajusta); g.dispose() }
-  }, [])
+  }, [tabla])
 
   useEffect(() => {
     if (!caja.current) return
@@ -29,17 +35,19 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
       {
         backgroundColor: 'transparent',
         textStyle: { fontFamily: fuente, color: suave },
-        grid: { left: 44, right: 12, top: 28, bottom: 48 },
-        legend: { top: 0, left: 0, textStyle: { color: texto }, itemWidth: 14 },
+        aria: { enabled: true },
+        grid: { left: 44, right: lineas.some((l) => GRISES.has(l.color)) ? 132 : 52, top: lineas.length > 1 ? 32 : 12, bottom: 48 },
+        legend: { show: lineas.length > 1, type: 'scroll', top: 0, left: 0, right: 0, pageTextStyle: { color: suave }, textStyle: { color: texto }, itemWidth: 14, itemHeight: 3, icon: 'rect' },
         tooltip: {
           trigger: 'axis',
+          axisPointer: { type: 'line', lineStyle: { color: suave, width: 1 } },
           backgroundColor: panel,
           borderColor: borde,
           textStyle: { color: texto, fontFamily: fuente },
           valueFormatter: (v: unknown) => (typeof v === 'number' ? v.toFixed(1) : String(v)),
         },
         xAxis: { type: 'time', axisLine: { lineStyle: { color: borde } }, splitLine: { show: false } },
-        yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: borde, type: 'dashed' } } },
+        yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: borde, type: 'solid' } } },
         dataZoom: [{ type: 'inside' }, {
           type: 'slider', height: 18, bottom: 8, borderColor: borde, textStyle: { color: suave },
           // Colores del tema (ECharts trae un azul propio): tramo elegido en acento suave, asas y fondo con los tokens.
@@ -52,14 +60,55 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
           name: l.nombre,
           type: 'line',
           showSymbol: false,
-          lineStyle: { width: 1.5, color: token(l.color) },
+          lineStyle: { width: 2, color: token(l.color) },
+          // Último valor al final; las líneas en gris (4.º y 5.º fondo del comparador) llevan además su nombre.
+          endLabel: { show: lineas.length <= 5, color: GRISES.has(l.color) ? suave : texto, fontSize: 11,
+            formatter: (p: { value: [string, number] }) => `${cifra(p.value[1], 1)}${GRISES.has(l.color) ? ` ${l.nombre.length > 16 ? l.nombre.slice(0, 15) + '…' : l.nombre}` : ''}` },
           itemStyle: { color: token(l.color) },
           data: l.serie.map((p) => [p.fecha, Number(p.valor.toFixed(2))]),
         })),
       },
       { notMerge: true },
     )
-  }, [lineas, tema])
+  }, [lineas, tema, tabla])
 
-  return <div ref={caja} className={`w-full ${alto}`} />
+  return (
+    <div>
+      <div className="flex justify-end">
+        <button type="button" onClick={() => setTabla((t) => !t)} aria-pressed={tabla}
+          className={`rounded-sm px-2 py-0.5 font-mono text-[11px] ${tabla ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>
+          {tabla ? 'Gráfico' : 'Tabla'}
+        </button>
+      </div>
+      {tabla ? <TablaLineas lineas={lineas} alto={alto} /> : <div ref={caja} className={`w-full ${alto}`} />}
+    </div>
+  )
+}
+
+/** El gráfico en tabla: el último valor de cada mes (o cada punto, si son pocos), del más reciente al más antiguo. */
+function TablaLineas({ lineas, alto }: { lineas: Linea[]; alto: string }) {
+  const porMes = new Map<string, Map<string, number>>()
+  for (const l of lineas) for (const p of l.serie) {
+    const k = lineas[0].serie.length > 60 ? p.fecha.slice(0, 7) : p.fecha
+    if (!porMes.has(k)) porMes.set(k, new Map())
+    porMes.get(k)!.set(l.nombre, p.valor)
+  }
+  const filas = [...porMes.keys()].sort().reverse()
+  return (
+    <div className={`overflow-auto ${alto}`}>
+      <table className="w-full text-right tabular text-[13px]">
+        <thead className="sticky top-0 bg-panel text-[12px] text-suave">
+          <tr className="border-b border-borde"><th className="py-1 text-left font-normal">{filas[0]?.length === 7 ? 'Mes' : 'Fecha'}</th>{lineas.map((l) => <th key={l.nombre} className="pl-4 font-normal">{l.nombre}</th>)}</tr>
+        </thead>
+        <tbody>
+          {filas.map((k) => (
+            <tr key={k} className="border-b border-borde/60">
+              <td className="py-1 text-left text-suave">{k.length === 7 ? `${k.slice(5)}/${k.slice(0, 4)}` : fecha(k)}</td>
+              {lineas.map((l) => { const v = porMes.get(k)!.get(l.nombre); return <td key={l.nombre} className="pl-4">{v == null ? '—' : cifra(v, 1)}</td> })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }

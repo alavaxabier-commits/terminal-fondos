@@ -32,7 +32,7 @@ export default function CambiarContrasena({ cerrar }: { cerrar: () => void }) {
         {hecho ? (
           <>
             <p>Contraseña guardada. A partir de ahora puedes entrar con ella.</p>
-            <button type="button" autoFocus onClick={cerrar} className="min-h-8 rounded-full bg-acento px-4 text-panel">Cerrar</button>
+            <button type="button" autoFocus onClick={cerrar} className="boton-pri">Cerrar</button>
           </>
         ) : (
           <>
@@ -43,8 +43,8 @@ export default function CambiarContrasena({ cerrar }: { cerrar: () => void }) {
             <p className="text-[12px] text-suave">Al menos {MINIMO} caracteres y que no la uses en otro sitio.</p>
             {mensaje && <p className="text-baja">{mensaje}</p>}
             <div className="flex gap-2">
-              <button disabled={ocupado} className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:opacity-50">Guardar contraseña</button>
-              <button type="button" onClick={cerrar} className="min-h-8 rounded-full bg-borde/50 px-4 text-suave hover:text-texto">Cancelar</button>
+              <button disabled={ocupado} className="boton-pri">Guardar contraseña</button>
+              <button type="button" onClick={cerrar} className="boton">Cancelar</button>
             </div>
           </>
         )}

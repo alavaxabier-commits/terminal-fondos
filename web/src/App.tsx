@@ -111,21 +111,25 @@ export default function App() {
   const comparar = ruta.match(/^#\/comparar(?:\/([A-Z0-9,]*))?$/)
   return (
     <div className="mx-auto flex min-h-full max-w-7xl flex-col">
-      <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-borde bg-fondo/95 px-4 py-2 backdrop-blur">
-        <a href="#/" className="flex shrink-0 items-center gap-2 font-serif text-xl text-texto">
-          <i aria-hidden="true" className="inline-block h-4 w-4 rounded-full bg-acento" />
+      <header className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde bg-fondo/95 px-4 backdrop-blur">
+        <a href="#/" className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight text-texto">
+          <i aria-hidden="true" className="inline-block h-3 w-3 rounded-xs bg-acento" />
           <span className="hidden sm:inline">Terminal de fondos</span>
         </a>
-        <nav aria-label="Pantallas" className="flex min-w-0 gap-0.5 overflow-x-auto rounded-full bg-borde/50 p-0.5">
-          {PANTALLAS.map(([h, t]) => (
-            <a key={h} href={h} aria-current={((ruta || '#/') === h || (h === '#/comparar' && !!comparar)) ? 'page' : undefined}
-              className={`rounded-full px-3 py-1 ${(ruta || '#/') === h || (h === '#/comparar' && comparar) ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{t}</a>
-          ))}
+        {/* Pestañas de terminal: la pantalla actual, subrayada en acento a ras del filete de la cabecera. */}
+        <nav aria-label="Pantallas" className="order-last -mb-px flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
+          {PANTALLAS.map(([h, t]) => {
+            const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
+            return (
+              <a key={h} href={h} aria-current={actual ? 'page' : undefined}
+                className={`flex items-center whitespace-nowrap border-b-2 px-3 ${actual ? 'border-acento text-texto' : 'border-transparent text-suave hover:text-texto'}`}>{t}</a>
+            )
+          })}
         </nav>
         <Buscador />
         <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
           aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-borde bg-panel text-suave hover:text-texto">
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-sm border border-borde bg-panel text-suave hover:text-texto">
           {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
           <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
             {tema === 'claro'
@@ -156,7 +160,7 @@ export default function App() {
         <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
           <section onClick={(e) => e.stopPropagation()} className="w-full max-w-lg border border-borde bg-panel p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-[11px] uppercase tracking-widest text-suave">Atajos</h2>
+              <h2 className="rotulo">Atajos</h2>
               <button onClick={() => setAyuda(false)} aria-label="Cerrar la ayuda" className="min-h-7 min-w-7 text-suave hover:text-texto">✕</button>
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">

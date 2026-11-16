@@ -14,6 +14,7 @@ import { escribiendo } from '../componentes/teclas'
 import { alternar, MAX_BANDEJA, useBandeja } from '../datos/bandeja'
 import * as q from '../datos/consultas'
 import { serieEur } from '../datos/series'
+import Cargando from '../componentes/Cargando'
 
 type Datos = {
   fondo: q.Fondo
@@ -80,23 +81,24 @@ export const FILAS: [string, string, (v: number) => string][] = [
 
 /** Cuartil en la categoría a partir del percentil (100 = mejor): 1 es el mejor cuarto. */
 export const cuartil = (p: number) => (p >= 75 ? 1 : p >= 50 ? 2 : p >= 25 ? 3 : 4)
+// Escala ordenada de un solo tono (dataviz): el primer cuartil, acento pleno; el cuarto, casi el fondo. El número va siempre escrito.
 const FONDO_CUARTIL = ['var(--color-acento)', 'color-mix(in srgb, var(--color-acento) 45%, var(--color-panel))',
-  'color-mix(in srgb, var(--color-serie2) 50%, var(--color-panel))', 'color-mix(in srgb, var(--color-serie4) 70%, var(--color-panel))']
+  'color-mix(in srgb, var(--color-acento) 20%, var(--color-panel))', 'color-mix(in srgb, var(--color-borde) 70%, var(--color-panel))']
 function Cuartil({ p }: { p: number | null | undefined }) {
   if (p == null) return <span className="text-suave">—</span>
   const k = cuartil(p)
   return <span title={`Percentil ${Math.round(p)} en su categoría`} className="inline-grid h-5 w-full max-w-9 place-items-center rounded-sm text-[11px] font-medium"
-    style={{ background: FONDO_CUARTIL[k - 1], color: k === 1 ? 'var(--color-panel)' : 'var(--color-texto)' }}>{k}</span>
+    style={{ background: FONDO_CUARTIL[k - 1], color: k === 1 ? 'var(--color-sobre-acento)' : 'var(--color-texto)' }}>{k}</span>
 }
 /** Percentil como barra fina (100 = mejor dentro de la categoría). */
 const BarraPercentil = ({ p }: { p: number }) => (
   <span className="flex items-center gap-2" title={`Percentil ${Math.round(p)} en su categoría (100 = mejor)`}>
-    <span className="relative h-1 flex-1 rounded-full bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-full bg-acento" style={{ width: `${p}%` }} /></span>
+    <span className="relative h-1 flex-1 rounded-sm bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${p}%` }} /></span>
     <span className={`text-[11px] tabular ${colorPercentil(p)}`}>p{Math.round(p)}</span>
   </span>
 )
 export const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
-  <span className={`rounded-full bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
+  <span className={`rounded-sm bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
 
 /** Métricas de la pestaña, agrupadas por lo que miden, con una línea que explica cada una (claves de FILAS). */
 export const GRUPOS: [string, string, [string, string][]][] = [
@@ -178,7 +180,7 @@ export default function Ficha({ isin }: { isin: string }) {
   }, [datos, rango])
 
   if (error) return <p className="text-baja">No se ha podido cargar el fondo: {error}</p>
-  if (datos === undefined) return <p className="text-suave">Cargando {isin}…</p>
+  if (datos === undefined) return <Cargando pagina texto={`Cargando ${isin}…`} />
   if (datos === null) return <p className="text-suave">No hay ningún fondo con ISIN {isin}.</p>
 
   const { fondo: f, ref } = datos
@@ -203,7 +205,7 @@ export default function Ficha({ isin }: { isin: string }) {
     <article className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         <div className="min-w-0 space-y-2">
-          <p className="text-[11px] uppercase tracking-widest text-acento">{f.categoria ?? 'sin categoría'}</p>
+          <p className="rotulo text-acento!">{f.categoria ?? 'sin categoría'}</p>
           <h1 className="text-3xl! sm:text-4xl!">{f.nombre}</h1>
           <div className="flex flex-wrap gap-1.5 text-suave">
             <Pastilla className="font-mono">{f.isin}</Pastilla>
@@ -217,9 +219,9 @@ export default function Ficha({ isin }: { isin: string }) {
         <div className="flex flex-wrap gap-2">
           <button onClick={() => alternar({ isin: f.isin, nombre: f.nombre })} disabled={llena} aria-pressed={enBandeja}
             title={llena ? `Como mucho ${MAX_BANDEJA} fondos en el comparador` : undefined}
-            className={`min-h-8 rounded-full bg-borde/50 px-4 hover:bg-borde disabled:text-suave ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
+            className={`boton ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
           <button onClick={seguir} disabled={seguido}
-            className="min-h-8 rounded-full bg-acento px-4 text-panel disabled:bg-borde/50 disabled:text-suave">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
+            className="boton-pri">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
         </div>
       </header>
       <Franja cifras={[
@@ -252,26 +254,41 @@ export default function Ficha({ isin }: { isin: string }) {
       <div id="panel-ficha" role="tabpanel" aria-labelledby={`pestana-${pestana}`} className="space-y-5">
         {pestana === 'resumen' && (
           <>
-            <Tarjeta>
-              <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="cifra text-5xl tabular">{ultimo ? `${cifra(ultimo.valor, ultimo.valor < 100 ? 4 : 2)} €` : '—'}</span>
-                  {dia != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(dia)} ${dia >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(dia, 2)} último día</span>}
-                  {ytd != null && <span className={`rounded-full px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
-                  {ultimo && <span className="text-[12px] text-suave">valor en euros del {fecha(ultimo.fecha)}</span>}
+            {/* Arriba, lo que más se mira: el valor en el tiempo y, a su lado, cómo queda frente a su categoría. */}
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+              <Tarjeta>
+                <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="cifra text-5xl">{ultimo ? `${cifra(ultimo.valor, ultimo.valor < 100 ? 4 : 2)} €` : '—'}</span>
+                    {dia != null && <span className={`rounded-sm px-2 text-[12px] tabular ${tono(dia)} ${dia >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(dia, 2)} último día</span>}
+                    {ytd != null && <span className={`rounded-sm px-2 text-[12px] tabular ${tono(ytd)} ${ytd >= 0 ? 'bg-sube/10' : 'bg-baja/10'}`}>{pct(ytd)} este año</span>}
+                    {ultimo && <span className="text-[12px] text-suave">valor en euros del {fecha(ultimo.fecha)}</span>}
+                  </div>
+                  <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
+                    {RANGOS.map(([etiqueta, n]) => (
+                      <button key={etiqueta} onClick={() => setRango(n)} aria-pressed={rango === n}
+                        className={`rounded-sm px-3 py-0.5 ${rango === n ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{etiqueta.toUpperCase()}</button>
+                    ))}
+                  </div>
                 </div>
-                <div role="group" aria-label="Periodo del gráfico" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
-                  {RANGOS.map(([etiqueta, n]) => (
-                    <button key={etiqueta} onClick={() => setRango(n)} aria-pressed={rango === n}
-                      className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{etiqueta.toUpperCase()}</button>
-                  ))}
-                </div>
-              </div>
-              {lineas.length ? <Grafico lineas={lineas} /> : <p className="text-suave">Aún no hay valores descargados de este fondo.</p>}
-              <p className="text-[11px] text-suave">Base 100 en euros, frente a {textoRef ?? 'su referencia'}.{ref.metodo === 'media_categoria' && ' La media de la categoría se usa en las métricas; no se dibuja.'}</p>
-            </Tarjeta>
-
-
+                {lineas.length ? <Grafico lineas={lineas} /> : <p className="text-suave">Aún no hay valores descargados de este fondo.</p>}
+                <p className="text-[11px] text-suave">Base 100 en euros, frente a {textoRef ?? 'su referencia'}.{ref.metodo === 'media_categoria' && ' La media de la categoría se usa en las métricas; no se dibuja.'}</p>
+              </Tarjeta>
+              <Tarjeta titulo="Frente a su categoría" extra={<span className="text-[12px] text-suave">percentil · 100 es el mejor</span>}>
+                <dl className="divide-y divide-borde text-[13px]">
+                  {FRENTE.filter(([, k]) => m.has(k)).slice(0, f.duracion_efectiva != null || f.calidad_media ? 9 : 7).map(([et, k, fmt]) => {
+                    const x = m.get(k)!
+                    return (
+                      <div key={k} className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,9rem)] items-center gap-3 py-1">
+                        <dt className="truncate text-suave">{et}</dt>
+                        <dd className="text-right tabular">{fmt(x.valor)}</dd>
+                        <dd>{x.percentil != null ? <BarraPercentil p={x.percentil} /> : <span className="text-[11px] text-suave">sin percentil</span>}</dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              </Tarjeta>
+            </div>
               {ultimosAnos.length > 0 && (
                 <Tarjeta titulo="Por año natural" extra={<span className="text-[12px] text-suave">cuartil en su categoría · 1 es el mejor</span>}>
                   <div className="overflow-x-auto">
@@ -292,7 +309,7 @@ export default function Ficha({ isin }: { isin: string }) {
                   <p className="mt-2 text-[11px] text-suave">Rentabilidad en %, en euros.</p>
                 </Tarjeta>
               )}
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-3">
                 <Tarjeta titulo="Datos del fondo">
                   <dl className="divide-y divide-borde text-[13px]">
                     {([
@@ -302,7 +319,7 @@ export default function Ficha({ isin }: { isin: string }) {
                       ['Lanzamiento', fecha(f.fecha_lanzamiento)],
                       ['Riesgo (SRRI)', f.srri == null ? '—' : (
                         <span className="flex gap-0.5" aria-label={`${f.srri} de 7`}>
-                          {[1, 2, 3, 4, 5, 6, 7].map((i) => <i key={i} className={`grid h-4 w-4 place-items-center rounded-sm text-[10px] not-italic ${i === Number(f.srri) ? 'bg-acento text-panel' : 'bg-borde/60 text-suave'}`}>{i}</i>)}
+                          {[1, 2, 3, 4, 5, 6, 7].map((i) => <i key={i} className={`grid h-4 w-4 place-items-center rounded-sm text-[10px] not-italic ${i === Number(f.srri) ? 'bg-acento text-sobre-acento' : 'bg-borde/60 text-suave'}`}>{i}</i>)}
                         </span>)],
                       ['Inversión mínima', f.inversion_minima == null ? '—' : `${cifra(Number(f.inversion_minima), 0)} ${f.divisa ?? ''}`],
                       ['MyInvestor', datos.myinvestor.has(f.isin) ? 'se puede comprar' : 'no'],
@@ -317,22 +334,6 @@ export default function Ficha({ isin }: { isin: string }) {
                     ))}
                   </dl>
                 </Tarjeta>
-              <Tarjeta titulo="Frente a su categoría" extra={<span className="text-[12px] text-suave">percentil · 100 es el mejor</span>}>
-                <dl className="divide-y divide-borde text-[13px]">
-                  {FRENTE.filter(([, k]) => m.has(k)).slice(0, f.duracion_efectiva != null || f.calidad_media ? 9 : 7).map(([et, k, fmt]) => {
-                    const x = m.get(k)!
-                    return (
-                      <div key={k} className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,9rem)] items-center gap-3 py-1">
-                        <dt className="truncate text-suave">{et}</dt>
-                        <dd className="text-right tabular">{fmt(x.valor)}</dd>
-                        <dd>{x.percentil != null ? <BarraPercentil p={x.percentil} /> : <span className="text-[11px] text-suave">sin percentil</span>}</dd>
-                      </div>
-                    )
-                  })}
-                </dl>
-              </Tarjeta>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
               <Tarjeta titulo={`Por qué la nota${b?.solo3a ? ' · con métricas a 3 años' : ''}`}>
                 {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_DEFECTO} nota={e.nota} /> : <p className="text-suave">—</p>}
                 <p className="mt-2 text-[11px] text-suave">Pesos por defecto, sin Diversificación (la nota de las señales). Bloques con las métricas de hoy.</p>
@@ -462,7 +463,7 @@ export default function Ficha({ isin }: { isin: string }) {
                     <tr key={c.isin} className={`border-b border-borde/60 ${c.isin === f.isin ? 'bg-acento/10' : ''}`}>
                       <td className="py-2 pl-2 text-left">
                         <a href={`#/fondo/${c.isin}`} className="hover:text-acento">{c.nombre}</a>
-                        {c.isin === f.isin && <span className="ml-2 rounded-full bg-acento/15 px-2 text-[11px] text-acento">esta</span>}
+                        {c.isin === f.isin && <span className="ml-2 rounded-sm bg-acento/15 px-2 text-[11px] text-acento">esta</span>}
                         <span className="block text-[12px] text-suave"><span className="font-mono">{c.isin}</span>{c.en_universo ? '' : ' · fuera del universo'}</span>
                       </td>
                       <td>{c.divisa ?? '—'}{cubierta(c.nombre) && <span className="text-suave"> cubierta</span>}</td>

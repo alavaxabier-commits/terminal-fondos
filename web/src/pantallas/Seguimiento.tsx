@@ -10,6 +10,7 @@ import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
 import { serieEur } from '../datos/series'
 import { senalesSeguidos } from '../datos/revision'
+import Cargando from '../componentes/Cargando'
 
 type Fila = Awaited<ReturnType<typeof q.seguidos>>[number]
 type ConFondos = NonNullable<Awaited<ReturnType<typeof q.cartera>>>
@@ -101,7 +102,7 @@ export default function Seguimiento() {
     x: setQuitando,
   })
 
-  if (!filas) return <p className="text-suave">{error || 'Cargando…'}</p>
+  if (!filas) return error ? <p className="text-baja">{error}</p> : <Cargando pagina />
   const m = (isin: string, clave: string) => met.get(`${isin}|${clave}`)
   const cartera = carteras.find((c) => c.cartera.id === carteraId) ?? carteras[0]
   const correlacion = (f: Fila) => {
@@ -134,7 +135,7 @@ export default function Seguimiento() {
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[48rem] text-right [&_tr>*+*]:pl-3">
-            <thead className="text-[11px] uppercase tracking-widest text-suave">
+            <thead className="rotulo">
               <tr className="border-b border-borde">
                 <th className="py-1 text-left font-normal">Fondo</th>
                 <th className="font-normal" title="Nota semanal; su color, la posición en su categoría (verde, el mejor cuarto; rojo, el peor)">Nota</th>
@@ -218,7 +219,7 @@ function Encaje({ f, cartera, div, m, nota }: {
   f: Fila; cartera: ConFondos; div: Diversificacion[]; m: (isin: string, clave: string) => q.Metrica | undefined; nota: (isin: string) => number | undefined
 }) {
   const [e] = encaje({ isin: f.isin, categoria: f.fondo.categoria }, [cartera], div)
-  const titulo = <p className="text-[11px] uppercase tracking-widest text-suave">Encaje con {cartera.cartera.nombre}</p>
+  const titulo = <p className="rotulo">Encaje con {cartera.cartera.nombre}</p>
   if (e.dentro) return <div>{titulo}<p className="text-suave">Ya está en ella ({cifra(cartera.fondos.find((x) => x.fondo.isin === f.isin)!.peso, 0)} %).</p></div>
   const s = e.sustituye
   const filas: [string, (i: string) => number | undefined, (v: number) => string, (d: number) => string][] = [

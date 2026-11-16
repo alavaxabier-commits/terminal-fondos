@@ -8,7 +8,7 @@ export default function TablaNota({ bloques, pesos, nota }: { bloques: Partial<R
   return (
     <>
       <table className="w-full text-right tabular [&_tr>*+*]:pl-2">
-        <thead className="text-[11px] uppercase tracking-widest text-suave">
+        <thead className="rotulo">
           <tr><th className="py-0.5 text-left font-normal">Bloque</th><th className="font-normal">Pct.</th><th className="font-normal">Peso</th><th className="font-normal">Pone</th></tr>
         </thead>
         <tbody>
