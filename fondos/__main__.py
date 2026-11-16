@@ -192,7 +192,7 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
     if not limite and not cerrado:  # una prueba con pocas fichas no cuenta como referencia para la semana siguiente
         repo.registrar('universo', None, 'ok', f'fichas: {n}')
     mi, alarmas_mi = descargar_myinvestor(repo)
-    nuevos, fallidos = altas_myinvestor(repo, ms)
+    nuevos, no_estan, errores = altas_myinvestor(repo, ms)
     dentro = repo.marcar_universo(min_patrimonio, min_anos, tope, max_minima)
     if not limite:
         repo.guardar_historial_patrimonio()
@@ -204,37 +204,39 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
              + f'{dentro} fondos en el universo '
              f'(patrimonio ≥ {min_patrimonio:g} M€, ≥ {min_anos} años, como mucho {tope} por categoría; '
              f'una clase por fondo, o todas las de MyInvestor si vende alguna) · '
-             f'MyInvestor: {len(mi) or "sin descargar"} fondos, {mi_ficha} con ficha ({nuevos} nuevas), {mi_dentro} en el universo · '
+             f'MyInvestor: {len(mi) or "sin descargar"} fondos, {mi_ficha} con ficha ({nuevos} nuevas; {no_estan} no están en Morningstar), {mi_dentro} en el universo · '
              f'inversión mínima conocida en {con_minima} de {fichas} fichas · '
              f'{borrados} valores borrados de fondos que salen')
     print(texto)
     resumen_github(texto)
     alarmas = alarmas_mi + vigilancia.universo(n, int(anteriores.split()[-1]) if anteriores else None, *repo.sin_dato_universo())
-    if fallidos > max(5, nuevos):
-        alarmas.append(f'universo: {fallidos} fondos nuevos de MyInvestor sin ficha de Morningstar ({nuevos} dados de alta)')
+    if errores > 5:
+        alarmas.append(f'universo: {errores} fondos nuevos de MyInvestor con error al buscar su ficha ({nuevos} dados de alta)')
     if limite:  # una prueba con pocas fichas no se compara con la semana anterior
         alarmas = [a for a in alarmas if 'fichas' not in a]
     return avisar(repo, 'universo', alarmas)
 
 
-def altas_myinvestor(repo, ms, tope: int = 150) -> tuple[int, int]:
+def altas_myinvestor(repo, ms, tope: int = 150) -> tuple[int, int, int]:
     """Fondos del catálogo de MyInvestor sin ficha: se buscan por ISIN (tres peticiones cada uno) y se guardan; el universo
-    decide después si entran. Devuelve (dados de alta, sin ficha)."""
-    nuevos = fallidos = 0
+    decide después si entran. Devuelve (dados de alta, que Morningstar no tiene, con error). Unos 70 fondos pequeños de
+    MyInvestor no están en Morningstar: se vuelven a buscar cada semana (una petición cada uno)."""
+    nuevos = no_estan = errores = 0
     for isin in repo.myinvestor_sin_ficha(tope):
         try:
             f = ms.buscar(isin)
         except Bloqueo:
             raise
         except Exception as e:  # noqa: BLE001
-            f = None
             repo.registrar('morningstar', isin, 'error', f'alta desde MyInvestor: {type(e).__name__}: {e}'[:500])
+            errores += 1
+            continue
         if f:
             repo.guardar_fondo(f)
             nuevos += 1
         else:
-            fallidos += 1
-    return nuevos, fallidos
+            no_estan += 1
+    return nuevos, no_estan, errores
 
 
 def orden_prueba_red(isin: str) -> int:

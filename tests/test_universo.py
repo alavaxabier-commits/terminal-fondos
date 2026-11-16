@@ -26,5 +26,5 @@ class Ms:
 
 def test_altas_desde_myinvestor():
     repo = Repo()
-    assert altas_myinvestor(repo, Ms()) == (1, 2)
+    assert altas_myinvestor(repo, Ms()) == (1, 1, 1)
     assert repo.guardados == ['ES0000000001'] and repo.registros[0][1] == 'ES0000000003'
