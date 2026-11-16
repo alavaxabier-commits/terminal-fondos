@@ -28,4 +28,5 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ORDEN: ${{ inputs.orden || 'diario' }}
           ARGUMENTOS: ${{ inputs.argumentos }}
+          EXPLORAR: ${{ contains(inputs.argumentos, 'IE00B6VXJV34') && '1' || '' }}  # temporal
         run: python -m fondos "$ORDEN" ${ARGUMENTOS//—/--}  # el Mac convierte -- en raya
