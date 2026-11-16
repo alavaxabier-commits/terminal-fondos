@@ -363,7 +363,7 @@ export default function Cartera({ id }: { id: number }) {
 
 
             {calc && <AnoAno calc={calc} />}
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
               {calc && <Crisis calc={calc} />}
               <Tarjeta titulo="Tipo de activo">
                 {expo ? <Reparto activos={expo.activos} cobertura={expo.cobertura} /> : <Cargando alto="h-14" />}
@@ -442,7 +442,7 @@ export default function Cartera({ id }: { id: number }) {
             {hayCalculo && calc ? (
               <>
                 <Aportacion calc={calc} fondos={fondosE} />
-                <div className={`grid gap-4 [&>*]:min-w-0 ${fondosE.length <= 5 ? 'lg:grid-cols-2' : ''}`}>
+                <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 [&>*]:min-w-0 ${fondosE.length <= 5 ? 'lg:grid-cols-2' : ''}`}>
                   <Juntos calc={calc} fondos={fondosE} />
                   <Tarjeta titulo="Posiciones en común"><Solapes fondos={fondosE} titulo={false} /></Tarjeta>
                 </div>

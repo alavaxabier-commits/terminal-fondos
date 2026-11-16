@@ -60,9 +60,9 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
           {conDatos.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
         </select>
       )}>
-        <div className="grid items-center gap-x-10 gap-y-5 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-10 gap-y-5 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
           <Reparto activos={x.activos} />
-          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+          <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
             {esencial.map(([k, v]) => (
               <div key={k} className="min-w-0 border-l-2 border-borde pl-3">
                 <dt className="text-[12px] text-suave">{k}</dt><dd className="truncate text-[14px]" title={v}>{v}</dd>
@@ -106,7 +106,7 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
             <Grupos grupos={x.sectores} />
           </Bloque>
           <Bloque titulo="Estilo">
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 md:grid-cols-3">
               <Caja valores={x.estiloRv} {...CAJA_RV} fila="Tamaño" col="Estilo" />
               <Lista titulo="Capitalización" filas={x.capitalizacion} barras />
               <Cifras titulo="Estadísticas" cifras={x.estadisticasRv} />
@@ -118,11 +118,11 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
 
       {tab === 'rf' && (
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2">
             <Bloque titulo="Estilo de renta fija"><Caja valores={x.estiloRf} {...CAJA_RF} /></Bloque>
             <Bloque titulo="Cifras medias"><Cifras titulo="De los bonos" cifras={x.estadisticasRf} /></Bloque>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2">
             <Bloque titulo="Calidad crediticia"><Lista titulo="De los bonos" filas={x.calidad} barras /></Bloque>
             <Bloque titulo="Renta fija por sector"><Lista filas={x.sectoresRf} barras /></Bloque>
           </div>
@@ -150,7 +150,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 /** Grupos (regiones o sectores) en columnas: el total del grupo y sus partes. */
 function Grupos({ grupos }: { grupos: Grupo[] }) {
   return (
-    <div className="grid gap-6 md:grid-cols-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 md:grid-cols-3">
       {grupos.map((g) => (
         <div key={g.nombre}>
           <p className="mb-1.5 flex justify-between border-b border-borde pb-1">

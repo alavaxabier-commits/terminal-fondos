@@ -130,7 +130,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
           : <Carrusel carteras={carteras} ancha={(c) => <CarteraAncha c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} senales={senalesDe(c.id)} />} />}
       </Seccion>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <ListaSeguimiento seg={seg} />
         <Mercados mercados={mercados} />
       </div>
@@ -151,7 +151,7 @@ const Cifras = ({ r }: { r: ResumenCartera }) => {
   ]
   return (
     <div>
-      <dl className={"grid grid-cols-4 gap-x-3 gap-y-2 text-[12px]"}>
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[12px] min-[360px]:grid-cols-4">
         {k.map(([et, v, cls]) => (
           <div key={et}><dt className="text-suave">{et}</dt><dd className={`tabular text-[13px] ${cls}`}>{v}</dd></div>
         ))}
@@ -179,7 +179,7 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
     ]
   })
   return (
-    <div className="grid h-full gap-6 rounded-lg border border-borde bg-panel p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] h-full gap-6 rounded-lg border border-borde bg-panel p-4 sm:p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
       {/* Solo el nombre es el enlace (el lector de pantalla no lee todas las cifras como su nombre); su ::after cubre la columna. */}
       <div className="relative flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline gap-2"><a href={`#/cartera/${c.id}`} className="font-medium after:absolute after:inset-0 hover:text-acento">{c.nombre}</a><PildoraSemana v={r.semana} /></div>
@@ -196,7 +196,7 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
         <Reparto activos={r.activos} cobertura={r.cobertura} />
         <div className="mt-auto text-[12px]">
           {senales === undefined ? null : avisos.length
-            ? avisos.slice(0, 3).map((a) => <a key={a.k} href={a.href} title={a.title} className="block truncate py-1 text-aviso hover:underline">▲ {a.texto}{a.title && <span className="sr-only"> ({a.title})</span>}</a>)
+            ? avisos.slice(0, 3).map((a) => <a key={a.k} href={a.href} title={a.title} className="relative block truncate py-1 text-aviso hover:underline">▲ {a.texto}{a.title && <span className="sr-only"> ({a.title})</span>}</a>)
             : <p className="py-1 text-suave"><span className="text-sube" aria-hidden="true">● </span>Ningún fondo con señales de revisión ni fuera de banda.</p>}
           {avisos.length > 3 && <a href="#/revision" className="block py-1 text-suave hover:text-acento">y {avisos.length - 3} avisos más</a>}
           <a href={`#/cartera/${c.id}`} className="block py-1 text-suave hover:text-acento">{r.fondos.length} fondos · ver composición ›</a>
@@ -249,7 +249,7 @@ function Mercados({ mercados }: { mercados: Mercado[] | Error | null }) {
           const v = m.cambio[periodo]
           return (
             <li key={m.isin}>
-              <a href={`#/fondo/${m.isin}`} title={`${m.indice} · 1 año ${pct(m.anual)}`} className="grid grid-cols-[minmax(0,1fr)_auto_4.5rem] items-center gap-3 py-1 text-[13px] hover:text-acento">
+              <a href={`#/fondo/${m.isin}`} title={`${m.indice} · 1 año ${pct(m.anual)}`} className="relative grid grid-cols-[minmax(0,1fr)_auto_4.5rem] items-center gap-3 py-1 text-[13px] hover:text-acento">
                 <span className="truncate">{m.indice.replace(/^(MSCI|Bloomberg) /, '')}</span>
                 <Mini valores={m.linea} color={colorLinea(m.linea)} className="h-4 w-14" />
                 <span className={`text-right tabular ${tono(v)}`}>{pct(v)}<span className="sr-only"> ({periodo}); 1 año {pct(m.anual)}</span></span>

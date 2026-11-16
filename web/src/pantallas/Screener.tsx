@@ -242,10 +242,10 @@ export default function Screener() {
       {panel === 'filtros' && (
         <Tarjeta>
           <div aria-label="Filtros" className="space-y-4">
-            <div className="grid gap-x-8 gap-y-3 lg:grid-cols-[minmax(0,1fr)_19rem]">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-3 lg:grid-cols-[minmax(0,1fr)_19rem]">
               <div className="space-y-2.5">
                 <h3 className="text-[12px] font-medium text-suave">Qué fondo</h3>
-                <div className="grid items-baseline gap-x-4 gap-y-1.5 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                <div className="grid grid-cols-[minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5 sm:grid-cols-[8rem_minmax(0,1fr)]">
                   <span className="text-[13px]">Tipo de activo</span>
                   <div className="flex flex-wrap gap-1.5">
                     {TIPOS.map((x) => <Opcion key={x} on={filtros.tipo === x} onClick={() => filtrar({ tipo: filtros.tipo === x ? undefined : x, grupo: undefined, categoria: undefined })}>{x}</Opcion>)}
@@ -280,7 +280,7 @@ export default function Screener() {
                 </Campo>
               </div>
             </div>
-            <div className="grid gap-x-8 gap-y-5 border-t border-borde pt-4 sm:grid-cols-3">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 border-t border-borde pt-4 sm:grid-cols-3">
             <Grupo titulo="Coste y riesgo">
               <Campo etiqueta="TER máximo (%)"><CampoNumero valor={filtros.terMax} cambiar={(v) => filtrar({ terMax: v })} /></Campo>
               <Campo etiqueta="SRRI máximo">
@@ -334,7 +334,7 @@ export default function Screener() {
           <div className="mb-3 flex h-2.5 gap-0.5 overflow-hidden rounded-sm bg-borde/60" aria-hidden="true">
             {BLOQUES.map((k) => <span key={k} style={{ width: `${pesoReal(k) * 100}%`, background: COLOR_BLOQUE[k] }} />)}
           </div>
-          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
             {BLOQUES.map((k) => (
               <label key={k} className={`grid grid-cols-[10px_1fr_auto] items-center gap-x-2 gap-y-1 text-[13px] ${k === 'diversificacion' && !div ? 'text-suave' : ''}`}>
                 <i aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: COLOR_BLOQUE[k] }} />

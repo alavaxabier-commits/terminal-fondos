@@ -132,7 +132,7 @@ export default function Seguimiento() {
       {visibles.length === 0 ? (
         <p className="text-suave">No sigues ningún fondo. Se añaden desde el screener o desde una ficha («s»).</p>
       ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[48rem] text-right [&_tr>*+*]:pl-3">
             <thead className="rotulo">

@@ -255,7 +255,7 @@ export default function Ficha({ isin }: { isin: string }) {
         {pestana === 'resumen' && (
           <>
             {/* Arriba, lo que más se mira: el valor en el tiempo y, a su lado, cómo queda frente a su categoría. */}
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
               <Tarjeta>
                 <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -309,7 +309,7 @@ export default function Ficha({ isin }: { isin: string }) {
                   <p className="mt-2 text-[11px] text-suave">Rentabilidad en %, en euros.</p>
                 </Tarjeta>
               )}
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
                 <Tarjeta titulo="Datos del fondo">
                   <dl className="divide-y divide-borde text-[13px]">
                     {([
@@ -348,7 +348,7 @@ export default function Ficha({ isin }: { isin: string }) {
 
         {pestana === 'métricas' && (
           <>
-            <section className="grid gap-px overflow-hidden rounded-lg border border-borde bg-borde sm:grid-cols-3">
+            <section className="grid grid-cols-[minmax(0,1fr)] gap-px overflow-hidden rounded-lg border border-borde bg-borde sm:grid-cols-3">
               {([
                 ['Este año', 'ytd|rentabilidad', (v: number) => pct(v), 'Desde el 31 de diciembre.'],
                 ['Consistencia', 'hist|consistencia', (v: number) => `${cifra(v, 0)} %`, 'Periodos de 3 años (uno por semana) en que bate a su referencia.'],
@@ -388,7 +388,7 @@ export default function Ficha({ isin }: { isin: string }) {
                     </tbody>
                   </table>
                 </div>
-                <dl className="mt-3 grid gap-x-8 border-t border-borde pt-3 text-[13px] sm:grid-cols-2">
+                <dl className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-x-8 border-t border-borde pt-3 text-[13px] sm:grid-cols-2">
                   {([['12m|meses_negativos', 'Meses negativos (12 meses)', (v: number) => cifra(v, 0)]] as const).map(([k, et, fmt]) => {
                     const x = m.get(k)
                     return (

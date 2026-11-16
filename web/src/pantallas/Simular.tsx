@@ -188,7 +188,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
             <Grafico lineas={lineas} />
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
+          <section className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2 [&>*]:min-w-0">
             {VENTANAS.map(([v, t]) => (
               <div key={v} className="overflow-x-auto">
                 <Titulo>{t}</Titulo>

@@ -241,7 +241,7 @@ function Resumen({ fondos, color, ventana }: Props & { ventana: string }) {
           <FilaMetrica fondos={fondos} etiqueta="Sharpe" clave={`${ventana}|sharpe`} fmt={(v) => cifra(v)} />
         </Tabla>
       </Tarjeta>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
         <Tarjeta titulo="Nota" extra={<span className="text-[12px] text-suave">a {plazo}, con los pesos por defecto · 100 es lo mejor</span>}>
           <Tabla fondos={fondos} color={color}>
             {filaNota('Nota', notas.map((n) => n?.nota), true)}
@@ -366,7 +366,7 @@ function ComposicionFondos({ fondos, color, corr }: Props & { corr: ReturnType<t
       {conRf && desglose('Calidad crediticia (de los bonos)', (x) => x.calidad)}
       {xs.some(Boolean) && <p className="text-[11px] text-suave">En % según la última cartera de Morningstar; las filas por debajo del 1 % en todos los fondos no se muestran.</p>}
       {fondos.length > 1 && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
           <Tarjeta titulo="Cómo se mueven juntos">
             {corr ? (
               <>
