@@ -77,7 +77,7 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
        [`Rentabilidad ${anos(v)}`, `${v}|rentabilidad`, (x) => pct(x)], [`Volatilidad ${anos(v)}`, `${v}|volatilidad`, (x) => pct(x, 1, false)],
        [`Caída máxima ${anos(v)}`, `${v}|max_caida`, (x) => pct(x)], [`Sharpe ${anos(v)}`, `${v}|sharpe`, (x) => cifra(x)]]
   const alts = alternativas(f, todos, monetario)
-  const boton = 'flex min-h-8 items-center rounded-full px-2.5 text-[12.5px]'
+  const boton = 'flex min-h-8 items-center rounded px-2.5 text-[12.5px]'
   const seccion = 'flex flex-col gap-2 border-t border-borde pt-3'
   const titulo = 'text-[12px] font-medium text-suave'
 
@@ -92,23 +92,23 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
   return (
     <section aria-label="Detalle del fondo" className="flex flex-col gap-3 rounded-lg border border-borde bg-panel p-4 text-[13px]">
       <div className="space-y-1.5">
-        <p className="text-[11px] uppercase tracking-widest text-acento">{f.categoria}</p>
-        <a href={`#/fondo/${f.isin}`} className="block font-serif text-2xl leading-tight hover:text-acento">{f.nombre}</a>
+        <p className="etiqueta text-acento">{f.categoria}</p>
+        <a href={`#/fondo/${f.isin}`} className="block font-ancha text-2xl leading-tight hover:text-acento">{f.nombre}</a>
         <div className="flex flex-wrap gap-1 text-[11px] text-suave">
-          <span className="rounded-full bg-borde/50 px-2 font-mono">{f.isin}</span>
-          <span className="rounded-full bg-borde/50 px-2">{f.gestion === 'indexada' ? 'Indexado' : f.gestion === 'activa' ? 'Gestión activa' : 'Gestión sin dato'}</span>
-          <span className="rounded-full bg-borde/50 px-2">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>
-          {f.myinvestor && <span className="rounded-full bg-acento/15 px-2 text-acento">En MyInvestor</span>}
+          <span className="rounded bg-borde/50 px-2 font-mono">{f.isin}</span>
+          <span className="rounded bg-borde/50 px-2">{f.gestion === 'indexada' ? 'Indexado' : f.gestion === 'activa' ? 'Gestión activa' : 'Gestión sin dato'}</span>
+          <span className="rounded bg-borde/50 px-2">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>
+          {f.myinvestor && <span className="rounded bg-acento/15 px-2 text-acento">En MyInvestor</span>}
         </div>
       </div>
 
       <div className={seccion}>
         <div className="flex items-center justify-between gap-2">
           <h3 className={titulo}>Evolución · base 100</h3>
-          <div role="group" aria-label="Periodo de la gráfica" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[11px]">
+          <div role="group" aria-label="Periodo de la gráfica" className="flex gap-0.5 rounded bg-borde/50 p-0.5 text-[11px]">
             {RANGOS.map((n) => (
               <button key={n} onClick={() => setRango(n)} aria-pressed={rango === n}
-                className={`rounded-full px-2.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{n}A</button>
+                className={`rounded px-2.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{n}A</button>
             ))}
           </div>
         </div>

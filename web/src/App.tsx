@@ -48,6 +48,9 @@ function useAtajos(ruta: string) {
   }, [ruta])
 }
 
+// Tecla de cada pantalla, a su lado en la barra lateral.
+const TECLA: Record<string, string> = { '#/': '1', '#/screener': '3', '#/seguimiento': '4', '#/revision': 'r', '#/comparar': 'c' }
+
 // Lo que se ve con «?»: los atajos de toda la app.
 const ATAJOS: [string, string][] = [
   ['/', 'barra de órdenes: fondo, cartera o pantalla (↑↓ mover, Intro abrir, Esc cerrar)'],
@@ -110,53 +113,57 @@ export default function App() {
   const simular = ruta.match(/^#\/simular\/(\d+)(?:\/([A-Z0-9]{12})\/([A-Z0-9]{12}))?$/)
   const comparar = ruta.match(/^#\/comparar(?:\/([A-Z0-9,]*))?$/)
   return (
-    <div className="mx-auto flex min-h-full max-w-7xl flex-col">
-      <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-borde bg-fondo/95 px-4 py-2 backdrop-blur">
-        <a href="#/" className="flex shrink-0 items-center gap-2 font-serif text-xl text-texto">
-          <i aria-hidden="true" className="inline-block h-4 w-4 rounded-full bg-acento" />
-          <span className="hidden sm:inline">Terminal de fondos</span>
+    <div className="min-h-full lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)]">
+      {/* Barra lateral (en móvil, franja de arriba): marca, pantallas con su tecla, tema y salida. */}
+      <aside className="sticky top-0 z-20 flex items-center gap-3 border-b border-borde bg-panel px-4 py-2 lg:h-screen lg:flex-col lg:items-stretch lg:gap-6 lg:border-r lg:border-b-0 lg:px-3 lg:py-5">
+        <a href="#/" className="font-ancha shrink-0 text-[17px] leading-none lg:px-2 lg:text-[22px]">
+          <span aria-hidden="true" className="lg:hidden">TF</span><span className="max-lg:sr-only">Terminal<br />de fondos</span>
         </a>
-        <nav aria-label="Pantallas" className="flex min-w-0 gap-0.5 overflow-x-auto rounded-full bg-borde/50 p-0.5">
-          {PANTALLAS.map(([h, t]) => (
-            <a key={h} href={h} aria-current={((ruta || '#/') === h || (h === '#/comparar' && !!comparar)) ? 'page' : undefined}
-              className={`rounded-full px-3 py-1 ${(ruta || '#/') === h || (h === '#/comparar' && comparar) ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{t}</a>
-          ))}
+        <nav aria-label="Pantallas" className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto lg:flex-none lg:flex-col">
+          {PANTALLAS.map(([h, t]) => {
+            const activa = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
+            return (
+              <a key={h} href={h} aria-current={activa ? 'page' : undefined}
+                className={`flex shrink-0 items-center gap-3 rounded px-2 py-1.5 first-letter:uppercase lg:py-2 ${activa ? 'bg-acento/10 font-semibold text-acento' : 'text-suave hover:bg-borde/40 hover:text-texto'}`}>
+                <kbd aria-hidden="true" className="hidden w-4 text-center opacity-70 lg:inline">{TECLA[h]}</kbd>
+                <span className="first-letter:uppercase">{t}</span>
+              </a>
+            )
+          })}
         </nav>
+        <div className="flex shrink-0 items-center gap-2 lg:mt-auto lg:px-2">
+          <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
+            aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
+            className="grid h-8 w-8 place-items-center rounded border border-borde text-suave hover:text-texto">
+            {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              {tema === 'claro'
+                ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+                : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
+            </svg>
+          </button>
+          <button onClick={() => setContrasena(true)} className="hidden min-h-8 px-1 text-suave hover:text-texto sm:block" title="Poner o cambiar la contraseña">Contraseña</button>
+          <button onClick={() => supabase.auth.signOut()} className="min-h-8 px-1 text-suave hover:text-texto">Salir</button>
+        </div>
+      </aside>
+      <div className="flex min-h-screen min-w-0 flex-col">
+      <header className="sticky top-[49px] z-10 border-b border-borde bg-fondo/95 px-4 py-2 backdrop-blur lg:top-0 lg:px-6">
         <Buscador />
-        <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
-          aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-borde bg-panel text-suave hover:text-texto">
-          {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-            {tema === 'claro'
-              ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
-              : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
-          </svg>
-        </button>
-        <button onClick={() => setContrasena(true)} className="shrink-0 text-suave hover:text-texto" title="Poner o cambiar la contraseña">
-          contraseña
-        </button>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="shrink-0 text-suave hover:text-texto"
-          title="Cerrar sesión"
-        >
-          salir
-        </button>
       </header>
-      <main className="flex-1 space-y-4 px-4 py-4">
+      <main className="mx-auto w-full max-w-[96rem] flex-1 space-y-4 px-4 py-5 lg:px-6">
         {!comparar && <Bandeja />}
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
           : simular ? <Simular key={simular[0]} id={+simular[1]} sale={simular[2]} entra={simular[3]} />
           : comparar ? <Comparar isins={comparar[1] ? [...new Set(comparar[1].split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5) : bandeja.map((x) => x.isin)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
       </main>
       <BarraEstado estado={estado} />
+      </div>
       {contrasena && <CambiarContrasena cerrar={() => setContrasena(false)} />}
       {ayuda && (
         <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
           <section onClick={(e) => e.stopPropagation()} className="w-full max-w-lg border border-borde bg-panel p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-[11px] uppercase tracking-widest text-suave">Atajos</h2>
+              <h2 className="font-ancha text-lg">Atajos</h2>
               <button onClick={() => setAyuda(false)} aria-label="Cerrar la ayuda" className="min-h-7 min-w-7 text-suave hover:text-texto">✕</button>
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
@@ -185,7 +192,7 @@ function BarraEstado({ estado: { descargas, base, revision, error } }: { estado:
   const tono = uso >= 0.9 ? 'text-baja' : uso >= 0.8 ? 'text-aviso' : 'text-sube' // ámbar desde el 80 %, rojo desde el 90 %
   const aRevisar = revision?.carteras.reduce((n, c) => n + c.fondos.filter((f) => f.senales.length).length, 0) ?? 0
   return (
-    <footer className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-3 border-t border-borde bg-panel px-4 py-1 text-[11px] text-suave">
+    <footer className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-4 border-t border-borde bg-fondo/95 px-4 py-1.5 text-[11px] text-suave backdrop-blur lg:px-6">
       {mal ? <a href="#/" className="text-baja hover:underline">▲ alarmas en las descargas</a>
         : ultima ? <span title={descargas!.map((t) => `${t.tarea} ${cuando(t.ts)}`).join(' · ')}><span className="text-sube" aria-hidden="true">● </span>descargas {cuando(ultima)}</span>
         : <span>{descargas ? 'sin registro de descargas' : 'descargas …'}</span>}

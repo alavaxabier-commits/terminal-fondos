@@ -134,7 +134,7 @@ export default function Seguimiento() {
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[48rem] text-right [&_tr>*+*]:pl-3">
-            <thead className="text-[11px] uppercase tracking-widest text-suave">
+            <thead className="etiqueta text-suave">
               <tr className="border-b border-borde">
                 <th className="py-1 text-left font-normal">Fondo</th>
                 <th className="font-normal" title="Nota semanal; su color, la posición en su categoría (verde, el mejor cuarto; rojo, el peor)">Nota</th>
@@ -218,7 +218,7 @@ function Encaje({ f, cartera, div, m, nota }: {
   f: Fila; cartera: ConFondos; div: Diversificacion[]; m: (isin: string, clave: string) => q.Metrica | undefined; nota: (isin: string) => number | undefined
 }) {
   const [e] = encaje({ isin: f.isin, categoria: f.fondo.categoria }, [cartera], div)
-  const titulo = <p className="text-[11px] uppercase tracking-widest text-suave">Encaje con {cartera.cartera.nombre}</p>
+  const titulo = <p className="etiqueta text-suave">Encaje con {cartera.cartera.nombre}</p>
   if (e.dentro) return <div>{titulo}<p className="text-suave">Ya está en ella ({cifra(cartera.fondos.find((x) => x.fondo.isin === f.isin)!.peso, 0)} %).</p></div>
   const s = e.sustituye
   const filas: [string, (i: string) => number | undefined, (v: number) => string, (d: number) => string][] = [

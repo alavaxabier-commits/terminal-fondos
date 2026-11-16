@@ -99,10 +99,10 @@ export default function Comparar({ isins }: { isins: string[] }) {
       <header className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="text-3xl!">Comparador</h1>
-          <div role="group" aria-label="Plazo" className="flex gap-0.5 rounded-full bg-borde/50 p-0.5 text-[12px]">
+          <div role="group" aria-label="Plazo" className="flex gap-0.5 rounded bg-borde/50 p-0.5 text-[12px]">
             {RANGOS.map((n) => (
               <button key={n} onClick={() => setRango(n)} aria-pressed={rango === n}
-                className={`rounded-full px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{n}A</button>
+                className={`rounded px-3 py-0.5 ${rango === n ? 'bg-panel text-texto shadow-sm' : 'text-suave hover:text-texto'}`}>{n}A</button>
             ))}
           </div>
         </div>

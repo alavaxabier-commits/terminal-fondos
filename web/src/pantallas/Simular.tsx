@@ -137,7 +137,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
 
       <section className="overflow-x-auto">
         <table className="w-full min-w-[36rem] text-right tabular [&_tr>*+*]:pl-3">
-          <thead className="text-[11px] uppercase tracking-widest text-suave">
+          <thead className="etiqueta text-suave">
             <tr className="border-b border-borde">
               <th className="py-1 text-left font-normal">Fondo</th><th className="font-normal">Actual</th><th className="font-normal">Propuesta</th><th />
             </tr>
@@ -192,7 +192,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
               <div key={v} className="overflow-x-auto">
                 <Titulo>{t}</Titulo>
                 <table className="w-full text-right tabular whitespace-nowrap [&_tr>*+*]:pl-3">
-                  <thead className="text-[11px] uppercase tracking-widest text-suave">
+                  <thead className="etiqueta text-suave">
                     <tr className="border-b border-borde"><th className="py-1" /><th className="font-normal">Actual</th><th className="font-normal">Propuesta</th></tr>
                   </thead>
                   <tbody>
@@ -207,7 +207,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
             <div className="overflow-x-auto">
               <Titulo>Coste y diversificación</Titulo>
               <table className="w-full text-right tabular whitespace-nowrap [&_tr>*+*]:pl-3">
-                <thead className="text-[11px] uppercase tracking-widest text-suave">
+                <thead className="etiqueta text-suave">
                   <tr className="border-b border-borde"><th className="py-1" /><th className="font-normal">Actual</th><th className="font-normal">Propuesta</th></tr>
                 </thead>
                 <tbody>

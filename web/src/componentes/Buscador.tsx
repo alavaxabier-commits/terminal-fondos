@@ -80,13 +80,13 @@ export default function Buscador({ onElegir, texto: indicacion = '/ fondo, carte
         aria-expanded={visible}
         aria-controls={id}
         aria-activedescendant={visible ? `${id}-${i}` : undefined}
-        className="w-full border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento"
+        className="w-full rounded border border-borde bg-panel px-3 py-1.5 text-texto outline-none placeholder:text-suave focus:border-acento focus:ring-2 focus:ring-acento/20"
       />
       {visible && (
-        <ul ref={lista} id={id} role="listbox" className="absolute left-0 right-0 top-full z-20 max-h-[70vh] overflow-auto border border-borde bg-panel">
+        <ul ref={lista} id={id} role="listbox" className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[70vh] overflow-auto rounded border border-borde bg-panel shadow-lg">
           {filas.map((f, k) => (
             <li key={f.clave} id={`${id}-${k}`} role="option" aria-selected={k === i} onMouseDown={() => abrir(f)} onMouseEnter={() => setActiva(k)}
-              className={`flex cursor-pointer items-baseline gap-2 px-2 py-1.5 ${k === i ? 'bg-borde' : ''}`}>
+              className={`flex cursor-pointer items-baseline gap-2 px-2 py-1.5 ${k === i ? 'bg-acento/10' : ''}`}>
               <span className="min-w-0 flex-1">
                 <span className={f.suave ? 'text-suave' : 'text-texto'}>{f.nombre}</span>
                 {f.detalle && <span className="block text-[11px] text-suave">{f.detalle}</span>}

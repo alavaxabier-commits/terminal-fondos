@@ -38,20 +38,20 @@ export default function Entrar() {
     else setEnviado(true)
   }
 
-  const campo = 'w-full border border-borde bg-panel px-3 py-2 text-texto outline-none focus:border-acento'
-  const boton = 'w-full border border-acento px-3 py-2 text-acento hover:bg-acento hover:text-fondo disabled:opacity-50'
+  const campo = 'w-full rounded border border-borde bg-panel px-3 py-2.5 text-texto outline-none focus:border-acento focus:ring-2 focus:ring-acento/20'
+  const boton = 'w-full rounded bg-acento px-3 py-2.5 font-semibold text-panel hover:opacity-90 disabled:opacity-50'
   return (
     <div className="flex min-h-full items-center justify-center p-6">
       {enviado ? (
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="font-bold tracking-widest text-acento">TERMINAL DE FONDOS</h1>
+        <div className="w-full max-w-sm space-y-5">
+          <h1 className="text-[2.6rem]! leading-none!">Terminal<br />de fondos</h1>
           <p>Te hemos enviado un enlace a <span className="text-acento">{correo}</span>.</p>
           <p className="text-suave">Ábrelo en este mismo dispositivo. Si no llega en un par de minutos, mira en spam.</p>
           <button className="text-suave underline" onClick={() => setEnviado(false)}>volver</button>
         </div>
       ) : (
-        <form onSubmit={entrar} className="w-full max-w-sm space-y-4">
-          <h1 className="font-bold tracking-widest text-acento">TERMINAL DE FONDOS</h1>
+        <form onSubmit={entrar} className="w-full max-w-sm space-y-5">
+          <h1 className="text-[2.6rem]! leading-none!">Terminal<br />de fondos</h1>
           <input type="email" required autoFocus placeholder="correo" aria-label="Correo" value={correo}
                  onChange={(e) => setCorreo(e.target.value)} className={campo} autoComplete="email" />
           <input type="password" required placeholder="contraseña" value={clave} aria-label="Contraseña"
