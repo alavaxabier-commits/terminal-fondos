@@ -4,6 +4,7 @@ import { PANTALLAS } from './calculo/ordenes'
 import { estadoDescargas, type Tarea } from './calculo/vigilancia'
 import Bandeja from './componentes/Bandeja'
 import Buscador from './componentes/Buscador'
+import CambiarContrasena from './componentes/CambiarContrasena'
 import { escribiendo } from './componentes/teclas'
 import { leerTema, ponerTema, type Tema } from './componentes/tema'
 import { rutaCon, useBandeja } from './datos/bandeja'
@@ -65,6 +66,7 @@ export default function App() {
   const [sesion, setSesion] = useState<Session | null | undefined>(undefined)
   const [estado, setEstado] = useState<Estado>({ descargas: null, base: null, revision: null, error: '' })
   const [ayuda, setAyuda] = useState(false)
+  const [contrasena, setContrasena] = useState(false)
   const [tema, setTema] = useState<Tema>(leerTema)
   const ruta = useRuta()
   const bandeja = useBandeja()
@@ -131,6 +133,9 @@ export default function App() {
               : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
           </svg>
         </button>
+        <button onClick={() => setContrasena(true)} className="shrink-0 text-suave hover:text-texto" title="Poner o cambiar la contraseña">
+          contraseña
+        </button>
         <button
           onClick={() => supabase.auth.signOut()}
           className="shrink-0 text-suave hover:text-texto"
@@ -146,6 +151,7 @@ export default function App() {
           : comparar ? <Comparar isins={comparar[1] ? [...new Set(comparar[1].split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5) : bandeja.map((x) => x.isin)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
       </main>
       <BarraEstado estado={estado} />
+      {contrasena && <CambiarContrasena cerrar={() => setContrasena(false)} />}
       {ayuda && (
         <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
           <section onClick={(e) => e.stopPropagation()} className="w-full max-w-lg border border-borde bg-panel p-4">
