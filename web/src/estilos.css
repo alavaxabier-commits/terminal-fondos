@@ -5,8 +5,9 @@
    (siempre con signo o símbolo) y ámbar para avisos. Claro cálido sin blanco puro; oscuro con data-tema="oscuro" o, sin
    elección, si el sistema lo pide. Contraste del texto ≥ 4,5:1 medido en los dos temas.
    Base «suavizada»: los mismos tonos con menos saturación, nada fluorescente.
-   Series (serie1…3): tinta, teja y ciruela, apagadas y sin verde (para no confundirse con «sube»); validadas con el
-   script de dataviz con todos los pares a la vez, en los dos temas. Del 4.º fondo en adelante, gris. */
+   Series (serie1…3): tinta, ocre y frambuesa, apagadas, sin verde y lejos de «sube», «baja» y «aviso» (ΔE ≥ 13);
+   validadas con el script de dataviz con todos los pares a la vez, en los dos temas. serie4 y serie5: dos grises,
+   uno marcado y otro tenue (dataviz: más de tres colores no se leen juntos); llevan el nombre al final de la línea. */
 @theme {
   --font-sans: "Urbanist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -26,8 +27,10 @@
   --color-aviso: #7a5e22;
   --color-gris: #9a978f;
   --color-serie1: #5e82c5;
-  --color-serie2: #ba6b4c;
-  --color-serie3: #853e69;
+  --color-serie2: #c48225;
+  --color-serie3: #bb5c84;
+  --color-serie4: #6f6b64;
+  --color-serie5: #b0aca3;
 }
 /* Cifra grande: la misma letra que el resto (dataviz: nada de serifa en las cifras), proporcional y algo apretada. */
 @utility cifra { font-weight: 500; letter-spacing: -0.02em; }
@@ -36,14 +39,14 @@
   :root[data-tema="oscuro"] {
     --color-fondo: #0d1117; --color-panel: #161b24; --color-borde: #262d39; --color-texto: #e6e8ec; --color-suave: #8e95a2;
     --color-acento: #7fb2de; --color-sobre-acento: #0d1117; --color-sube: #7cc39f; --color-baja: #e8978a; --color-aviso: #d6b574; --color-gris: #5d6577;
-    --color-serie1: #678ccf; --color-serie2: #c47455; --color-serie3: #944d77;
+    --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
     color-scheme: dark;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-tema]) {
       --color-fondo: #0d1117; --color-panel: #161b24; --color-borde: #262d39; --color-texto: #e6e8ec; --color-suave: #8e95a2;
       --color-acento: #7fb2de; --color-sobre-acento: #0d1117; --color-sube: #7cc39f; --color-baja: #e8978a; --color-aviso: #d6b574; --color-gris: #5d6577;
-      --color-serie1: #678ccf; --color-serie2: #c47455; --color-serie3: #944d77;
+      --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
       color-scheme: dark;
     }
   }

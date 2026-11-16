@@ -18,8 +18,8 @@ import Cargando from '../componentes/Cargando'
 
 type Datos = { fondo: q.Fondo; serie: Punto[]; metricas: Map<string, q.Metrica>; comp: Composicion | null }
 
-// Tres colores validados (dataviz) y, del 4.º fondo en adelante, gris: se leen por su nombre y por la tabla. Tokens de estilos.css.
-const COLORES = ['serie1', 'serie2', 'serie3', 'gris', 'gris']
+// Tres colores validados (dataviz) y dos grises para el 4.º y el 5.º, que se leen por su nombre y por la tabla. Tokens de estilos.css.
+const COLORES = ['serie1', 'serie2', 'serie3', 'serie4', 'serie5']
 const RANGOS = [1, 3, 5, 10] as const
 const PESTANAS = ['resumen', 'evolución', 'cifras', 'composición'] as const
 type Pestana = (typeof PESTANAS)[number]

@@ -6,6 +6,8 @@ import { token, useCambioTema } from './tema'
 
 /** color: nombre de un token (acento, suave, serie2…), que se resuelve con el tema actual. */
 type Linea = { nombre: string; serie: Punto[]; color: string }
+/** Colores grises: esas líneas llevan su nombre al final, que es lo que las distingue. */
+const GRISES = new Set(['gris', 'serie4', 'serie5'])
 
 /** Líneas (en base 100, o la nota semanal) con zoom (rueda o pellizco) y lectura al pasar el ratón. Colores del tema actual
  *  (se repinta al cambiarlo). Como pide dataviz: rejilla de filete continuo, el último valor escrito al final de cada línea,
@@ -34,7 +36,7 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
         backgroundColor: 'transparent',
         textStyle: { fontFamily: fuente, color: suave },
         aria: { enabled: true },
-        grid: { left: 44, right: lineas.some((l) => l.color === 'gris') ? 132 : 52, top: lineas.length > 1 ? 32 : 12, bottom: 48 },
+        grid: { left: 44, right: lineas.some((l) => GRISES.has(l.color)) ? 132 : 52, top: lineas.length > 1 ? 32 : 12, bottom: 48 },
         legend: { show: lineas.length > 1, type: 'scroll', top: 0, left: 0, right: 0, pageTextStyle: { color: suave }, textStyle: { color: texto }, itemWidth: 14, itemHeight: 3, icon: 'rect' },
         tooltip: {
           trigger: 'axis',
@@ -59,9 +61,9 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
           type: 'line',
           showSymbol: false,
           lineStyle: { width: 2, color: token(l.color) },
-          // Último valor al final; las líneas en gris (del 4.º fondo del comparador en adelante) llevan además su nombre, que es lo que las distingue.
-          endLabel: { show: lineas.length <= 5, color: l.color === 'gris' ? suave : texto, fontSize: 11,
-            formatter: (p: { value: [string, number] }) => `${cifra(p.value[1], 1)}${l.color === 'gris' ? ` ${l.nombre.length > 16 ? l.nombre.slice(0, 15) + '…' : l.nombre}` : ''}` },
+          // Último valor al final; las líneas en gris (4.º y 5.º fondo del comparador) llevan además su nombre.
+          endLabel: { show: lineas.length <= 5, color: GRISES.has(l.color) ? suave : texto, fontSize: 11,
+            formatter: (p: { value: [string, number] }) => `${cifra(p.value[1], 1)}${GRISES.has(l.color) ? ` ${l.nombre.length > 16 ? l.nombre.slice(0, 15) + '…' : l.nombre}` : ''}` },
           itemStyle: { color: token(l.color) },
           data: l.serie.map((p) => [p.fecha, Number(p.valor.toFixed(2))]),
         })),
