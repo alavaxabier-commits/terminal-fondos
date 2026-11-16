@@ -185,7 +185,7 @@ export default function Ficha({ isin }: { isin: string }) {
 
   const { fondo: f, ref } = datos
   const pctFondo = Object.fromEntries(datos.metricas.filter((x) => x.percentil != null).map((x) => [`${x.ventana}|${x.nombre}`, x.percentil!]))
-  const b = bloques(pctFondo, f.gestion === 'indexada')
+  const b = bloques(pctFondo, f.gestion === 'indexada', undefined, tipoActivo(f.categoria))
   const e = evolucion(datos.notas)
   const seguir = () => q.seguir(f.isin).then(() => setSeguido(true)).catch((x: Error) => setError(x.message))
   const anos = [...new Set((datos.metricas ?? []).filter((x) => /^\d{4}$/.test(x.ventana)).map((x) => x.ventana))].sort().reverse()

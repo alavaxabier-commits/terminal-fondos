@@ -252,3 +252,14 @@ def test_tipo_activo_y_pesos_por_tipo():
     assert tipo_activo(None) == 'otros' and set(PESOS_TIPO) == {'renta variable', 'renta fija', 'mixto', 'monetario', 'otros'}
     pct = {('5a', 'rentabilidad'): 100, ('hoy', 'ter'): 0}
     assert nota(pct, False, {'coste': 1})[0] == 0 and nota(pct, False, PESOS_TIPO['renta fija']) == nota(pct, False, PESOS_NOTA)
+
+
+def test_bloques_propios_por_tipo():
+    from fondos.nucleo.metricas import bloques_nota
+    pct = {('5a', 'rentabilidad'): 40, ('5a', 'diferencia_seguimiento'): 90, ('5a', 'tracking_error'): 30,
+           ('13s', 'rentabilidad'): 80, ('hoy', 'tir_neta'): 70}
+    assert bloques_nota(pct, True)[0]['consistencia'] == 60          # indexado: seguimiento del índice
+    assert bloques_nota(pct, True, propios=False)[0]['consistencia'] == 30
+    assert bloques_nota(pct, False, tipo='monetario')[0]['rentabilidad'] == 80
+    assert bloques_nota(pct, False, tipo='renta fija')[0]['tir'] == 70
+    assert 'tir' not in bloques_nota(pct, False, tipo='renta variable')[0]

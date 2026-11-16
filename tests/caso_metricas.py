@@ -52,15 +52,21 @@ NOTAS = [
      False, '10a'),
     ({'10a|rentabilidad': 40, '10a|tracking_error': 80}, True, '10a'),
     ({'5a|rentabilidad': 90}, False, '10a'),
+    # bloques propios: indexado (tracking difference + tracking error), monetario (13 semanas) y renta fija (TIR)
+    ({'5a|rentabilidad': 40, '5a|diferencia_seguimiento': 90, '5a|tracking_error': 30, 'hoy|ter': 80}, True, None, None),
+    ({'5a|rentabilidad': 40, '13s|rentabilidad': 90, 'hoy|ter': 80}, False, None, 'monetario'),
+    ({'5a|rentabilidad': 40, 'hoy|tir_neta': 70, 'hoy|ter': 80}, False, None, 'renta fija', {'tir': 25}),
 ]
 
 
 def notas():
     out = []
-    for pct, indexada, *ventana in NOTAS:
-        b = m.bloques_nota({tuple(k.split('|')): v for k, v in pct.items()}, indexada, *ventana)
-        n = b and m.ponderar(b[0], m.PESOS_NOTA)
-        out.append({'pct': pct, 'indexada': indexada, 'ventana': ventana[0] if ventana else None,
+    for pct, indexada, *resto in NOTAS:
+        ventana, tipo, extra = (resto + [None, None, None])[:3]
+        pesos = {**m.PESOS_NOTA, **(extra or {})}
+        b = m.bloques_nota({tuple(k.split('|')): v for k, v in pct.items()}, indexada, ventana, tipo)
+        n = b and m.ponderar(b[0], pesos)
+        out.append({'pct': pct, 'indexada': indexada, 'ventana': ventana, 'tipo': tipo, 'pesos': extra,
                     'nota': n, 'solo_3a': b and b[1] if n is not None else None})
     return out
 

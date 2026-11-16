@@ -228,10 +228,13 @@ class Repo:
     def datos_metricas(self) -> dict:
         """Todo lo que necesita calculo.calcular: fondos (universo, diarios y sustitutos), valores, tipos, €STR…"""
         fondos = {isin: {'categoria': cat, 'divisa': div, 'indice_id': iid, 'en_universo': uni, 'fund_id': fid,
-                         'ter': None if ter is None else float(ter), 'gestion': ges}
-                  for isin, cat, div, iid, uni, fid, ter, ges in self._filas("""
-            select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo, f.fund_id, f.ter, f.gestion
+                         'ter': None if ter is None else float(ter), 'gestion': ges, 'tir': None if tir is None else float(tir)}
+                  for isin, cat, div, iid, uni, fid, ter, ges, tir in self._filas("""
+            select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo, f.fund_id, f.ter, f.gestion,
+                   case when jsonb_typeof(c.datos->'estadisticas_rf'->'YieldToMaturity') = 'number'
+                        then (c.datos->'estadisticas_rf'->>'YieldToMaturity')::numeric end  -- TIR de la última cartera, %
             from fondos.fondo f
+            left join fondos.composicion c using (isin)
             where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")}
         valores: dict[str, dict] = {}
         # Paquetes anuales en streaming (cursor con nombre): cada fondo se reduce a su último dato de cada semana y de

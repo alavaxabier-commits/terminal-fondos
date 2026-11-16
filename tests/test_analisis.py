@@ -56,3 +56,17 @@ def test_repartos_y_validacion():
     texto = validar(fotos, fondos, dt.date(2022, 6, 30))
     assert '| renta variable | 0 | 0 | 10 | 90 | 0 |' in texto  # sin protección en los datos: equivale a solo coste
     assert '| elegido en el entreno | 94.5 | 4/4 | 94.5 |' in texto and '| renta fija |' in texto
+
+
+def test_comparar_propios():
+    from fondos.analisis import comparar_propios
+    fondos = {f'F{i}': {'categoria': 'EUR Money Market', 'en_universo': True, 'ter': 0.1, 'fund_id': f'F{i}'} for i in range(10)}
+    fotos = {}
+    for c in cortes(dt.date(2019, 12, 31), dt.date(2023, 12, 31)):
+        fotos[c] = {i: {'bloques': {'rentabilidad': k * 10}, 'sin_propios': {'rentabilidad': 100 - k * 10}, 'indexada': False,
+                        'valores': {('1a', 'rentabilidad'): k, ('1a', 'sharpe'): k, ('1a', 'max_caida'): -k,
+                                    ('3a', 'rentabilidad'): k, ('3a', 'sharpe'): k, ('3a', 'max_caida'): -k}}
+                    for k, i in enumerate(fondos)}
+    texto = comparar_propios(fotos, fondos, dt.date(2022, 6, 30))
+    assert '| sin bloques propios | — | — | — | 5.5 (2) | — |' in texto
+    assert '| con bloques propios | — | — | — | 94.5 (2) | — |' in texto

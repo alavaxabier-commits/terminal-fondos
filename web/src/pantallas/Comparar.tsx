@@ -205,7 +205,7 @@ const Fila = ({ etiqueta, celdas }: { etiqueta: string; celdas: React.ReactNode[
 function Resumen({ fondos, color, ventana }: Props & { ventana: string }) {
   const notas = fondos.map((d) => {
     const pcts = Object.fromEntries([...d.metricas].filter(([, x]) => x.percentil != null).map(([k, x]) => [k, x.percentil!]))
-    const b = bloques(pcts, d.fondo.gestion === 'indexada', ventana as Plazo)
+    const b = bloques(pcts, d.fondo.gestion === 'indexada', ventana as Plazo, tipoActivo(d.fondo.categoria))
     return b && { bloques: b.bloques, nota: nota(b.bloques, PESOS_TIPO_DEFECTO[tipoActivo(d.fondo.categoria)]) }
   })
   const barra = (v: number | null | undefined, resaltar: boolean) => v == null ? <span className="text-suave">—</span> : (

@@ -185,10 +185,13 @@ export function metricasFondo(s: Semanal, ref: Semanal | null, rf: Map<string, n
         const te = pstdev(rfC.map((x, i) => x - rbC[i])) * Math.sqrt(SEMANAS_ANO)
         poner(v, 'tracking_error', te)
         const exceso = prod(rfC) ** (SEMANAS_ANO / rfC.length) - prod(rbC) ** (SEMANAS_ANO / rbC.length)
+        poner(v, 'diferencia_seguimiento', exceso) // tracking difference
         if (te) poner(v, 'ratio_informacion', exceso / te)
       }
     }
   }
+  const ks = [...s.keys()]
+  if (ks.length >= 14) poner('13s', 'rentabilidad', (s.get(ultima)! / s.get(ks.at(-14)!)!) ** (SEMANAS_ANO / 13) - 1)
   return out
 }
 

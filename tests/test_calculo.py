@@ -162,3 +162,13 @@ def test_monetarios_con_serie_diaria_y_percentil():
     assert filas[('MONETARIO001', '3m', 'rentabilidad')][1] == 100   # rinde más que el otro de su categoría
     assert filas[('MONETARIO000', '12m', 'meses_negativos')] == (0.0, 50.0)  # empate: mismo percentil
     assert ('GLOBAL000001', '3m', 'rentabilidad') not in filas  # solo los monetarios
+
+
+def test_tir_solo_en_categorias_donde_la_publican_casi_todos():
+    from fondos.calculo import solo_con_cobertura
+    fondos = {f'{c}{i}': {'categoria': c, 'en_universo': True} for c in 'AB' for i in range(10)}
+    # A: 8 de 10 con TIR (se queda); B: 5 de 10 (se quita)
+    res = {i: ({('hoy', 'tir_neta'): 1.0} if int(i[1:]) < (8 if i[0] == 'A' else 5) else {}) for i in fondos}
+    pct = {i: dict.fromkeys(r, 50.0) for i, r in res.items()}
+    out = solo_con_cobertura(pct, res, fondos, ('hoy', 'tir_neta'))
+    assert ('hoy', 'tir_neta') in out['A0'] and ('hoy', 'tir_neta') not in out['B0']

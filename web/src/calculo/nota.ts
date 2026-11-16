@@ -2,15 +2,15 @@
 // Cada bloque promedia los percentiles de sus métricas (de la tabla metrica, dentro de la categoría); la nota es la
 // media ponderada de los bloques con datos: el peso de un bloque sin datos se reparte entre los demás.
 
-export const BLOQUES = ['riesgo', 'consistencia', 'coste', 'proteccion', 'rentabilidad', 'diversificacion'] as const
+export const BLOQUES = ['riesgo', 'consistencia', 'coste', 'proteccion', 'rentabilidad', 'tir', 'diversificacion'] as const
 export type Bloque = (typeof BLOQUES)[number]
 export type Pesos = Record<Bloque, number>
 
 export const NOMBRE_BLOQUE: Record<Bloque, string> = {
   riesgo: 'Rentab. ajustada al riesgo', consistencia: 'Consistencia', coste: 'Coste',
-  proteccion: 'Protección en caídas', rentabilidad: 'Rentabilidad', diversificacion: 'Diversificación',
+  proteccion: 'Protección en caídas', rentabilidad: 'Rentabilidad', tir: 'TIR neta', diversificacion: 'Diversificación',
 }
-export const PESOS_DEFECTO: Pesos = { riesgo: 20, consistencia: 10, coste: 40, proteccion: 20, rentabilidad: 10, diversificacion: 10 }
+export const PESOS_DEFECTO: Pesos = { riesgo: 20, consistencia: 10, coste: 40, proteccion: 20, rentabilidad: 10, tir: 0, diversificacion: 10 }
 
 /** Tipos de activo (como TIPOS y tipo_activo en fondos/nucleo/metricas.py): cada uno tiene sus pesos. */
 export const TIPOS = ['renta variable', 'renta fija', 'mixto', 'monetario', 'otros'] as const
@@ -45,8 +45,10 @@ export const PLAZOS = ['1a', '3a', '5a', '10a'] as const
 export type Plazo = (typeof PLAZOS)[number]
 
 /** Percentiles de un fondo {'ventana|nombre': percentil} → percentil de cada bloque y si va con 3A por no tener 5; null
- * sin 3 años. Con `plazo`, solo ese plazo (null si el fondo no lo tiene). */
-export function bloques(pct: Record<string, number>, indexada: boolean, plazo?: Plazo): { bloques: Partial<Record<Bloque, number>>; solo3a: boolean } | null {
+ * sin 3 años. Con `plazo`, solo ese plazo (null si el fondo no lo tiene). Bloques propios (como bloques_nota en Python):
+ * en los indexados, Consistencia es el seguimiento del índice (tracking difference y tracking error); en los monetarios,
+ * Rentabilidad es la de las últimas 13 semanas; en renta fija, TIR es la TIR neta de gastos. */
+export function bloques(pct: Record<string, number>, indexada: boolean, plazo?: Plazo, tipo?: Tipo): { bloques: Partial<Record<Bloque, number>>; solo3a: boolean } | null {
   const v = plazo ?? ('5a|rentabilidad' in pct ? '5a' : '3a|rentabilidad' in pct ? '3a' : null)
   if (!v || !(`${v}|rentabilidad` in pct)) return null
   const largo = v === '5a' || v === '10a'
@@ -56,11 +58,12 @@ export function bloques(pct: Record<string, number>, indexada: boolean, plazo?: 
   }
   const b: Partial<Record<Bloque, number | undefined>> = {
     riesgo: media(`${v}|sharpe`, `${v}|sortino`),
-    consistencia: indexada ? media(`${v}|tracking_error`)
+    consistencia: indexada ? media(`${v}|diferencia_seguimiento`, `${v}|tracking_error`)
       : media(...(largo ? ['hist|consistencia'] : []), `${largo ? '3a' : v}|ratio_informacion`),
     coste: media('hoy|ter'),
     proteccion: media(`${v}|max_caida`, `${v}|captura_bajista`),
-    rentabilidad: media(`${v}|rentabilidad`),
+    rentabilidad: tipo === 'monetario' ? media('13s|rentabilidad') : media(`${v}|rentabilidad`),
+    tir: tipo === 'renta fija' ? media('hoy|tir_neta') : undefined,
   }
   return { bloques: Object.fromEntries(Object.entries(b).filter(([, x]) => x !== undefined)) as Partial<Record<Bloque, number>>, solo3a: !plazo && v === '3a' }
 }

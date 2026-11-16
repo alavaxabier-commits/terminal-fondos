@@ -349,6 +349,7 @@ def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[S
                 poner(nombre_v, 'tracking_error', te)
                 exceso = (math.prod(1 + x for x in rf_c) ** (SEMANAS_ANO / len(rf_c))
                           - math.prod(1 + x for x in rb_c) ** (SEMANAS_ANO / len(rb_c)))
+                poner(nombre_v, 'diferencia_seguimiento', exceso)  # tracking difference: anual del fondo − de la referencia
                 if te:
                     poner(nombre_v, 'ratio_informacion', exceso / te)
             poner(nombre_v, 'captura_alcista', captura(rf_c, rb_c, True))
@@ -356,6 +357,10 @@ def metricas_fondo(s: SerieSemanal, ref: SerieSemanal | None, rf_semanal: dict[S
 
     if ref:
         poner('hist', 'consistencia', consistencia(s, ref))
+    # rendimiento reciente (últimas 13 semanas, anualizado): el bloque Rentabilidad de los monetarios, que siguen a los tipos
+    ks = list(s)
+    if len(ks) >= 14:
+        poner('13s', 'rentabilidad', (s[ultima] / s[ks[-14]]) ** (SEMANAS_ANO / 13) - 1)
     return out
 
 
@@ -448,7 +453,7 @@ def correlacion_media(r: dict[Semana, float], cartera: list[dict[Semana, float]]
 # Pesos por defecto sin Diversificación (que depende de la cartera elegida): la nota de nota_semanal y de las señales.
 # Elegidos con `python -m fondos analisis` (noviembre de 2026): el coste es lo que mejor se repite y la protección
 # predice las caídas; antes, 25/20/20/15/10.
-PESOS_NOTA = {'riesgo': 20, 'consistencia': 10, 'coste': 40, 'proteccion': 20, 'rentabilidad': 10}
+PESOS_NOTA = {'riesgo': 20, 'consistencia': 10, 'coste': 40, 'proteccion': 20, 'rentabilidad': 10, 'tir': 0}
 # Pesos por tipo de activo (como TIPOS y tipoActivo en web/src/calculo/nota.ts). De momento todos iguales: la validación
 # fuera de muestra (`analisis`, noviembre de 2026) no encontró un reparto mejor que aguante en renta fija y mixtos, y la
 # renta variable se queda como está.
@@ -470,7 +475,7 @@ def tipo_activo(categoria: str | None) -> str:
     return 'otros'
 
 
-def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, float] = PESOS_NOTA
+def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, float] = PESOS_NOTA, tipo: str | None = None
          ) -> tuple[float, bool] | None:
     """Percentiles de un fondo {(ventana, nombre): percentil} → (nota 0–100, solo con 3A), o None sin 3 años.
 
@@ -478,20 +483,26 @@ def nota(pct: dict[tuple[str, str], float], indexada: bool, pesos: dict[str, flo
     (el peso de un bloque sin datos se reparte entre los demás). Con menos de 5 años, las métricas de 5A pasan a 3A
     y no hay consistencia: los activos usan solo el ratio de información a 3A.
     """
-    b = bloques_nota(pct, indexada)
+    b = bloques_nota(pct, indexada, tipo=tipo)
     if b is None:
         return None
     n = ponderar(b[0], pesos)
     return None if n is None else (n, b[1])
 
 
-def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool, ventana: str | None = None
-                 ) -> tuple[dict[str, float], bool] | None:
+def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool, ventana: str | None = None, tipo: str | None = None,
+                 propios: bool = True) -> tuple[dict[str, float], bool] | None:
     """Percentil de cada bloque de la nota (solo los que tienen datos) y si va con 3A por no tener 5; None sin 3 años.
 
     `ventana` ('1a', '3a', '5a' o '10a') obliga a usar ese plazo (el selector del screener y el análisis); None si el
     fondo no lo tiene.
-    En 5 y 10 años, la consistencia es la histórica más el ratio de información a 3; en 1 y 3, el ratio de ese plazo."""
+    En 5 y 10 años, la consistencia es la histórica más el ratio de información a 3; en 1 y 3, el ratio de ese plazo.
+    Bloques propios: en los indexados, Consistencia es el seguimiento del índice (tracking difference y tracking error);
+    en los monetarios (`tipo`), Rentabilidad es la de las últimas 13 semanas; en renta fija, TIR es la TIR neta de
+    gastos (solo en las categorías donde la publican casi todos, ver calculo.py). `propios=False`: sin ellos (el análisis
+    compara las dos formas)."""
+    if not propios:
+        tipo = None
     v = ventana or ('5a' if ('5a', 'rentabilidad') in pct else '3a' if ('3a', 'rentabilidad') in pct else None)
     if v is None or (v, 'rentabilidad') not in pct:
         return None
@@ -502,12 +513,13 @@ def bloques_nota(pct: dict[tuple[str, str], float], indexada: bool, ventana: str
         return fmean(xs) if xs else None
 
     if indexada:
-        consistencia_ = media((v, 'tracking_error'))
+        consistencia_ = media(*([(v, 'diferencia_seguimiento')] if propios else []), (v, 'tracking_error'))
     else:
         consistencia_ = media(*([('hist', 'consistencia')] if largo else []), ('3a' if largo else v, 'ratio_informacion'))
     bloques = {'riesgo': media((v, 'sharpe'), (v, 'sortino')), 'consistencia': consistencia_,
                'coste': media(('hoy', 'ter')), 'proteccion': media((v, 'max_caida'), (v, 'captura_bajista')),
-               'rentabilidad': media((v, 'rentabilidad'))}
+               'rentabilidad': media(('13s', 'rentabilidad')) if tipo == 'monetario' else media((v, 'rentabilidad')),
+               'tir': media(('hoy', 'tir_neta')) if tipo == 'renta fija' else None}
     return {b: x for b, x in bloques.items() if x is not None}, ventana is None and v == '3a'
 
 

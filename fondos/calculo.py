@@ -92,6 +92,26 @@ def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict]) 
     return pct
 
 
+COBERTURA_MINIMA = 0.7
+
+
+def solo_con_cobertura(pct: dict[str, dict], resultados: dict[str, dict], fondos: dict[str, dict], clave: tuple[str, str],
+                       minimo: float = COBERTURA_MINIMA) -> dict[str, dict]:
+    """Quita el percentil de `clave` en las categorías donde la tienen menos de `minimo` de sus fondos del universo (una
+    clase por fondo): así nadie gana ni pierde por un dato que la mayoría de su categoría no publica."""
+    por_cat: dict[str, dict[str, bool]] = defaultdict(dict)
+    for isin, res in resultados.items():
+        f = fondos[isin]
+        if f.get('en_universo') and f.get('categoria'):
+            fondo = f.get('fund_id') or isin
+            por_cat[f['categoria']][fondo] = por_cat[f['categoria']].get(fondo, False) or clave in res
+    pocas = {c for c, xs in por_cat.items() if sum(xs.values()) < minimo * len(xs)}
+    for isin, p in pct.items():
+        if clave in p and fondos[isin].get('categoria') in pocas:
+            del p[clave]
+    return pct
+
+
 def diversificacion(rend: dict[str, dict], fondos: dict[str, dict], carteras: dict[int, list[str]]) -> list[tuple]:
     """Para cada cartera, (cartera_id, isin, correlación media con sus fondos, percentil de 1 − correlación en la
     categoría) de cada fondo del universo: el bloque Diversificación del screener."""
@@ -127,14 +147,16 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
                                                          datos['estr']))
         if fondos[isin].get('ter') is not None:
             resultados[isin][('hoy', 'ter')] = fondos[isin]['ter']  # para el bloque Coste de la nota
+        if fondos[isin].get('tir') is not None and m.tipo_activo(fondos[isin].get('categoria')) == 'renta fija':
+            resultados[isin][('hoy', 'tir_neta')] = fondos[isin]['tir'] - (fondos[isin].get('ter') or 0)  # bloque TIR, %
 
     filas = []
-    pct = percentiles_categoria(resultados, fondos)
+    pct = solo_con_cobertura(percentiles_categoria(resultados, fondos), resultados, fondos, ('hoy', 'tir_neta'))
     # nota del screener (pesos por defecto de su tipo de activo) y su percentil en la categoría, con la misma regla de una
     # clase por fondo
     notas = {isin: n for isin, p in pct.items()
              if (n := m.nota(p, fondos[isin].get('gestion') == 'indexada',
-                             m.PESOS_TIPO[m.tipo_activo(fondos[isin].get('categoria'))])) is not None}
+                             m.PESOS_TIPO[t := m.tipo_activo(fondos[isin].get('categoria'))], t)) is not None}
     pct_nota = percentiles_categoria({i: {('hoy', 'nota'): n[0]} for i, n in notas.items()}, fondos)
     notas_filas = [(i, round(n, 2), pct_nota.get(i, {}).get(('hoy', 'nota')), solo3)
                    for i, (n, solo3) in notas.items()]

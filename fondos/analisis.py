@@ -62,6 +62,7 @@ def cortes(desde: dt.date, hasta: dt.date) -> list[dt.date]:
 def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
     """Todo calculado como si fuera `corte`: {isin: {'bloques': {...}, 'valores': {(ventana, nombre): valor}}}."""
     recortados = {**datos, 'carteras': {},
+                  'fondos': {i: {**f, 'tir': None} for i, f in datos['fondos'].items()},  # la TIR de hoy no se sabía entonces
                   'valores': {i: {d: v for d, v in s.items() if d <= corte} for i, s in datos['valores'].items()}}
     filas = calcular(recortados, corte)[0]
     pct: dict[str, dict] = defaultdict(dict)
@@ -73,10 +74,13 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
             valores[isin][(ventana, nombre)] = valor
     out = {}
     for isin in set(pct) | set(valores):
-        b = m.bloques_nota(pct.get(isin, {}), datos['fondos'][isin].get('gestion') == 'indexada')  # la nota de verdad
         indexada = datos['fondos'][isin].get('gestion') == 'indexada'
-        por_plazo = {v: x[0] for v in VENTANAS if (x := m.bloques_nota(pct.get(isin, {}), indexada, v))}
-        out[isin] = {'bloques': b[0] if b else {}, 'valores': valores.get(isin, {}),
+        t = tipo(datos['fondos'][isin].get('categoria'))
+        b = m.bloques_nota(pct.get(isin, {}), indexada, tipo=t)  # la nota de verdad
+        sin = m.bloques_nota(pct.get(isin, {}), indexada, tipo=t, propios=False)
+        por_plazo = {v: x[0] for v in VENTANAS if (x := m.bloques_nota(pct.get(isin, {}), indexada, v, t))}
+        out[isin] = {'bloques': b[0] if b else {}, 'sin_propios': sin[0] if sin else {}, 'indexada': indexada,
+                     'valores': valores.get(isin, {}),
                      'ventanas': por_plazo if len(por_plazo) == len(VENTANAS) else {}}  # solo con todos: misma muestra
     return out
 
@@ -190,7 +194,7 @@ def analizar(datos: dict, hoy: dt.date, desde: dt.date = dt.date(2019, 6, 30), l
             if despues in fotos:
                 for r in RESULTADOS:
                     resultados[(c, h, r)] = evaluar(fotos[c], fotos[despues], datos['fondos'], h, r)
-    return informe(resultados) + '\n' + validar(fotos, datos['fondos'])
+    return informe(resultados) + '\n' + validar(fotos, datos['fondos']) + '\n' + comparar_propios(fotos, datos['fondos'])
 
 
 # ------------------------------------------------------------------ validación fuera de muestra
@@ -279,3 +283,57 @@ def validar(fotos: dict[dt.date, dict], fondos: dict[str, dict], separacion: dt.
                 celdas.append(f'{fmean(en):.1f}' if en else '—')
                 lineas.append(f'| {nombre} | ' + ' | '.join(celdas) + ' |')
     return '\n'.join(lineas) + '\n'
+
+
+# ------------------------------------------------------------------ bloques propios por tipo
+# Indexados: Consistencia = seguimiento del índice (tracking difference + tracking error); monetarios: Rentabilidad de
+# las últimas 13 semanas. La TIR de renta fija no se puede probar (solo hay la de hoy). Se compara la nota con y sin
+# ellos, con los pesos actuales y con unos pesos propios para indexados y monetarios (los de la propuesta de Fable).
+GRUPOS = ('renta variable', 'renta fija', 'mixto', 'monetario', 'indexados')
+PESOS_PROPIOS = {
+    'indexados': {'riesgo': 0, 'consistencia': 60, 'coste': 30, 'proteccion': 10, 'rentabilidad': 0},
+    'monetario': {'riesgo': 10, 'consistencia': 0, 'coste': 20, 'proteccion': 10, 'rentabilidad': 60},
+}
+
+
+def comparar_propios(fotos: dict[dt.date, dict], fondos: dict[str, dict], separacion: dt.date = SEPARACION) -> str:
+    def grupo(isin: str, f: dict) -> str:
+        return 'indexados' if f.get('indexada') else tipo(fondos[isin].get('categoria'))
+
+    variantes = {'sin bloques propios': ('sin_propios', {}), 'con bloques propios': ('bloques', {}),
+                 'con bloques propios y pesos propios': ('bloques', PESOS_PROPIOS)}
+    # {(variante, corte, h, r, grupo): [percentiles futuros del top 20 %]}
+    res: dict[tuple, list[float]] = defaultdict(list)
+    for c in fotos:
+        for h in HORIZONTES:
+            d = dt.date(c.year + h, c.month, c.day)
+            if d not in fotos:
+                continue
+            for r in RESULTADOS:
+                for cat, xs in muestra(fotos[c], fotos[d], fondos, h, r).items():
+                    por_grupo: dict[str, list] = defaultdict(list)
+                    for i, y in xs:
+                        por_grupo[grupo(i, fotos[c][i])].append((i, y))
+                    for gr, ys in por_grupo.items():
+                        for nombre, (campo, pesos) in variantes.items():
+                            p = pesos.get(gr, m.PESOS_NOTA)
+                            res[(nombre, c, h, r, gr)] += mejores([[(fotos[c][i][campo], y) for i, y in ys]], p)
+    lineas = ['## Bloques propios por tipo', '',
+              'Percentil futuro medio del top 20 % de cada categoría (50 = azar), por grupo; indexados aparte de su tipo. '
+              f'Prueba: cortes desde {separacion}.', '']
+    for h in HORIZONTES:
+        for r in RESULTADOS:
+            for etiqueta, filtro in (('todos los cortes', lambda c: True), ('prueba', lambda c: c >= separacion)):
+                lineas += [f'### {NOMBRE[r]} a {h} año{"s" if h > 1 else ""} · {etiqueta}', '',
+                           '| Variante | ' + ' | '.join(GRUPOS) + ' |', '|---|' + '---:|' * len(GRUPOS)]
+                for nombre in variantes:
+                    celdas = []
+                    for gr in GRUPOS:
+                        xs = [fmean(v) for (n, c, hh, rr, g), v in res.items()
+                              if n == nombre and hh == h and rr == r and g == gr and filtro(c) and v]
+                        n_ = sum(len(v) for (n, c, hh, rr, g), v in res.items()
+                                 if n == nombre and hh == h and rr == r and g == gr and filtro(c))
+                        celdas.append(f'{fmean(xs):.1f} ({n_ // max(len(xs), 1)})' if xs else '—')
+                    lineas.append(f'| {nombre} | ' + ' | '.join(celdas) + ' |')
+                lineas.append('')
+    return '\n'.join(lineas)

@@ -18,7 +18,7 @@ const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 
  *  una paleta legible (dataviz): el acento en dos intensidades alternas, separados por un hueco, y el nombre en la leyenda y el orden. */
 const FUERTE = 'var(--color-acento)', FLOJO = 'color-mix(in srgb, var(--color-acento) 45%, var(--color-panel))'
 const COLOR_BLOQUE: Record<Bloque, string> = {
-  riesgo: FUERTE, consistencia: FLOJO, coste: FUERTE, proteccion: FLOJO, rentabilidad: FUERTE, diversificacion: 'var(--color-gris)',
+  riesgo: FUERTE, consistencia: FLOJO, coste: FUERTE, proteccion: FLOJO, rentabilidad: FUERTE, tir: FLOJO, diversificacion: 'var(--color-gris)',
 }
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
