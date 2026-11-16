@@ -34,15 +34,14 @@ def buscar_claves(x, patron=('manag', 'provider', 'company', 'branding', 'people
 
 def explorar(isin: str) -> None:
     ms = Morningstar()
-    f = ms.buscar(isin)
-    sec = f and f['ms_id']
+    sec = 'F00000P777'  # BNY Mellon Absolute Return Bond (el buscador con term= da 401)
     print(f'== {isin} {sec}')
     for c in CANDIDATOS:
         try:
-            r = ms.http.get(SCREENER, params={'outputType': 'json', 'universeIds': UNIVERSO, 'term': isin,
+            r = ms.http.get(SCREENER, params={'outputType': 'json', 'universeIds': UNIVERSO, 'page': 1, 'pageSize': 3, 'sortOrder': 'Name asc',
                                               'securityDataPoints': CAMPOS_BASICOS + '|' + c}, timeout=60)
             filas = r.json().get('rows') or [] if r.ok else []
-            print(f'buscador {c}: {r.status_code} {corto(filas[0].get(c) if filas else None, 300)}')
+            print(f'buscador {c}: {r.status_code} {corto([x.get(c) for x in filas], 300)}')
         except Exception as e:  # noqa: BLE001
             print(f'buscador {c}: {type(e).__name__} {e}')
     try:
