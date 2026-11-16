@@ -1,16 +1,30 @@
 import { useState } from 'react'
 import { supabase } from '../datos/supabase'
 
-/** Entrada sin contraseña: correo → enlace en el correo → dentro. No crea usuarios nuevos.
+/** Entrada con correo y contraseña; si no hay contraseña (o se ha olvidado), enlace por correo. No crea usuarios nuevos.
+ *  La contraseña se pone o cambia ya dentro («contraseña» en la cabecera).
  *  (En el plan gratuito de Supabase la plantilla del correo no se puede editar, así que va el enlace por defecto.) */
 export default function Entrar() {
   const [correo, setCorreo] = useState('')
+  const [clave, setClave] = useState('')
   const [enviado, setEnviado] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [ocupado, setOcupado] = useState(false)
 
-  async function pedirEnlace(e: React.FormEvent) {
+  async function entrar(e: React.FormEvent) {
     e.preventDefault()
+    setOcupado(true)
+    setMensaje('')
+    const { error } = await supabase.auth.signInWithPassword({ email: correo.trim(), password: clave })
+    setOcupado(false)
+    // Sin sesión no hay más que hacer: con sesión, App cambia de pantalla sola.
+    if (error) setMensaje(/rate|seconds|many/i.test(error.message)
+      ? 'Demasiados intentos seguidos; espera un poco y vuelve a intentarlo.'
+      : 'Correo o contraseña incorrectos. Si aún no tienes contraseña, pide un enlace.')
+  }
+
+  async function pedirEnlace() {
+    if (!/^\S+@\S+\.\S+$/.test(correo.trim())) return setMensaje('Escribe tu correo para recibir el enlace.')
     setOcupado(true)
     setMensaje('')
     const { error } = await supabase.auth.signInWithOtp({
@@ -36,11 +50,16 @@ export default function Entrar() {
           <button className="text-suave underline" onClick={() => setEnviado(false)}>volver</button>
         </div>
       ) : (
-        <form onSubmit={pedirEnlace} className="w-full max-w-sm space-y-5">
+        <form onSubmit={entrar} className="w-full max-w-sm space-y-5">
           <h1 className="text-[2.6rem]! leading-none!">Terminal<br />de fondos</h1>
-          <input type="email" required autoFocus placeholder="correo" value={correo}
+          <input type="email" required autoFocus placeholder="correo" aria-label="Correo" value={correo}
                  onChange={(e) => setCorreo(e.target.value)} className={campo} autoComplete="email" />
-          <button disabled={ocupado} className={boton}>Enviar enlace</button>
+          <input type="password" required placeholder="contraseña" value={clave} aria-label="Contraseña"
+                 onChange={(e) => setClave(e.target.value)} className={campo} autoComplete="current-password" />
+          <button disabled={ocupado} className={boton}>Entrar</button>
+          <button type="button" disabled={ocupado} onClick={pedirEnlace} className="text-suave underline hover:text-texto disabled:opacity-50">
+            Sin contraseña: enviarme un enlace
+          </button>
           {mensaje && <p className="text-baja">{mensaje}</p>}
         </form>
       )}
