@@ -16,7 +16,7 @@ Fuera de alcance: impuestos y operaciones reales (las carteras son modelo: fondo
   - `diario.yml`: de martes a sábado 06:17 UTC, `python -m fondos diario` (macro + precios + métricas + estado). A mano: orden y argumentos (`precios --tanda 5000`, `alta ISIN…`, `estado`, `prueba-red ISIN`…).
   - `universo.yml`: domingos 04:23 UTC, fichas de Morningstar España, catálogo de MyInvestor, marca del universo y `composicion` (X-Ray: los fondos de `fondo_diario` una vez al mes, el resto del universo cada dos meses, 600 por ejecución).
   - `tests.yml` (pytest) y `web.yml`, solo con push a `main` (`npm ci` con `web/package-lock.json`, typecheck, tests y build de la web; deja el resultado en `registro_descarga` con fuente `web`).
-- **Web** `web/`: Vite + React 19 + TypeScript + Tailwind v4 + ECharts 5 + supabase-js. Cloudflare Worker con recursos estáticos (`web/wrangler.jsonc`): https://terminal-fondos.alava-xabier.workers.dev, publicada desde `main`. Entrada por enlace mágico (no crea usuarios); rutas con hash (`#/fondo/ISIN`).
+- **Web** `web/`: Vite + React 19 + TypeScript + Tailwind v4 + ECharts 5 + supabase-js. Cloudflare Worker con recursos estáticos (`web/wrangler.jsonc`): https://terminal-fondos.alava-xabier.workers.dev, publicada desde `main`. Entrada con correo y contraseña o, si no, enlace mágico (no crea usuarios; la contraseña se pone dentro); rutas con hash (`#/fondo/ISIN`).
 
 ## Dónde está cada cosa
 
