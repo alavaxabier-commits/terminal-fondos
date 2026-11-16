@@ -37,3 +37,22 @@ def test_plazos():
     p = puntuaciones({'coste': 70}, 'renta variable', v)
     assert (p['plazo 1a'], p['plazo 3a+5a'], p['plazo 1a+3a+5a']) == (10, 55, 40)
     assert 'plazo 1a' not in puntuaciones({'coste': 70}, 'renta variable', {})
+
+
+def test_repartos_y_validacion():
+    from fondos.analisis import mejores, repartos, validar
+    rs = repartos()
+    assert len(rs) == 1001 and all(sum(r.values()) == 100 for r in rs)
+    # 10 fondos de renta variable: el coste ordena igual que el futuro en todos los cortes; la rentabilidad, al revés
+    fondos = {f'F{i}': {'categoria': 'Global Large-Cap Blend Equity', 'en_universo': True, 'ter': 1.0, 'fund_id': f'F{i}'} for i in range(10)}
+    grupo = [[({'coste': k * 10, 'rentabilidad': 100 - k * 10}, k * 10) for k in range(10)]]
+    assert mejores(grupo, {'coste': 100}) == [90, 80] and mejores(grupo, {'rentabilidad': 100}) == [0, 10]
+    fotos = {}
+    for c in cortes(dt.date(2019, 12, 31), dt.date(2024, 12, 31)):
+        fotos[c] = {i: {'bloques': {'coste': k * 10, 'rentabilidad': 100 - k * 10, 'riesgo': 50},
+                        'valores': {('1a', 'rentabilidad'): k, ('1a', 'sharpe'): k, ('1a', 'max_caida'): -k,
+                                    ('3a', 'rentabilidad'): k, ('3a', 'sharpe'): k, ('3a', 'max_caida'): -k}}
+                    for k, i in enumerate(fondos)}
+    texto = validar(fotos, fondos, dt.date(2022, 6, 30))
+    assert '| renta variable | 0 | 0 | 10 | 90 | 0 |' in texto  # sin protección en los datos: equivale a solo coste
+    assert '| elegido en el entreno | 94.5 | 4/4 | 94.5 |' in texto and '| renta fija |' in texto
