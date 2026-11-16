@@ -337,11 +337,12 @@ class Repo:
                              where not c.archivada)
             order by f.nombre""")
 
-    def sin_dato_universo(self) -> tuple[float, float]:
-        """Parte del universo sin TER y sin categoría."""
-        a, b = self._filas("""select coalesce(avg((ter is null)::int), 0), coalesce(avg((categoria is null)::int), 0)
-                              from fondos.fondo where en_universo""")[0]
-        return float(a), float(b)
+    def sin_dato_universo(self) -> tuple[float, float, float]:
+        """Parte del universo sin TER, sin categoría y con la ficha sin refrescar en 90 días."""
+        a, b, c = self._filas("""select coalesce(avg((ter is null)::int), 0), coalesce(avg((categoria is null)::int), 0),
+                                        coalesce(avg((actualizado_en < now() - interval '90 days')::int), 0)
+                                 from fondos.fondo where en_universo""")[0]
+        return float(a), float(b), float(c)
 
     def ultimo_mensaje(self, fuente: str, prefijo: str) -> str | None:
         f = self._filas("""select mensaje from fondos.registro_descarga where fuente = %s and mensaje like %s

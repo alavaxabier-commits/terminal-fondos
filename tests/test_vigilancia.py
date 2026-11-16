@@ -24,11 +24,15 @@ def test_universo():
     assert v.universo(9000, 20000, 0.5, 0.3) == [
         'universo: 9000 fichas, frente a 20000 la vez anterior',
         'universo: el 50 % del universo sin TER', 'universo: el 30 % del universo sin categoría']
+    assert v.universo(0, None, 0.0, 0.0, 0.4) == ['universo: el 40 % del universo con la ficha sin refrescar desde hace más de 90 días']
 
 
 def test_composicion_y_metricas():
     assert v.composicion({'ok': 1100, 'aviso': 90, 'error': 10}, 800) == []
     assert v.composicion({'ok': 100, 'aviso': 0, 'error': 0}, 0) == ['composición: ningún fondo con todas sus posiciones (de 100 descargados)']
+    assert v.composicion({'ok': 10, 'aviso': 0, 'error': 0}, 5, 3) == []
+    assert v.composicion({'ok': 10, 'aviso': 0, 'error': 0}, 5, 8) == [
+        'composición: 8 de 10 fondos sin resumen de cotización (TER, patrimonio y categoría): ¿ha cambiado la API de la web de Morningstar?']
     assert v.metricas(200000, 210000) == [] and v.metricas(100000, 210000) == ['métricas: 100000, frente a 210000 la vez anterior']
     assert v.metricas(5, 0) == []
 

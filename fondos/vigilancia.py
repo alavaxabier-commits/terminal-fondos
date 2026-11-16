@@ -11,7 +11,9 @@ MIN_MORNINGSTAR = 0.50     # parte de los precios del día que deben venir de Mo
 MIN_DESCARGAS = 5          # con menos descargas, los porcentajes no dicen nada
 MAX_DIAS_SIN_PRECIO = 4    # días hábiles sin precio de un fondo de mis carteras
 MIN_FICHAS = 0.90          # fichas del universo frente a la semana anterior
-MAX_SIN_DATO = 0.20        # parte del universo sin TER o sin categoría
+MAX_SIN_DATO = 0.20        # parte del universo sin TER o sin categoría, o con la ficha sin refrescar en DIAS_FICHA días
+DIAS_FICHA = 90            # las fichas se refrescan con la composición: cada mes (las mías) o cada dos meses
+MAX_SIN_RESUMEN = 0.50     # parte de las composiciones sin resumen de cotización (TER, patrimonio y categoría)
 MIN_METRICAS = 0.90        # métricas frente a la ejecución anterior
 MIN_MYINVESTOR = 2000      # fondos del catálogo de MyInvestor (2.483 en noviembre de 2026)
 
@@ -44,8 +46,9 @@ def precios(cuenta: dict[str, int], por_fuente: dict[str, int], sin_precio: list
     return out
 
 
-def universo(fichas: int, anteriores: int | None, sin_ter: float, sin_categoria: float) -> list[str]:
-    """fichas: descargadas hoy · anteriores: las de la ejecución anterior · sin_ter, sin_categoria: parte del universo."""
+def universo(fichas: int, anteriores: int | None, sin_ter: float, sin_categoria: float, antiguas: float = 0.0) -> list[str]:
+    """fichas: descargadas hoy · anteriores: las de la ejecución anterior · sin_ter, sin_categoria: parte del universo ·
+    antiguas: parte del universo con la ficha sin refrescar en DIAS_FICHA días (la composición no la está refrescando)."""
     out = []
     if anteriores and fichas < MIN_FICHAS * anteriores:
         out.append(f'universo: {fichas} fichas, frente a {anteriores} la vez anterior')
@@ -53,6 +56,8 @@ def universo(fichas: int, anteriores: int | None, sin_ter: float, sin_categoria:
         out.append(f'universo: el {_pct(sin_ter)} del universo sin TER')
     if sin_categoria > MAX_SIN_DATO:
         out.append(f'universo: el {_pct(sin_categoria)} del universo sin categoría')
+    if antiguas > MAX_SIN_DATO:
+        out.append(f'universo: el {_pct(antiguas)} del universo con la ficha sin refrescar desde hace más de {DIAS_FICHA} días')
     return out
 
 
@@ -65,14 +70,19 @@ def myinvestor(fondos: int, fallo: str | None) -> list[str]:
     return []
 
 
-def composicion(cuenta: dict[str, int], completas: int) -> list[str]:
-    """cuenta: ok/aviso/error de la descarga · completas: fondos con todas sus posiciones en esta descarga."""
+def composicion(cuenta: dict[str, int], completas: int, sin_resumen: int = 0) -> list[str]:
+    """cuenta: ok/aviso/error de la descarga · completas: fondos con todas sus posiciones en esta descarga · sin_resumen:
+    fondos descargados cuya ficha se ha quedado sin el resumen de cotización (TER, patrimonio y categoría)."""
     out = []
     total = sum(cuenta.values())
     if total >= MIN_DESCARGAS and cuenta.get('error', 0) / total > MAX_ERRORES:
         out.append(f"composición: {cuenta['error']} de {total} fondos con error ({_pct(cuenta['error'] / total)})")
     if cuenta.get('ok', 0) >= 20 and completas == 0:
         out.append(f"composición: ningún fondo con todas sus posiciones (de {cuenta['ok']} descargados)")
+    bien = cuenta.get('ok', 0) + cuenta.get('aviso', 0)
+    if bien >= MIN_DESCARGAS and sin_resumen / bien > MAX_SIN_RESUMEN:
+        out.append(f'composición: {sin_resumen} de {bien} fondos sin resumen de cotización (TER, patrimonio y categoría): '
+                   '¿ha cambiado la API de la web de Morningstar?')
     return out
 
 

@@ -84,7 +84,7 @@ def orden_precios(repo, tanda: int) -> int:
 
 
 def orden_composicion(repo, tanda: int) -> int:
-    ms, c, completas = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}, 0
+    ms, c, completas, sin_resumen = Morningstar(), {'ok': 0, 'aviso': 0, 'error': 0}, 0, 0
     for isin, ms_id in repo.fondos_para_composicion(tanda):
         try:
             fecha, datos, gestion, ficha = ms.composicion(ms_id)
@@ -92,6 +92,8 @@ def orden_composicion(repo, tanda: int) -> int:
             repo.guardar_gestion(isin, gestion)
             if ficha and ficha['isin'] == isin:  # TER, patrimonio, categoría, SRRI, estilos… (lo que daba el buscador)
                 repo.guardar_fondo(ficha)
+            if not ficha or ficha['categoria'] is None:  # la categoría solo llega con el resumen de cotización
+                sin_resumen += 1
             estado = 'ok' if datos else 'aviso'
             completas += bool(datos.get('posiciones_todas'))
             repo.registrar('morningstar', isin, estado, f"composición: cartera a {fecha}, {len(datos.get('posiciones', []))} posiciones" if datos else 'composición: sin desglose publicado')
@@ -102,7 +104,7 @@ def orden_composicion(repo, tanda: int) -> int:
     texto = f"### Composición · {hoy()}\n\n{c['ok']} ok ({completas} con todas sus posiciones) · {c['aviso']} sin desglose · {c['error']} con error"
     print(texto)
     resumen_github(texto)
-    return avisar(repo, 'composición', vigilancia.composicion(c, completas))
+    return avisar(repo, 'composición', vigilancia.composicion(c, completas, sin_resumen))
 
 
 def orden_metricas(repo) -> int:
