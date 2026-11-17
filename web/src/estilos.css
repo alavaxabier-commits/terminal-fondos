@@ -107,3 +107,15 @@ input, select, textarea { font: inherit; }
 .tabular { font-variant-numeric: tabular-nums; }
 /* Fuera de capa a propósito: manda sobre text-lg/font-bold de los h1 de cada pantalla. */
 h1 { font-family: var(--font-estrecha); font-weight: 800; font-size: 2rem; line-height: 1.05; letter-spacing: 0; text-transform: uppercase; text-wrap: balance; }
+
+/* Cinta de índices de Inicio: un bucle lento con dos copias (se desplaza la mitad); se para al pasar el ratón, con el foco o
+   con su botón, y no se mueve si el sistema pide menos movimiento (entonces se desplaza a mano). */
+@keyframes desliza { to { transform: translateX(-50%); } }
+.cinta { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
+.cinta-pista { animation: desliza 70s linear infinite; }
+.cinta:hover .cinta-pista, .cinta:focus-within .cinta-pista, .cinta-pista.parada { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .cinta { overflow-x: auto; mask-image: none; }
+  .cinta-pista { animation: none; }
+  .cinta-copia { display: none; }
+}

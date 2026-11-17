@@ -202,10 +202,16 @@ Esquinas casi rectas (1–3 px). Bloques rectangulares, filetes de 1 px, filete 
 - Papel de panel con filete; el foco cambia el filete a azul. El cursor de texto es azul.
 
 ### Navigation
-- Banda negra de 48 px a todo el ancho: marca en estrecha 800 mayúsculas, pantallas en minúsculas al 75 % de opacidad y la actual en seminegrita con subrayado amarillo de 3 px; buscador blanco; tema, contraseña y salir al final. En el móvil, las pantallas bajan a una segunda fila desplazable.
+- Banda negra de 48 px a todo el ancho: marca en estrecha 800 mayúsculas, pantallas con mayúscula inicial al 75 % de opacidad y la actual en seminegrita con subrayado amarillo de 3 px; buscador blanco; tema, contraseña y salir al final. En el móvil, las pantallas bajan a una segunda fila desplazable.
 
 ### Clasificación (signature)
 Las filas del Screener: franja de zona al borde (azul cuartil alto, rojo cuartil bajo, de la nota guardada del lunes), tinte de zona o amarillo si el fondo es tuyo, puesto en estrecha 800, cuadro del color de cada cartera delante del nombre, «Sem.» con ▲/▼ y los puestos ganados o perdidos, línea de puestos de 8 semanas (arriba, mejor), nota grande con su barra por bloques y filete de tinta cada cinco filas. Un puesto que no es de esta semana se tacha con su fecha, no se oculta.
+
+### Cinta de índices
+Solo en Inicio, bajo la cabecera y a todo el ancho: papel de panel con filete abajo, el periodo (semana, mes, año) a la izquierda y los índices de referencia corriendo despacio en bucle (nombre en estrecha, línea del último año y variación con signo). Se para al pasar el ratón, con el foco, con su botón de pausa o con «reducir movimiento».
+
+### Tablero de carteras
+Inicio: una fila por cartera con su tinta, «en el año» en estrecha 800, rentabilidades, riesgo a 3 años, la línea del último año en su tinta, el tipo de activo en tonos neutros (la tinta ya usa los colores de las series) y los avisos. En el móvil, un bloque por cartera.
 
 ### Once
 El puesto de un fondo de cartera: bloque amarillo con el puesto en estrecha 800, «de N» y el movimiento de la semana.

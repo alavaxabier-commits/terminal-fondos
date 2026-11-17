@@ -16,6 +16,7 @@ import Comparar from './pantallas/Comparar'
 import Entrar from './pantallas/Entrar'
 import Ficha from './pantallas/Ficha'
 import Inicio from './pantallas/Inicio'
+import Cinta from './componentes/Cinta'
 import Revision from './pantallas/Revision'
 import Screener from './pantallas/Screener'
 import Seguimiento from './pantallas/Seguimiento'
@@ -109,6 +110,7 @@ export default function App() {
   const cartera = ruta.match(/^#\/cartera\/(\d+)$/)?.[1]
   const simular = ruta.match(/^#\/simular\/(\d+)(?:\/([A-Z0-9]{12})\/([A-Z0-9]{12}))?$/)
   const comparar = ruta.match(/^#\/comparar(?:\/([A-Z0-9,]*))?$/)
+  const inicio = !fondo && !cartera && !simular && !comparar && !['#/screener', '#/seguimiento', '#/revision'].includes(ruta)
   return (
     <div className="flex min-h-full flex-col">
       {/* Cabecera de liga: banda negra a todo el ancho; la pantalla actual, subrayada en amarillo. */}
@@ -122,7 +124,7 @@ export default function App() {
               const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
               return (
                 <a key={h} href={h} aria-current={actual ? 'page' : undefined}
-                  className={`flex items-center whitespace-nowrap px-3 text-[14px] ${actual ? 'font-semibold shadow-[inset_0_-3px_0_var(--color-once)]' : 'opacity-75 hover:opacity-100'}`}>{t}</a>
+                  className={`flex items-center whitespace-nowrap px-3 text-[14px] ${actual ? 'font-semibold shadow-[inset_0_-3px_0_var(--color-once)]' : 'opacity-75 hover:opacity-100'}`}>{t[0].toUpperCase() + t.slice(1)}</a>
               )
             })}
           </nav>
@@ -138,13 +140,14 @@ export default function App() {
             </svg>
           </button>
           <button onClick={() => setContrasena(true)} className="shrink-0 text-[13px] opacity-75 hover:opacity-100" title="Poner o cambiar la contraseña">
-            contraseña
+            Contraseña
           </button>
           <button onClick={() => supabase.auth.signOut()} className="shrink-0 text-[13px] opacity-75 hover:opacity-100" title="Cerrar sesión">
-            salir
+            Salir
           </button>
         </div>
       </header>
+      {inicio && <Cinta />}
       <main className="mx-auto w-full max-w-7xl flex-1 space-y-5 px-4 py-5">
         {!comparar && <Bandeja />}
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
