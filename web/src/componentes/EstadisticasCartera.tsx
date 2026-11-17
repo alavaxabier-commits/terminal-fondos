@@ -133,7 +133,7 @@ export function MetricasCartera({ calc }: { calc: CalculoCartera }) {
         )
       })}
       <p className="text-[12px] text-suave">
-        Cartera simulada con su rebalanceo desde el {fecha(calc.desde)} hasta el {fecha(calc.hasta)}. Debajo de cada cifra, la de la referencia: la de cada fondo combinada con sus pesos.
+        Cartera simulada con su rebalanceo desde el {fecha(calc.desde)} hasta el {fecha(calc.hasta)}. Debajo de cada cifra, la de la referencia elegida en la cabecera (por defecto, la de cada fondo combinada con sus pesos).
       </p>
     </>
   )

@@ -9,7 +9,7 @@ import type { Estado } from '../App'
 import Reparto from '../componentes/Reparto'
 import Mini from '../componentes/Mini'
 import { exposicion, type Fila } from '../calculo/exposicion'
-import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, seguidos, sustitutos, type Cartera } from '../datos/consultas'
+import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, refCartera, seguidos, sustitutos, type Cartera } from '../datos/consultas'
 import { serieEur } from '../datos/series'
 import { cargarFondo } from './Cartera'
 
@@ -46,7 +46,7 @@ async function resumen(c: Cartera, { cats, rf }: Comun): Promise<ResumenCartera 
   }))
   const bandas = { banda: c.banda || 5, tipo: c.banda_tipo, revision: c.revision }
   const sim = simularCartera(fs, c.rebalanceo, bandas).valor
-  const calc = calcularCartera(fs, c.rebalanceo, rf, hoy(), bandas)
+  const calc = calcularCartera(fs, c.rebalanceo, rf, hoy(), bandas, await refCartera(c))
   const m = calc?.metricas
   if (!calc || !m || !sim.length) return null
   const total = lineas.reduce((t, l) => t + l.peso, 0)
@@ -113,7 +113,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
   const senalesDe = (id: number): Senales | undefined => revision
     ? new Map(revision.carteras.find((x) => x.cartera.id === id)?.fondos.filter((f) => f.senales.length).map((f) => [f.fondo.isin, f.senales]) ?? [])
     : undefined
-  const nueva = () => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual', banda: 5, banda_tipo: 'puntos', revision: 'diaria' }).then((id) => (location.hash = `#/cartera/${id}`)).catch(falla)
+  const nueva = () => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual', banda: 5, banda_tipo: 'puntos', revision: 'diaria', referencia: null }).then((id) => (location.hash = `#/cartera/${id}`)).catch(falla)
 
   return (
     <div className="space-y-10">

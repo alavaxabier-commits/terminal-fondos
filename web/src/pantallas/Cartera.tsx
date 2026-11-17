@@ -65,6 +65,8 @@ export default function Cartera({ id }: { id: number }) {
   const [avisoDiv, setAvisoDiv] = useState<string | null>(null)
   const [pestana, setPestana] = useState<Pestana>('resumen')
   const [rango, setRango] = useState(0)
+  const [indices, setIndices] = useState<{ id: string; nombre: string }[]>([])
+  const [refFija, setRefFija] = useState<RefSerie | null>(null)
 
   async function leer() {
     const [c, cs, estr, h] = await Promise.all([q.cartera(id), q.categoriasReferencia(), q.referenciaSeries(['indice:estr']), q.cambios(id)])
@@ -72,12 +74,14 @@ export default function Cartera({ id }: { id: number }) {
     setRf(rendimientos(estr.get('indice:estr')?.semanal ?? new Map()))
     setHistorial(h)
     setGuardada(c)
+    setRefFija(c ? await q.refCartera(c.cartera) : null)
     if (c?.fondos.length) q.baseDiversificacion(id).then((b) => setAvisoDiv(q.avisoDiversificacion(b, c.fondos.map((f) => f.fondo.isin)))).catch((e: Error) => setError(e.message))
     revisar([id]).then((r) => setRevision(new Map(r.carteras[0]?.fondos.map((f) => [f.fondo.isin, f])))).catch((e: Error) => setError(e.message))
     if (c && !c.fondos.length) { setBorrador({ ...c.cartera, fondos: [], motivo: '' }); setPestana('fondos') } // cartera nueva: directa a editar
   }
   useEffect(() => {
     leer().catch((e: Error) => setError(e.message))
+    q.indicesReferencia().then(setIndices).catch((e: Error) => setError(e.message))
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const cartera = borrador ?? (guardada ? { ...guardada.cartera, fondos: guardada.fondos } : null)
@@ -105,7 +109,7 @@ export default function Cartera({ id }: { id: number }) {
     [cartera?.banda, cartera?.banda_tipo, cartera?.revision])
   const simulacion = useMemo(() => simularCartera(fondosCalc, reb, bandas), [fondosCalc, reb, bandas])
   const sim = simulacion.valor
-  const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy(), bandas) : null), [fondosCalc, reb, rf, bandas])
+  const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy(), bandas, refFija) : null), [fondosCalc, reb, rf, bandas, refFija])
   const grafica = useMemo(() => {
     if (sim.length < 2) return []
     const desde = rango ? haceAnos(sim.at(-1)!.fecha, rango) : sim[0].fecha
@@ -144,7 +148,7 @@ export default function Cartera({ id }: { id: number }) {
     if (!borrador) return
     const cambios = cambiosCartera(new Map(guardada!.fondos.map((l) => [l.fondo.isin, l.peso])), new Map(borrador.fondos.map((l) => [l.fondo.isin, l.peso])),
       borrador.motivo, nombreDe)
-    await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo, banda: borrador.banda, banda_tipo: borrador.banda_tipo, revision: borrador.revision },
+    await q.guardarCartera(id, { nombre: borrador.nombre.trim(), objetivo: borrador.objetivo?.trim() || null, rebalanceo: borrador.rebalanceo, banda: borrador.banda, banda_tipo: borrador.banda_tipo, revision: borrador.revision, referencia: guardada!.cartera.referencia },
       borrador.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })), cambios)
     setBorrador(null)
     await leer()
@@ -155,6 +159,13 @@ export default function Cartera({ id }: { id: number }) {
     const nuevo = await q.crearCartera({ ...resto, nombre: `${nombre} (copia)` },
       guardada!.fondos.map((l) => ({ isin: l.fondo.isin, peso: l.peso })))
     location.hash = `#/cartera/${nuevo}`
+  }
+
+  // Se guarda al momento, sin pasar por «Editar»: es una forma de mirar la cartera, no un cambio de fondos.
+  async function cambiarReferencia(ref: string | null) {
+    await q.elegirReferencia(id, ref)
+    setRefFija(await q.refCartera({ referencia: ref }))
+    setGuardada((g) => g && { ...g, cartera: { ...g.cartera, referencia: ref } })
   }
 
   async function archivar() {
@@ -183,6 +194,19 @@ export default function Cartera({ id }: { id: number }) {
     : <p className="text-suave">Sin historia común suficiente entre los fondos para calcular la cartera.</p>
   const rangos = RANGOS.filter(([, n]) => !n || (sim.length > 1 && haceAnos(sim.at(-1)!.fecha, n) >= sim[0].fecha))
 
+  const refActual = guardada.cartera.referencia
+  const textoRef = refActual ? indices.find((i) => i.id === refActual)?.nombre ?? refActual : 'la de cada fondo combinada con sus pesos'
+  const selectorRef = (
+    <label className="flex items-center gap-2 rounded-sm bg-borde/50 px-2.5 py-0.5 text-[12px] text-suave">
+      Referencia
+      <select value={refActual ?? ''} disabled={ocupado} onChange={(e) => hacer(() => cambiarReferencia(e.target.value || null))}
+        className="bg-transparent text-texto outline-none">
+        <option value="">combinada de los fondos</option>
+        {indices.map((i) => <option key={i.id} value={i.id}>{i.nombre}</option>)}
+      </select>
+    </label>
+  )
+
   return (
     <article className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
@@ -192,6 +216,7 @@ export default function Cartera({ id }: { id: number }) {
             <input value={borrador.nombre} onChange={(e) => editar({ nombre: e.target.value })} aria-label="Nombre de la cartera"
               className={`${campo} text-3xl font-medium tracking-tight`} />
             <div className="flex flex-wrap items-center gap-2 text-[13px]">
+              {selectorRef}
               <label className="flex items-center gap-2 text-suave">
                 Rebalanceo
                 <select value={borrador.rebalanceo} onChange={(e) => editar({ rebalanceo: e.target.value as q.Rebalanceo })} className={campo}>
@@ -235,6 +260,7 @@ export default function Cartera({ id }: { id: number }) {
             <div className="flex flex-wrap gap-1.5 text-suave">
               <Pastilla>{lineas.length} {lineas.length === 1 ? 'fondo' : 'fondos'}</Pastilla>
               <Pastilla>Rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}</Pastilla>
+              {selectorRef}
               {nSenales > 0 && <a href="#/revision"><Pastilla className="bg-aviso/15! text-aviso">{nSenales} {nSenales === 1 ? 'señal' : 'señales'} de revisión</Pastilla></a>}
             </div>
           </div>
@@ -322,7 +348,7 @@ export default function Cartera({ id }: { id: number }) {
                       <Grafico lineas={grafica} />
                       <p className="text-[11px] text-suave">
                         Desde el {fecha(sim[0]?.fecha)}, limitada por {limita && nombreDe(limita.isin)} · {simulacion.rebalanceos} rebalanceos
-                        {calc?.referenciaSerie.length ? <> · referencia: la de cada fondo combinada con sus pesos{calc.referenciaSerie[0].fecha > sim[0].fecha && `, desde el ${fecha(calc.referenciaSerie[0].fecha)}`}</> : null}.
+                        {calc?.referenciaSerie.length ? <> · referencia: {textoRef}{calc.referenciaSerie[0].fecha > sim[0].fecha && `, desde el ${fecha(calc.referenciaSerie[0].fecha)}`}</> : null}.
                       </p>
                     </>
                   ) : sinCalculo}

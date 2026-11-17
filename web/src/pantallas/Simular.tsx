@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { calcularCartera, cambiosCartera, type CalculoCartera } from '../calculo/cartera'
+import { calcularCartera, cambiosCartera, type CalculoCartera, type RefSerie } from '../calculo/cartera'
 import { cifra, fecha, hoy, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
 import { base100 } from '../calculo/series'
@@ -35,6 +35,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
   const [propuesta, setPropuesta] = useState<Pesos>(new Map())
   const [cats, setCats] = useState<Awaited<ReturnType<typeof q.categoriasReferencia>> | null>(null)
   const [rf, setRf] = useState<Map<string, number>>(new Map())
+  const [refFija, setRefFija] = useState<RefSerie | null>(null)
   const [datos, setDatos] = useState<Map<string, DatosFondo>>(new Map())
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState('')
@@ -47,6 +48,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
         setRf(rendimientos(estr.get('indice:estr')?.semanal ?? new Map()))
         setGuardada(c)
         if (!c) return
+        q.refCartera(c.cartera).then(setRefFija).catch((e: Error) => setError(e.message))
         const p: Pesos = new Map(c.fondos.map((l) => [l.fondo.isin, l.peso]))
         const fs = c.fondos.map((l) => l.fondo)
         if (sale && nuevo && p.has(sale) && !p.has(nuevo.isin)) {
@@ -83,11 +85,11 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
       return { isin, peso, ...d, vol3: d.metricas.get('3a|volatilidad') ?? null }
     })
     if (!fs.length || fs.some((f) => f.serie.length < 2)) return null
-    return { sim: simularCartera(fs, reb, bandas).valor, calc: calcularCartera(fs, reb, rf, hoy(), bandas) }
+    return { sim: simularCartera(fs, reb, bandas).valor, calc: calcularCartera(fs, reb, rf, hoy(), bandas, refFija) }
   }
   const clave = (p: Pesos) => JSON.stringify([...p])
-  const a = useMemo(() => (listos ? simular(actual) : null), [listos, clave(actual), rf, bandas]) // eslint-disable-line react-hooks/exhaustive-deps
-  const b = useMemo(() => (listos ? simular(propuesta) : null), [listos, clave(propuesta), rf, bandas]) // eslint-disable-line react-hooks/exhaustive-deps
+  const a = useMemo(() => (listos ? simular(actual) : null), [listos, clave(actual), rf, bandas, refFija]) // eslint-disable-line react-hooks/exhaustive-deps
+  const b = useMemo(() => (listos ? simular(propuesta) : null), [listos, clave(propuesta), rf, bandas, refFija]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <p className="text-baja">No se ha podido simular: {error}</p>
   if (guardada === undefined) return <Cargando pagina />

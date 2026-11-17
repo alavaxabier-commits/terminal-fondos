@@ -30,20 +30,22 @@ function haceAnos(f: string, n: number): string {
 
 /**
  * La cartera simulada con su rebalanceo y sus métricas (las mismas que las de un fondo) frente a la combinación de las
- * referencias de sus fondos; crisis, aportación y peso de hoy de cada fondo y correlaciones. `rf`: €STR semanal.
+ * referencias de sus fondos (o frente a `refFija`, el índice elegido para la cartera); crisis, aportación y peso de hoy de cada fondo y correlaciones. `rf`: €STR semanal.
  */
-export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, rf: Map<string, number>, hoy: string, bandas?: Bandas): CalculoCartera | null {
+export function calcularCartera(fondos: FondoCartera[], rebalanceo: Rebalanceo, rf: Map<string, number>, hoy: string, bandas?: Bandas,
+  refFija?: RefSerie | null): CalculoCartera | null {
   if (!fondos.length || fondos.some((f) => f.serie.length < 2)) return null
   const sim = simularCartera(fondos, rebalanceo, bandas)
   if (sim.valor.length < 2) return null
   const total = fondos.reduce((s, f) => s + f.peso, 0)
   const s = semanal(sim.valor)
-  const conRef = fondos.every((f) => f.ref)
-  const ref = conRef ? serieDeRendimientos(combinarRend(fondos.map((f) => [rendimientos(f.ref!.semanal), f.peso / total]))) : null
+  // un índice elegido para la cartera o, si no, la referencia de cada fondo combinada con sus pesos
+  const refs: [RefSerie, number][] | null = refFija ? [[refFija, 1]] : fondos.every((f) => f.ref) ? fondos.map((f) => [f.ref!, f.peso / total]) : null
+  const ref = refs ? serieDeRendimientos(combinarRend(refs.map(([r, p]) => [rendimientos(r.semanal), p]))) : null
   let referencia: Metricas | null = null
-  if (ref) {
+  if (refs && ref) {
     const periodos = metricasFondo(ref, null, rf, hoy)
-    const meses = combinarRend(fondos.map((f) => [rendMeses(f.ref!.meses), f.peso / total]))
+    const meses = combinarRend(refs.map(([r, p]) => [rendMeses(r.meses), p]))
     referencia = { ...Object.fromEntries(VENTANAS.filter(([v]) => periodos[v]).map(([v]) => [v, periodos[v]])), ...anosDeMeses(meses, hoy) }
   }
   const hasta = sim.valor.at(-1)!.fecha

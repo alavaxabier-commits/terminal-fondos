@@ -32,6 +32,12 @@ describe('calcularCartera', () => {
     expect(c.volatilidadMedia).toBeCloseTo(0.066)
   })
 
+  it('con un índice elegido, la referencia es ese índice', () => {
+    const solo = calcularCartera([{ isin: 'A', peso: 100, serie: a, ref: null, vol3: null }], 'anual', rf, caso.hoy, undefined, ref)!
+    expect(solo.referencia!['2023'].rentabilidad).toBeCloseTo(c.referencia!['2023'].rentabilidad!, 9)
+    expect(solo.referenciaSerie.length).toBeGreaterThan(0)
+  })
+
   it('sin precios de algún fondo no hay cálculo', () => {
     expect(calcularCartera([{ isin: 'A', peso: 100, serie: [], ref: null, vol3: null }], 'anual', rf, caso.hoy)).toBeNull()
   })

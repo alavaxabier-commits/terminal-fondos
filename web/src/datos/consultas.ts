@@ -116,11 +116,11 @@ export async function sustitutos(): Promise<{ indice: string; isin: string; nomb
 
 export type { Rebalanceo } from '../calculo/metricas'
 import type { Bandas, Rebalanceo } from '../calculo/metricas'
-export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo; banda: number; banda_tipo: Bandas['tipo']; revision: Bandas['revision'] } // para 'bandas'
+export type Cartera = { id: number; nombre: string; objetivo: string | null; rebalanceo: Rebalanceo; banda: number; banda_tipo: Bandas['tipo']; revision: Bandas['revision']; referencia: string | null } // para 'bandas'; referencia: id del índice elegido o null
 export type CarteraFondo = { peso: number; fondo: Fondo }
 
 export async function carteras(): Promise<Cartera[]> {
-  const { data, error: e } = await supabase.from('cartera').select('id,nombre,objetivo,rebalanceo,banda,banda_tipo,revision').eq('archivada', false).order('nombre')
+  const { data, error: e } = await supabase.from('cartera').select('id,nombre,objetivo,rebalanceo,banda,banda_tipo,revision,referencia').eq('archivada', false).order('nombre')
   error(e)
   return (data ?? []) as Cartera[]
 }
@@ -129,7 +129,7 @@ export async function carteras(): Promise<Cartera[]> {
 export async function cartera(id: number): Promise<{ cartera: Cartera; fondos: CarteraFondo[] } | null> {
   const { data, error: e } = await supabase
     .from('cartera')
-    .select('id,nombre,objetivo,rebalanceo,banda,banda_tipo,revision,cartera_fondo(peso,fondo(*))')
+    .select('id,nombre,objetivo,rebalanceo,banda,banda_tipo,revision,referencia,cartera_fondo(peso,fondo(*))')
     .eq('id', id)
     .maybeSingle()
   error(e)
@@ -224,6 +224,23 @@ export async function crearCartera(c: CarteraEditable, fondos: { isin: string; p
 /** Guarda nombre, rebalanceo y fondos de una cartera y anota en el historial lo que cambia (en una transacción). */
 export async function guardarCartera(id: number, c: CarteraEditable, fondos: { isin: string; peso: number }[], cambios: Omit<Cambio, 'fecha'>[]) {
   error((await supabase.rpc('guardar_cartera', { p_id: id, p_cartera: c, p_fondos: fondos, p_cambios: cambios })).error)
+}
+
+/** Índices que se pueden elegir como referencia de una cartera (todos tienen serie en referencia_serie). */
+export async function indicesReferencia(): Promise<{ id: string; nombre: string }[]> {
+  const { data, error: e } = await supabase.from('indice').select('id,nombre').order('nombre')
+  error(e)
+  return (data ?? []) as { id: string; nombre: string }[]
+}
+
+/** Serie del índice elegido para una cartera (null si usa la combinada de sus fondos). */
+export async function refCartera(c: Pick<Cartera, 'referencia'>): Promise<RefSerie | null> {
+  if (!c.referencia) return null
+  return (await referenciaSeries([`indice:${c.referencia}`])).get(`indice:${c.referencia}`) ?? null
+}
+
+export async function elegirReferencia(id: number, referencia: string | null) {
+  error((await supabase.from('cartera').update({ referencia }).eq('id', id)).error)
 }
 
 export async function archivarCartera(id: number) {
