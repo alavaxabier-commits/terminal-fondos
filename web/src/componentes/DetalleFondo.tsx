@@ -26,9 +26,8 @@ export default function DetalleFondo({ isin, nombre, divisa, linea, nota, childr
   return (
     <section aria-label="Detalle del fondo" className="flex flex-col gap-3 rounded-lg border border-borde bg-panel p-4 text-[13px]">
       <div className="space-y-1">
-        {categoria && <p className="rotulo text-acento!">{categoria}</p>}
         <a href={`#/fondo/${isin}`} className="block text-xl font-semibold leading-tight tracking-tight hover:text-acento">{nombre}</a>
-        <p className="text-[12px] text-suave">{linea}</p>
+        <p className="text-[12px] text-suave">{categoria && <>{categoria} · </>}{linea}</p>
       </div>
       {nota}
       {children}

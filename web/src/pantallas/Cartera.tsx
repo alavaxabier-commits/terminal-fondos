@@ -82,7 +82,7 @@ export default function Cartera({ id }: { id: number }) {
   }
   // el «once»: puesto de cada fondo en su categoría esta semana (si falla, la columna sale vacía)
   const [puestos, setPuestos] = useState<Map<string, Puestos>>(new Map())
-  useEffect(() => { q.puestos().then(setPuestos).catch(() => {}) }, [])
+  useEffect(() => { q.puestos().then(setPuestos).catch((e: Error) => setError(`No se han podido leer los puestos de la semana: ${e.message}`)) }, [])
   const semana = useMemo(() => ultimaSemana(puestos.values()), [puestos])
   useEffect(() => {
     leer().catch((e: Error) => setError(e.message))

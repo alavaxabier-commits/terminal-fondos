@@ -147,7 +147,6 @@ export async function clases(fundId: string): Promise<Fondo[]> {
   return (data ?? []) as Fondo[]
 }
 
-/** Carteras (no archivadas) en las que está un fondo, con su peso. */
 /** Puestos de cada fondo en su categoría en las últimas 8 semanas (nota guardada): una llamada, ≈2 s. */
 export async function puestos(): Promise<Map<string, import('../calculo/jornada').Puestos>> {
   const { data, error: e } = await supabase.rpc('puestos_semanales')
@@ -165,6 +164,7 @@ export async function fondosEnCarteras(): Promise<Map<string, { id: number; nomb
   return m
 }
 
+/** Carteras (no archivadas) en las que está un fondo, con su peso. */
 export async function carterasDe(isin: string): Promise<{ id: number; nombre: string; peso: number }[]> {
   const { data, error: e } = await supabase.from('cartera_fondo').select('peso,cartera!inner(id,nombre,archivada)')
     .eq('isin', isin).eq('cartera.archivada', false)

@@ -48,7 +48,7 @@
     --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
     --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
     --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
-    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #18233a; --color-tinte-baja: #34201d;
+    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
     color-scheme: dark;
   }
@@ -57,7 +57,7 @@
       --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
     --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
     --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
-    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #18233a; --color-tinte-baja: #34201d;
+    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
       color-scheme: dark;
     }

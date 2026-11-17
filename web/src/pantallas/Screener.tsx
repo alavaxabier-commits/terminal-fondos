@@ -59,6 +59,7 @@ export default function Screener() {
   const [cats, setCats] = useState<Awaited<ReturnType<typeof q.categoriasReferencia>> | null>(null)
   const [senales, setSenales] = useState<Map<string, Senal[]>>(new Map())
   const [puestos, setPuestos] = useState<Map<string, Puestos> | null>(null)
+  const [errorJornada, setErrorJornada] = useState('')
   const [deCarteras, setDeCarteras] = useState<Map<string, { id: number; nombre: string }[]>>(new Map())
   const [nombrePerfil, setNombrePerfil] = useState('')
   const [guardado, setGuardado] = useState('')
@@ -73,8 +74,8 @@ export default function Screener() {
     q.carteras().then(setCarteras).catch(falla)
     q.seguimiento().then((s) => setSeguidos(new Set(s.map((x) => x.isin)))).catch(falla)
     q.categoriasReferencia().then(setCats).catch(falla)
-    // la jornada: si falla, la tabla sale sin puestos ni movimientos (y lo dice la leyenda)
-    q.puestos().then(setPuestos).catch(() => setPuestos(new Map()))
+    // la jornada: si falla, la tabla sale sin puestos ni movimientos y se avisa encima de la tabla
+    q.puestos().then(setPuestos).catch((e: Error) => { setPuestos(new Map()); setErrorJornada(e.message) })
     q.fondosEnCarteras().then(setDeCarteras).catch(falla)
     // señales de revisión de los fondos de las carteras, para la tarjeta (si fallan, la tarjeta sale sin ellas)
     revisar().then((r) => {
@@ -392,6 +393,7 @@ export default function Screener() {
         </Tarjeta>
       )}
       {error && <p className="text-baja">{error}</p>}
+      {errorJornada && <p role="status" className="text-[13px] text-baja">No se han podido leer los puestos de la semana ({errorJornada}): la tabla sale sin zona, movimiento ni línea de puestos.</p>}
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
         <div className="min-w-0 space-y-4">
@@ -493,13 +495,15 @@ function CeldaFondo({ f, conCategoria, extra, jornada }: { f: Puntuado; conCateg
 function Fila({ f, i, k, sel, setSel, seguidos, seguir, jornada, children }: { f: Puntuado; i: number | null; k: number; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; jornada: Jornada; children: React.ReactNode }) {
   const elegida = sel === f.isin
   const p = jornada.puestos.get(f.isin)
-  const z = p ? zona(p.puestos.at(-1)!, p.de) : 'media'
+  // un puesto viejo (tachado) no pinta zona: no es de esta semana
+  const z = p && !viejo(p, jornada.ultima) ? zona(p.puestos.at(-1)!, p.de) : 'media'
   const tuyo = jornada.carteras.has(f.isin)
-  const fondo = elegida ? 'bg-acento/15' : tuyo ? 'bg-tuyo' : z === 'alta' ? 'bg-tinte-alta' : z === 'baja' ? 'bg-tinte-baja' : 'hover:bg-borde/30'
+  // lo tuyo sigue en amarillo aunque esté elegido; la selección se marca con el contorno azul
+  const fondo = tuyo ? 'bg-tuyo' : elegida ? 'bg-acento/15' : z === 'alta' ? 'bg-tinte-alta' : z === 'baja' ? 'bg-tinte-baja' : 'hover:bg-borde/30'
   const franja = z === 'alta' ? 'shadow-[inset_5px_0_0_var(--color-zona-alta)]' : z === 'baja' ? 'shadow-[inset_5px_0_0_var(--color-zona-baja)]' : ''
   return (
     <tr data-isin={f.isin} aria-selected={elegida} onClick={() => setSel(f.isin)}
-      className={`cursor-pointer border-t ${k > 0 && k % 5 === 0 ? 'border-texto/60' : 'border-borde/70'} ${fondo}`}>
+      className={`cursor-pointer border-t ${k > 0 && k % 5 === 0 ? 'border-texto/60' : 'border-borde/70'} ${fondo} ${elegida ? 'outline-2 -outline-offset-2 outline-acento' : ''}`}>
       <td className={`estrecha py-2 pl-3 text-left text-[17px] font-extrabold leading-none ${franja} ${elegida ? 'text-acento' : ''}`}>{i ?? ''}</td>
       {children}
       <td className="pl-2">
@@ -553,6 +557,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
             return (
               <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
                 <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} extra={<>
+                  {f.nota != null && <span className="estrecha ml-1.5 text-[15px] font-extrabold sm:hidden">· {Math.round(f.nota)}</span>}
                   {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
                   {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
                 </>} />

@@ -35,7 +35,8 @@ Herramienta personal, no un producto: cifras calculadas como Morningstar (mismas
 
 ## Brand Commitments
 
-- Estética «noche y azul cielo» ya establecida (tokens en `web/src/estilos.css`), con tema claro y oscuro. Se documenta en DESIGN.md, no aquí.
+- Estética «La jornada» (cada categoría es una liga), elegida en noviembre de 2026; tema claro y oscuro. El sistema está en DESIGN.md, no aquí.
+- Nada de aspecto de bróker ni de frialdad (lo pidió Xabier al elegirla).
 
 ## Evidence on Hand
 
