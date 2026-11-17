@@ -1,0 +1,255 @@
+<title>Cuatro combinaciones</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Barlow:wght@400;500;600;700&family=Archivo:wdth,wght@62..125,400..900&display=swap">
+<style>
+/* Marco neutro; cada combinación es un boceto del Screener y no sigue el tema. */
+:root{--bg:#f4f4f2;--fg:#1c1c1e;--suave:#5f6066;--linea:#dcdcd8;--chip:#fff;--acento:#1d4f9f;--f:"Barlow",ui-sans-serif,system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181b;--fg:#ececee;--suave:#a2a3aa;--linea:#2e3036;--chip:#22242a;--acento:#8fb0ea;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17181b;--fg:#ececee;--suave:#a2a3aa;--linea:#2e3036;--chip:#22242a;--acento:#8fb0ea;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.5}
+.pag{max-width:1240px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:"Barlow Condensed";font-weight:800;font-size:34px;text-transform:uppercase;margin:0 0 8px;text-wrap:balance}
+.intro{color:var(--suave);max-width:72ch;margin:0}
+.escala{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px;margin:22px 0 0;padding:0;list-style:none}
+.escala a{display:block;padding:8px 10px;color:var(--fg);text-decoration:none;font-size:14px;border-top:4px solid var(--acento);background:var(--chip)}
+.escala b{display:block;font-family:"Barlow Condensed";font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}
+.ver{margin-top:56px;padding-top:24px;border-top:1px solid var(--linea)}
+.kick{font-family:"Barlow Condensed";font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--acento)}
+.ver h2{font-family:"Barlow Condensed";font-weight:800;font-size:28px;text-transform:uppercase;margin:2px 0 6px}
+.tesis{margin:0 0 14px;max-width:76ch}
+.receta{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px;padding:0;list-style:none}
+.receta li{font-size:13px;padding:3px 10px;border:1px solid var(--linea);background:var(--chip)}
+.receta li b{font-weight:600}
+.marco{overflow-x:auto;border:1px solid var(--linea)}.marco>div{min-width:1100px}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px 32px;margin-top:18px}
+.datos h3{font-family:"Barlow Condensed";font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);margin:0 0 4px}
+.datos p{margin:0;font-size:14px}
+table{border-collapse:collapse;width:100%}td,th{text-align:left}.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* Común */
+.s{font-size:13px;height:680px;overflow:hidden;--azul:#1d4f9f;--rojo:#c0392b;--ama:#f0c23a;--tin:#141414;--pap:#f3f2ec;--gris:#77756d;
+  --sal:#f6e2d3;--sal2:#fbefe6;--gra:#7d1d36;--azt:#23395b;--fil:#dcc1af}
+.s a{color:inherit;text-decoration:none}
+.s .up{color:var(--azul)}.s .dn{color:var(--rojo)}
+.s .viejo{text-decoration:line-through;opacity:.6}.s .viejo+small{color:var(--rojo);margin-left:4px;font-size:11px}
+.s .tinta{display:inline-block;width:8px;height:8px;margin-right:6px;vertical-align:1px}
+.s tr.r5 td{border-bottom:1px solid currentColor}
+.s .chk{display:flex;align-items:center;gap:8px;padding:3px 0}.s .chk i{width:13px;height:13px;border:1.5px solid #8a887f}.s .chk i.si{background:var(--tin);border-color:var(--tin)}
+.s .seg{display:inline-flex;border:1px solid var(--tin)}.s .seg span{padding:3px 10px}.s .seg span.on{background:var(--tin);color:#fff}
+
+/* A · La jornada */
+.ca{font-family:"Barlow",sans-serif;background:var(--pap);color:var(--tin);display:grid;grid-template-columns:200px 1fr 260px;grid-template-rows:auto auto 1fr}
+.ca header{grid-column:1/-1;display:flex;align-items:center;gap:28px;padding:12px 24px;background:var(--tin);color:#fff}
+.ca .marca{font-family:"Barlow Condensed";font-weight:800;font-size:20px;text-transform:uppercase}
+.ca nav{display:flex;gap:18px}.ca nav a.on{box-shadow:inset 0 -3px var(--ama)}
+.ca .tabs{grid-column:1/-1;display:flex;gap:2px;padding:12px 24px 0;border-bottom:2px solid var(--tin)}
+.ca .tabs span{padding:5px 14px;font-family:"Barlow Condensed";font-weight:700;font-size:15px;text-transform:uppercase;background:#e2e0d6}.ca .tabs span.on{background:var(--tin);color:#fff}
+.ca .filtros{padding:14px 16px 14px 24px;border-right:1px solid #d6d4cb}
+.ca h6{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:12px;color:var(--gris);margin:12px 0 4px}.ca h6:first-child{margin-top:0}
+.ca main{padding:12px 18px;overflow:hidden}
+.ca .barra{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ca th{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;font-size:12px;color:var(--gris);padding:4px 7px;border-bottom:1px solid var(--tin)}
+.ca td{padding:4px 7px;border-bottom:1px solid #dcdad1}
+.ca tr.za td{background:#e6ecf6}.ca tr.zb td{background:#f6e3df}
+.ca td.z{width:5px;padding:0}.ca tr.za td.z{background:var(--azul)}.ca tr.zb td.z{background:var(--rojo)}
+.ca tr.r5 td{border-bottom-color:var(--tin)}
+.ca .pos{font-family:"Barlow Condensed";font-weight:800;font-size:17px;width:30px}
+.ca .nota{font-family:"Barlow Condensed";font-weight:800;font-size:18px}
+.ca .mov{font-family:"Barlow Condensed";font-weight:700;width:34px}
+.ca aside.once{background:var(--ama);padding:14px 16px}
+.ca .once h5{font-family:"Barlow Condensed";font-weight:900;font-size:22px;text-transform:uppercase;margin:0;line-height:1}
+.ca .once p{margin:2px 0 10px;font-weight:600;font-size:12px}
+.ca .once .f{display:grid;grid-template-columns:36px 1fr auto;gap:6px;align-items:baseline;padding:6px 0;border-bottom:2px solid var(--tin)}
+.ca .once .f b{font-family:"Barlow Condensed";font-weight:900;font-size:20px}
+
+/* B · Salmón con liga */
+.cb{font-family:"Archivo",sans-serif;font-stretch:87%;background:var(--sal);color:var(--tin);display:grid;grid-template-columns:232px 1fr;grid-template-rows:auto 1fr}
+.cb header{grid-column:1/-1;display:flex;align-items:baseline;gap:28px;padding:12px 24px;border-bottom:2px solid var(--tin)}
+.cb .marca{font-stretch:125%;font-weight:800;text-transform:uppercase;font-size:14px}
+.cb nav{display:flex;gap:18px}.cb nav a.on{font-weight:700;box-shadow:inset 0 -2px var(--gra)}
+.cb .fecha{margin-left:auto;color:#6d5d55}
+.cb aside{padding:16px 20px;border-right:1px solid var(--fil);display:flex;flex-direction:column;gap:16px}
+.cb .rot{font-stretch:110%;font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:11px;margin-bottom:6px}
+.cb .peso{display:grid;grid-template-columns:96px 1fr 24px;align-items:center;gap:6px;margin:4px 0}.cb .peso i{display:block;height:6px;background:var(--tin)}.cb .peso b{font-weight:500;text-align:right}
+.cb .chk i{border-color:#8a7a70}.cb .chk i.si{background:var(--tin)}
+.cb main{padding:14px 24px;overflow:hidden}
+.cb h4{font-stretch:62%;font-weight:800;font-size:30px;margin:0;line-height:1;text-transform:uppercase}
+.cb .sub{color:#6d5d55;margin:4px 0 10px}
+.cb th{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:4px 7px;border-bottom:1px solid var(--tin)}
+.cb td{padding:4px 7px}
+.cb tr.cat td{background:var(--tin);color:var(--sal);font-stretch:110%;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px}
+.cb .pos{font-stretch:62%;font-weight:800;font-size:17px;width:30px}
+.cb .nota{font-weight:700;font-size:14px}
+.cb .up{color:#2c6a45}.cb .dn{color:#a3361f}
+.cb td.z{width:4px;padding:0}.cb .za{background:var(--azt)}.cb .zb{background:#a3361f}
+
+/* C · La tabla del lunes, en calma */
+.cc{font-family:"Barlow",sans-serif;background:#f8f7f3;color:var(--tin);display:grid;grid-template-columns:1fr 300px;grid-template-rows:auto auto 1fr}
+.cc header{grid-column:1/-1;display:flex;align-items:baseline;gap:28px;padding:12px 28px;border-bottom:1px solid #d8d6ce}
+.cc .marca{font-family:"Barlow Condensed";font-weight:800;font-size:17px;text-transform:uppercase}
+.cc nav{display:flex;gap:18px;color:#5e5c55}.cc nav a.on{color:var(--tin);font-weight:600;box-shadow:inset 0 -2px var(--tin)}
+.cc .cab{grid-column:1/-1;display:flex;align-items:flex-end;gap:20px;padding:14px 28px 10px}
+.cc .cab h4{font-family:"Barlow Condensed";font-weight:900;font-size:46px;line-height:.9;text-transform:uppercase;margin:0}
+.cc .cab div{color:var(--gris);padding-bottom:3px}
+.cc .cab .seg{margin-left:auto}
+.cc main{padding:0 28px;overflow:hidden}
+.cc th{font-weight:500;color:var(--gris);font-size:12px;padding:5px 8px;border-bottom:1px solid var(--tin)}
+.cc td{padding:4px 8px;border-bottom:1px solid #e6e4dc}
+.cc tr.zona td{border:0;padding:5px 8px 3px;font-family:"Barlow Condensed";font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:12px}
+.cc tr.zona.a td{color:var(--azul);border-bottom:2px solid var(--azul)}.cc tr.zona.b td{color:var(--rojo);border-bottom:2px solid var(--rojo)}.cc tr.zona.m td{color:var(--gris);border-bottom:1px dashed var(--gris)}
+.cc .pos{font-family:"Barlow Condensed";font-weight:800;font-size:18px;width:32px}
+.cc .nota{font-family:"Barlow Condensed";font-weight:800;font-size:18px}
+.cc tr.tuyo td:nth-child(2)::after{content:"●";color:#c49a12;margin-left:6px;font-size:9px;vertical-align:2px}
+.cc aside{border-left:1px solid #d8d6ce;padding:0 20px;display:flex;flex-direction:column;gap:16px}
+.cc aside h5{font-family:"Barlow Condensed";font-weight:800;text-transform:uppercase;font-size:15px;margin:0 0 4px}
+.cc .lst div{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e6e4dc}
+
+/* D · Mercados densos */
+.cd{font-family:"Archivo",sans-serif;font-stretch:87%;background:var(--sal);color:var(--tin);font-size:12px;display:grid;grid-template-columns:1fr 280px;grid-template-rows:auto auto 1fr}
+.cd header{grid-column:1/-1;display:flex;align-items:baseline;gap:24px;padding:8px 20px;background:var(--tin);color:var(--sal)}
+.cd .marca{font-stretch:125%;font-weight:800;text-transform:uppercase;font-size:13px}
+.cd nav{display:flex;gap:16px;opacity:.85}.cd nav a.on{opacity:1;font-weight:700}
+.cd .bus{margin-left:auto;border:1px solid var(--sal);padding:1px 10px;opacity:.8}
+.cd .cab{grid-column:1/-1;display:flex;align-items:flex-end;gap:18px;padding:10px 20px 8px;border-bottom:4px double var(--tin)}
+.cd .cab h4{font-stretch:62%;font-weight:900;font-size:50px;line-height:.85;text-transform:uppercase;margin:0}
+.cd .cab .chips{margin-left:auto;display:flex;gap:4px}.cd .chips span{border:1px solid var(--tin);padding:1px 7px}.cd .chips span.on{background:var(--tin);color:var(--sal)}
+.cd main{padding:8px 20px;overflow:hidden}
+.cd .mod{border:1px solid #c9a995;background:var(--sal2)}
+.cd .mod>h5{margin:0;padding:3px 8px;border-bottom:1px solid #c9a995;border-left:3px solid var(--gra);font-stretch:110%;text-transform:uppercase;letter-spacing:.05em;font-size:11px;display:flex;justify-content:space-between}
+.cd th{font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:3px 6px;border-bottom:1px solid var(--tin)}
+.cd td{padding:3px 6px}
+.cd td.z{width:4px;padding:0}.cd .za{background:var(--azt)}.cd .zb{background:#a3361f}
+.cd .pos{font-stretch:62%;font-weight:800;font-size:15px;width:26px}
+.cd .nota{font-weight:800}
+.cd .up{color:#2c6a45}.cd .dn{color:#a3361f}
+.cd .pc{width:28px;text-align:center;font-size:11px}
+.cd aside{padding:8px 20px 8px 0;display:flex;flex-direction:column;gap:8px}
+.cd aside .in{padding:5px 8px}
+.cd aside .mv{display:grid;grid-template-columns:1fr auto;padding:4px 0;border-bottom:1px solid var(--fil)}.cd aside .mv small{grid-column:1/-1;color:#6d5d55}
+</style>
+
+<div class="pag">
+  <h1>Cuatro combinaciones</h1>
+  <p class="intro">Cuatro mezclas de las dieciséis versiones, todas sobre el Screener. En cada una manda un mundo y los demás aportan ideas concretas, no su estética. Debajo de cada título está la receta. Los fondos, sus ISIN, la nota, el percentil y el TER son reales; los movimientos, la historia de puestos, el dato tachado y las carteras son de ejemplo.</p>
+  <ul class="escala">
+    <li><a href="#ca"><b>A · Recomendada</b>La jornada</a></li>
+    <li><a href="#cb"><b>B · La más cálida</b>Salmón con liga</a></li>
+    <li><a href="#cc"><b>C · La más tranquila</b>La tabla del lunes, en calma</a></li>
+    <li><a href="#cd"><b>D · La más completa</b>Mercados densos</a></li>
+  </ul>
+
+  <section class="ver" id="ca">
+    <div class="kick">A · Recomendada</div><h2>La jornada</h2>
+    <p class="tesis">La liga manda. Hay pestañas de categoría, zonas tintadas, puesto, flecha y la línea de 8 semanas en cada fondo. A la izquierda van filtros con controles normales y a la derecha tu cartera como once titular en amarillo.</p>
+    <ul class="receta"><li><b>Base:</b> Clasificación 2</li><li><b>+</b> once amarillo de Clasificación 3</li><li><b>+</b> tachado con fecha, filete cada 5 y tinta por cartera de Salmón</li><li><b>+</b> filtros laterales y plazo del Estándar 3</li></ul>
+    <div class="marco"><div class="s ca" id="k1"></div></div>
+    <div class="datos"><div><h3>Por qué funciona</h3><p>Tiene energía sin parecer un bróker, la liga sale de un dato real y los controles son los de siempre.</p></div><div><h3>Riesgo</h3><p>El amarillo tiene que quedarse en tu cartera; si se extiende, cansa.</p></div></div>
+  </section>
+
+  <section class="ver" id="cb">
+    <div class="kick">B · La más cálida</div><h2>Salmón con liga</h2>
+    <p class="tesis">La página de fondos en papel salmón manda, y la liga solo le presta el puesto, la flecha de la semana, la línea de 8 semanas y una franja fina de zona.</p>
+    <ul class="receta"><li><b>Base:</b> Salmón 2</li><li><b>+</b> puesto, flecha y línea de 8 semanas de Clasificación 2</li><li><b>+</b> franja de zona de Clasificación 1</li><li><b>+</b> casillas de filtro del Estándar 3</li></ul>
+    <div class="marco"><div class="s cb" id="k2"></div></div>
+    <div class="datos"><div><h3>Por qué funciona</h3><p>Es cálida, seria y muy legible. El salmón quita frialdad sin ruido.</p></div><div><h3>Riesgo</h3><p>Si se recargan los filetes, se convierte en un disfraz de periódico.</p></div></div>
+  </section>
+
+  <section class="ver" id="cc">
+    <div class="kick">C · La más tranquila</div><h2>La tabla del lunes, en calma</h2>
+    <p class="tesis">El titular grande y las zonas con nombre de Clasificación 3, sobre el papel claro de Clasificación 1. Las zonas se marcan con rayas de color en lugar de bandas, y el gráfico de puestos va en la columna lateral, a escala pequeña.</p>
+    <ul class="receta"><li><b>Base:</b> Clasificación 3</li><li><b>+</b> papel y sobriedad de Clasificación 1</li><li><b>+</b> gráfico de puestos de Clasificación 4, pequeño</li><li><b>+</b> tachado con fecha de Salmón</li></ul>
+    <div class="marco"><div class="s cc" id="k3"></div></div>
+    <div class="datos"><div><h3>Por qué funciona</h3><p>Es la más alineada con «calma y claridad» y tiene un gesto memorable, el titular.</p></div><div><h3>Riesgo</h3><p>Puede quedar algo fría si el color de las zonas se rebaja más.</p></div></div>
+  </section>
+
+  <section class="ver" id="cd">
+    <div class="kick">D · La más completa</div><h2>Mercados densos</h2>
+    <p class="tesis">Salmón 3 con la disciplina de la alta densidad. Lleva titular, módulos con filete y marca granate, percentiles de cada bloque en columnas pequeñas, puesto y zona de la liga, y «Lo que se mueve» al lado.</p>
+    <ul class="receta"><li><b>Base:</b> Salmón 3</li><li><b>+</b> módulos con filete de Alta densidad 1</li><li><b>+</b> percentiles por bloque de Alta densidad 4</li><li><b>+</b> puesto y zona de Clasificación 1</li></ul>
+    <div class="marco"><div class="s cd" id="k4"></div></div>
+    <div class="datos"><div><h3>Por qué funciona</h3><p>Ves por qué cada fondo tiene su nota sin abrir la ficha.</p></div><div><h3>Riesgo</h3><p>Es la que más información pone, y en una revisión tranquila puede ser demasiada.</p></div></div>
+  </section>
+</div>
+
+<script>
+// Reales: nombre, ISIN, nota, percentil y TER. De ejemplo: movimiento, cartera, historia de puestos y bloques.
+const CF=[
+ ['Vanguard Glb Stk Idx € H Acc','IE00B03HD316',85.5,100,0.18,2,'Base',[5,4,4,3,3,3,2,1],[92,88,97,58,81]],
+ ['State Street World Unvsl Index Eq I EURH','LU2168639685',85.5,100,0.29,0,'',[2,2,3,2,2,1,2,2],[90,91,86,60,80]],
+ ['Fidelity MSCI World Index EUR P Acc H','IE00BYX5P602',85.1,98.9,0.17,-1,'',[1,1,1,1,1,2,1,3],[89,84,98,55,79]],
+ ['iShares Dev Wld Idx (IE) D Acc EUR H','IE000M0KK797',85.0,98.9,0.14,1,'Renta',[3,3,2,4,5,5,5,4],[88,86,99,52,78]],
+ ['MFS Meridian Contrarian Value WSH1 EUR','LU2495342268',83.8,98.9,0.65,3,'',[9,8,8,7,6,6,8,5],[94,62,71,90,95]],
+ ['Algebris Financial Equity I GBP Acc','IE00BWY57036',83.6,97.8,0.91,-2,'Base',[4,5,5,5,4,4,4,6],[96,58,44,72,99]],
+ ['T. Rowe Price US Lg Cap Val Eq In EUR 1','LU2594029642',82.2,96.6,0.56,0,'',[7,7,6,6,7,7,7,7],[83,77,74,81,76]],
+ ['BNPP Rspnb US Value Mlt-Fac Eq IH € R','LU1458428833',81.7,95.5,0.61,1,'',[10,9,9,9,9,8,9,8],[80,80,70,83,74]],
+ ['M&G (Lux) Japan Smlr Comps C H USD Acc','LU1797817605',80.3,94.4,0.99,-3,'',[6,6,7,8,8,9,6,9],[86,70,38,88,84]],
+ ['GS Japan Equity RS Acc EURH Snap','LU2365097539',80.0,93.3,0.72,0,'',[8,10,10,10,10,10,10,10],[78,74,62,79,80]]];
+const COLA=[['Templeton Global Climate Chg A Acc',33.4,3.3,1.84,-4],['Pictet Security R EUR',31.2,2.2,2.71,-1]];
+const fx=(x,d=1)=>x.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fl=m=>m>0?'▲ '+m:m<0?'▼ '+(-m):'=';
+const cl=m=>m>0?'up':m<0?'dn':'';
+const SECS=['Inicio','Screener','Seguimiento','Revisión','Carteras','Comparar'];
+const menuDe=()=>`<nav>${SECS.map(t=>`<a class="${t=='Screener'?'on':''}">${t}</a>`).join('')}</nav>`;
+const TABS=['R. variable otros','R. variable global','Mixtos moderados','Renta fija euro','Monetarios'];
+const tinta=(c,base,renta)=>c?`<span class="tinta" style="background:${c=='Base'?base:renta}"></span>`:'';
+const terDe=(f,i)=>i==6?`<span class="viejo">${fx(f[4],2)}</span><small>06-nov</small>`:fx(f[4],2);
+const ONCE=[['Vanguard Glb Stk Idx',40,1],['Amundi Prime Euro Govies',30,4],['Algebris Financial Eq',15,6],['MyInvestor Monetario',15,2]];
+function linea(h,col,w=64,hh=16){const x=i=>(i/(h.length-1))*(w-4)+2,y=p=>((p-1)/9)*(hh-4)+2;
+ return `<svg width="${w}" height="${hh}" viewBox="0 0 ${w} ${hh}"><polyline fill="none" stroke="${col}" stroke-width="1.5" points="${h.map((p,i)=>x(i)+','+y(p)).join(' ')}"/><circle cx="${x(h.length-1)}" cy="${y(h.at(-1))}" r="2.3" fill="${col}"/></svg>`}
+const casillas=(t,on)=>t.map((x,i)=>`<div class="chk"><i class="${on.includes(i)?'si':''}"></i>${x}</div>`).join('');
+
+// A
+document.getElementById('k1').innerHTML=`<header><span class="marca">Terminal de fondos</span>${menuDe()}</header>
+<div class="tabs">${TABS.map((t,i)=>`<span class="${i?'':'on'}">${t}</span>`).join('')}</div>
+<div class="filtros"><h6>Tipo</h6>${casillas(['Renta variable','Renta fija','Mixtos','Monetarios'],[0])}<h6>Dónde</h6>${casillas(['En MyInvestor'],[0])}<h6>Gestión</h6>${casillas(['Activa','Indexada'],[0,1])}<h6>Pesos de la nota</h6><div>Coste 40 · Riesgo 20 · Protección 20 · Consistencia 10 · Rentabilidad 10</div></div>
+<main><div class="barra"><span style="color:var(--gris)">98 fondos · nota del lunes 16 nov</span><span class="seg"><span>1A</span><span class="on">3A</span><span>5A</span><span>10A</span></span></div>
+<table><thead><tr><th></th><th>Pos.</th><th>Fondo</th><th>Sem.</th><th>8 sem.</th><th class="num">Nota</th><th class="num">TER %</th></tr></thead><tbody>
+${CF.map((f,i)=>`<tr class="${i<3?'za':''} ${i%5==4?'r5':''}"><td class="z"></td><td class="pos">${i+1}</td><td>${tinta(f[6],'#c49a12','#1d4f9f')}${f[0]}</td><td class="mov ${cl(f[5])}">${fl(f[5])}</td><td>${linea(f[7],'#141414')}</td><td class="num nota">${fx(f[2])}</td><td class="num">${terDe(f,i)}</td></tr>`).join('')}
+${COLA.map((f,i)=>`<tr class="zb"><td class="z"></td><td class="pos">${97+i}</td><td>${f[0]}</td><td class="mov dn">${fl(f[4])}</td><td></td><td class="num nota">${fx(f[1])}</td><td class="num">${fx(f[3],2)}</td></tr>`).join('')}
+</tbody></table></main>
+<aside class="once"><h5>Tu once: Base</h5><p>Puesto en su categoría esta semana</p>${ONCE.map(([n,p,o])=>`<div class="f"><b>${o}.º</b><span>${n}</span><span>${p} %</span></div>`).join('')}</aside>`;
+
+// B
+document.getElementById('k2').innerHTML=`<header><span class="marca">Terminal de fondos</span>${menuDe()}<span class="fecha">Lunes 16 de noviembre de 2026 · cierres al viernes 13</span></header>
+<aside><div><div class="rot">Pesos de la nota</div>${[['Coste',40],['Rentab. aj. riesgo',20],['Protección',20],['Consistencia',10],['Rentabilidad',10]].map(([n,p])=>`<div class="peso"><span>${n}</span><i style="width:${p*2.5}%"></i><b>${p}</b></div>`).join('')}</div>
+<div><div class="rot">Filtros</div>${casillas(['Renta variable','En MyInvestor','≥ 50 M€','≥ 3 años','Solo indexados'],[0,1,2,3])}</div>
+<div><div class="rot">Carteras</div><div>${tinta('Base','#7d1d36','#23395b')}Base</div><div>${tinta('Renta','#7d1d36','#23395b')}Renta</div></div></aside>
+<main><h4>Screener</h4><div class="sub">98 fondos de la categoría · ordenados por nota</div>
+<table><thead><tr><th></th><th>Pos.</th><th>Fondo</th><th>Sem.</th><th>8 sem.</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">TER %</th></tr></thead><tbody>
+<tr class="cat"><td colspan="8">Renta variable · otros · 98 fondos</td></tr>
+${CF.map((f,i)=>`<tr class="${i%5==4?'r5':''}"><td class="z ${i<3?'za':''}"></td><td class="pos">${i+1}</td><td>${tinta(f[6],'#7d1d36','#23395b')}${f[0]}</td><td class="${cl(f[5])}">${fl(f[5])}</td><td>${linea(f[7],'#231c1a')}</td><td class="num nota">${fx(f[2])}</td><td class="num">${fx(f[3])}</td><td class="num">${terDe(f,i)}</td></tr>`).join('')}
+</tbody></table></main>`;
+
+// C · gráfico de puestos pequeño (escala fija 1..10, 8 semanas)
+const BW=250,BH=150,bx=i=>18+i*((BW-26)/7),by=p=>8+(p-1)*((BH-26)/9);
+const BCOL=['#c49a12','#141414','#77756d','#1d4f9f','#b9b7ae'];
+const puestos=`<svg width="100%" viewBox="0 0 ${BW} ${BH}" role="img" aria-label="Puestos de los cinco primeros en 8 semanas">
+${[1,5,10].map(p=>`<text x="10" y="${by(p)+4}" font-size="10" fill="#77756d" text-anchor="end" font-family="Barlow">${p}</text>`).join('')}
+${CF.slice(0,5).map((f,j)=>`<polyline fill="none" stroke="${BCOL[j]}" stroke-width="${j?1.5:3}" points="${f[7].map((p,i)=>bx(i)+','+by(p)).join(' ')}"/><circle cx="${bx(7)}" cy="${by(f[7][7])}" r="${j?2.5:4}" fill="${BCOL[j]}"/>`).join('')}
+<text x="${bx(0)}" y="${BH-4}" font-size="10" fill="#77756d" font-family="Barlow">S38</text><text x="${bx(7)}" y="${BH-4}" font-size="10" fill="#77756d" text-anchor="end" font-family="Barlow">S45</text></svg>`;
+document.getElementById('k3').innerHTML=`<header><span class="marca">Terminal de fondos</span>${menuDe()}</header>
+<div class="cab"><h4>Renta variable · otros</h4><div>98 fondos · nota del lunes 16 nov</div><span class="seg"><span>1A</span><span class="on">3A</span><span>5A</span><span>10A</span></span></div>
+<main><table><thead><tr><th>Pos.</th><th>Fondo</th><th>Sem.</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">TER %</th></tr></thead><tbody>
+<tr class="zona a"><td colspan="6">Cuartil alto · 1 a 24</td></tr>
+${CF.slice(0,8).map((f,i)=>`<tr class="${f[6]?'tuyo':''}"><td class="pos">${i+1}</td><td>${f[0]}</td><td class="${cl(f[5])}">${fl(f[5])}</td><td class="num nota">${fx(f[2])}</td><td class="num">${fx(f[3])}</td><td class="num">${terDe(f,i)}</td></tr>`).join('')}
+<tr class="zona m"><td colspan="6">Zona media · 25 a 74</td></tr>
+<tr class="zona b"><td colspan="6">Cuartil bajo · 75 a 98</td></tr>
+${COLA.map((f,i)=>`<tr><td class="pos">${97+i}</td><td>${f[0]}</td><td class="dn">${fl(f[4])}</td><td class="num nota">${fx(f[1])}</td><td class="num">${fx(f[2])}</td><td class="num">${fx(f[3],2)}</td></tr>`).join('')}
+</tbody></table></main>
+<aside><div><h5>Los cinco primeros · 8 semanas</h5>${puestos}</div>
+<div class="lst"><h5>Cartera Base</h5>${ONCE.map(([n,p,o])=>`<div><span>${n}</span><span>${p} % · ${o}.º</span></div>`).join('')}</div></aside>`;
+
+// D
+document.getElementById('k4').innerHTML=`<header><span class="marca">Terminal de fondos</span>${menuDe()}<span class="bus">Fondo, ISIN u orden…</span></header>
+<div class="cab"><h4>Fondos</h4><span style="color:#6d5d55">Lunes 16 nov · 98 fondos · renta variable, otros</span><div class="chips"><span class="on">Renta variable</span><span class="on">MyInvestor</span><span>≥ 50 M€</span><span>≥ 3 años</span><span>3A</span></div></div>
+<main><div class="mod"><h5><span>Screener · pesos: coste 40 · riesgo 20 · protección 20 · consistencia 10 · rentabilidad 10</span><span>percentil por bloque</span></h5>
+<table><thead><tr><th></th><th>Pos.</th><th>Fondo</th><th class="num">Nota</th><th class="pc">Rsg</th><th class="pc">Cns</th><th class="pc">Cst</th><th class="pc">Prt</th><th class="pc">Rnt</th><th class="num">Sem.</th><th class="num">TER</th></tr></thead><tbody>
+${CF.map((f,i)=>`<tr class="${i%5==4?'r5':''}"><td class="z ${i<3?'za':''}"></td><td class="pos">${i+1}</td><td>${tinta(f[6],'#7d1d36','#23395b')}${f[0]}</td><td class="num nota">${fx(f[2])}</td>${f[8].map(p=>`<td class="pc" style="${p>=90?'font-weight:800':p<50?'color:#a3361f':''}">${p}</td>`).join('')}<td class="num ${cl(f[5])}">${fl(f[5])}</td><td class="num">${terDe(f,i)}</td></tr>`).join('')}
+</tbody></table></div></main>
+<aside><div class="mod"><h5>Lo que se mueve<span>4</span></h5><div class="in">
+<div class="mv"><span>MFS Meridian Contrarian</span><b class="up">▲ 3</b><small>Entra en el decil alto</small></div>
+<div class="mv"><span>Algebris Financial Eq</span><b class="dn">▼ 2</b><small>En tu cartera Base · baja la consistencia</small></div>
+<div class="mv"><span>M&amp;G Japan Smaller Cos</span><b class="dn">▼ 3</b><small>Su TER sube a 0,99 %</small></div>
+<div class="mv"><span>T. Rowe Price US Value</span><b>TER</b><small>Dato del 6 nov, sin actualizar</small></div></div></div>
+<div class="mod"><h5>Carteras</h5><div class="in"><div>${tinta('Base','#7d1d36','#23395b')}Base · 4 fondos</div><div>${tinta('Renta','#7d1d36','#23395b')}Renta · 5 fondos</div></div></div></aside>`;
+</script>
