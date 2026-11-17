@@ -134,7 +134,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-lg font-bold text-acento">Simulador · <a href={`#/cartera/${id}`} className="hover:underline">{c.nombre}</a></h1>
+        <h1 className="text-3xl! sm:text-4xl!">Simulador · <a href={`#/cartera/${id}`} className="hover:underline">{c.nombre}</a></h1>
         <p className="text-suave">La cartera guardada frente a la propuesta, las dos con rebalanceo {reb === 'bandas' ? 'por bandas' : reb}. Nada se guarda hasta pulsar «aplicar».</p>
       </header>
 

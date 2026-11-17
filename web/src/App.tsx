@@ -110,45 +110,42 @@ export default function App() {
   const simular = ruta.match(/^#\/simular\/(\d+)(?:\/([A-Z0-9]{12})\/([A-Z0-9]{12}))?$/)
   const comparar = ruta.match(/^#\/comparar(?:\/([A-Z0-9,]*))?$/)
   return (
-    <div className="mx-auto flex min-h-full max-w-7xl flex-col">
-      <header className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde bg-fondo/95 px-4 backdrop-blur">
-        <a href="#/" className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight text-texto">
-          <i aria-hidden="true" className="inline-block h-3 w-3 rounded-xs bg-acento" />
-          <span className="hidden sm:inline">Terminal de fondos</span>
-        </a>
-        {/* Pestañas de terminal: la pantalla actual, subrayada en acento a ras del filete de la cabecera. */}
-        <nav aria-label="Pantallas" className="order-last -mb-px flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
-          {PANTALLAS.map(([h, t]) => {
-            const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
-            return (
-              <a key={h} href={h} aria-current={actual ? 'page' : undefined}
-                className={`flex items-center whitespace-nowrap border-b-2 px-3 ${actual ? 'border-acento text-texto' : 'border-transparent text-suave hover:text-texto'}`}>{t}</a>
-            )
-          })}
-        </nav>
-        <Buscador />
-        <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
-          aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-sm border border-borde bg-panel text-suave hover:text-texto">
-          {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-            {tema === 'claro'
-              ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
-              : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
-          </svg>
-        </button>
-        <button onClick={() => setContrasena(true)} className="shrink-0 text-suave hover:text-texto" title="Poner o cambiar la contraseña">
-          contraseña
-        </button>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="shrink-0 text-suave hover:text-texto"
-          title="Cerrar sesión"
-        >
-          salir
-        </button>
+    <div className="flex min-h-full flex-col">
+      {/* Cabecera de liga: banda negra a todo el ancho; la pantalla actual, subrayada en amarillo. */}
+      <header className="sticky top-0 z-10 bg-cabecera text-sobre-cabecera">
+        <div className="mx-auto flex min-h-12 max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4">
+          <a href="#/" className="estrecha shrink-0 text-[19px] font-extrabold uppercase leading-none tracking-[0.01em]">
+            <span className="hidden sm:inline">Terminal de fondos</span><span className="sm:hidden">Fondos</span>
+          </a>
+          <nav aria-label="Pantallas" className="order-last flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
+            {PANTALLAS.map(([h, t]) => {
+              const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
+              return (
+                <a key={h} href={h} aria-current={actual ? 'page' : undefined}
+                  className={`flex items-center whitespace-nowrap px-3 text-[14px] ${actual ? 'font-semibold shadow-[inset_0_-3px_0_var(--color-once)]' : 'opacity-75 hover:opacity-100'}`}>{t}</a>
+              )
+            })}
+          </nav>
+          <Buscador />
+          <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
+            aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
+            className="grid h-8 w-8 shrink-0 place-items-center opacity-75 hover:opacity-100">
+            {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              {tema === 'claro'
+                ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+                : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
+            </svg>
+          </button>
+          <button onClick={() => setContrasena(true)} className="shrink-0 text-[13px] opacity-75 hover:opacity-100" title="Poner o cambiar la contraseña">
+            contraseña
+          </button>
+          <button onClick={() => supabase.auth.signOut()} className="shrink-0 text-[13px] opacity-75 hover:opacity-100" title="Cerrar sesión">
+            salir
+          </button>
+        </div>
       </header>
-      <main className="flex-1 space-y-4 px-4 py-4">
+      <main className="mx-auto w-full max-w-7xl flex-1 space-y-5 px-4 py-5">
         {!comparar && <Bandeja />}
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
           : simular ? <Simular key={simular[0]} id={+simular[1]} sale={simular[2]} entra={simular[3]} />
@@ -164,7 +161,7 @@ export default function App() {
               <button onClick={() => setAyuda(false)} aria-label="Cerrar la ayuda" className="min-h-7 min-w-7 text-suave hover:text-texto">✕</button>
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-              {ATAJOS.map(([k, v]) => <Fragment key={k}><dt className="text-acento">{k}</dt><dd>{v}</dd></Fragment>)}
+              {ATAJOS.map(([k, v]) => <Fragment key={k}><dt className="estrecha font-bold text-acento">{k}</dt><dd>{v}</dd></Fragment>)}
             </dl>
             <p className="mt-2 text-suave">Las teclas de una letra no actúan mientras se escribe en un campo.</p>
           </section>
@@ -189,7 +186,8 @@ function BarraEstado({ estado: { descargas, base, revision, error } }: { estado:
   const tono = uso >= 0.9 ? 'text-baja' : uso >= 0.8 ? 'text-aviso' : 'text-sube' // ámbar desde el 80 %, rojo desde el 90 %
   const aRevisar = revision?.carteras.reduce((n, c) => n + c.fondos.filter((f) => f.senales.length).length, 0) ?? 0
   return (
-    <footer className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-3 border-t border-borde bg-panel px-4 py-1 text-[11px] text-suave">
+    <footer className="sticky bottom-0 z-10 border-t border-borde bg-panel text-[12px] text-suave">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 px-4 py-1">
       {mal ? <a href="#/" className="text-baja hover:underline">▲ alarmas en las descargas</a>
         : ultima ? <span title={descargas!.map((t) => `${t.tarea} ${cuando(t.ts)}`).join(' · ')}><span className="text-sube" aria-hidden="true">● </span>descargas {cuando(ultima)}</span>
         : <span>{descargas ? 'sin registro de descargas' : 'descargas …'}</span>}
@@ -201,6 +199,7 @@ function BarraEstado({ estado: { descargas, base, revision, error } }: { estado:
       {aRevisar > 0 && <a href="#/revision" className="text-aviso hover:underline">▲ {aRevisar} a revisar</a>}
       {error && <span className="text-baja" title={error}>▲ estado sin leer</span>}
       <span className="ml-auto hidden sm:inline">/ órdenes · j/k mover · ? ayuda</span>
+      </div>
     </footer>
   )
 }

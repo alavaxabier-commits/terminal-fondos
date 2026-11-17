@@ -118,7 +118,7 @@ export default function Seguimiento() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-lg font-bold text-acento">Seguimiento <span className="font-normal text-suave">· {filas.length} {filas.length === 1 ? 'fondo' : 'fondos'}</span></h1>
+        <h1 className="text-3xl! sm:text-4xl!">Seguimiento <span className="text-suave">· {filas.length} {filas.length === 1 ? 'fondo' : 'fondos'}</span></h1>
         <p className="text-suave">{nMirar ? <span className="text-aviso">{nMirar === 1 ? 'Uno merece' : `${nMirar} merecen`} mirarse esta semana</span> : 'Nada que mirar esta semana'}</p>
         {cartera && (
           <label className="flex items-baseline gap-2 text-suave">Encajar con

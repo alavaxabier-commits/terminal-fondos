@@ -18,6 +18,7 @@ import { revisar, type FondoRevisado } from '../datos/revision'
 import { serieEur } from '../datos/series'
 import { Pastilla } from './Ficha'
 import Cargando from '../componentes/Cargando'
+import { movimiento, viejo, ultimaSemana, type Puestos } from '../calculo/jornada'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
 export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
@@ -79,6 +80,10 @@ export default function Cartera({ id }: { id: number }) {
     revisar([id]).then((r) => setRevision(new Map(r.carteras[0]?.fondos.map((f) => [f.fondo.isin, f])))).catch((e: Error) => setError(e.message))
     if (c && !c.fondos.length) { setBorrador({ ...c.cartera, fondos: [], motivo: '' }); setPestana('fondos') } // cartera nueva: directa a editar
   }
+  // el «once»: puesto de cada fondo en su categoría esta semana (si falla, la columna sale vacía)
+  const [puestos, setPuestos] = useState<Map<string, Puestos>>(new Map())
+  useEffect(() => { q.puestos().then(setPuestos).catch(() => {}) }, [])
+  const semana = useMemo(() => ultimaSemana(puestos.values()), [puestos])
   useEffect(() => {
     leer().catch((e: Error) => setError(e.message))
     q.indicesReferencia().then(setIndices).catch((e: Error) => setError(e.message))
@@ -212,7 +217,6 @@ export default function Cartera({ id }: { id: number }) {
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         {borrador ? (
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="rotulo text-acento!">Cartera modelo · editando</p>
             <input value={borrador.nombre} onChange={(e) => editar({ nombre: e.target.value })} aria-label="Nombre de la cartera"
               className={`${campo} text-3xl font-medium tracking-tight`} />
             <div className="flex flex-wrap items-center gap-2 text-[13px]">
@@ -255,9 +259,9 @@ export default function Cartera({ id }: { id: number }) {
           </div>
         ) : (
           <div className="min-w-0 space-y-2">
-            <p className="rotulo text-acento!">Cartera modelo{cartera.objetivo && ` · ${cartera.objetivo}`}</p>
             <h1 className="text-3xl! sm:text-4xl!">{cartera.nombre}</h1>
             <div className="flex flex-wrap gap-1.5 text-suave">
+              <Pastilla>Cartera modelo{cartera.objetivo && ` · ${cartera.objetivo}`}</Pastilla>
               <Pastilla>{lineas.length} {lineas.length === 1 ? 'fondo' : 'fondos'}</Pastilla>
               <Pastilla>Rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}</Pastilla>
               {selectorRef}
@@ -404,7 +408,7 @@ export default function Cartera({ id }: { id: number }) {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[60rem] whitespace-nowrap text-right tabular text-[13px]">
                   <thead>
-                    <tr className="text-[12px] text-suave">
+                    <tr className="rotulo">
                       <th className="pb-1.5 text-left font-normal">Fondo</th>
                       <th className="pl-3 font-normal">Peso</th>
                       <th className="pl-3 font-normal">TER</th>
@@ -414,6 +418,7 @@ export default function Cartera({ id }: { id: number }) {
                       <th className="pl-3 font-normal" title="Sharpe a 3 años">Sharpe 3a</th>
                       <th className="pl-3 font-normal" title="Rentabilidad anualizada a 5 años">Rent. 5a</th>
                       <th className="pl-3 font-normal">Nota</th>
+                      <th className="pl-3 text-left font-normal" title="Puesto en su categoría por la nota guardada esta semana, y lo que ha subido o bajado">Puesto</th>
                       <th className="pl-3 text-left font-normal">Señales</th>
                       {borrador && <th />}
                     </tr>
@@ -442,6 +447,7 @@ export default function Cartera({ id }: { id: number }) {
                           <td className="pl-3">{cifra(mf?.get('3a|sharpe'))}</td>
                           <td className={`pl-3 ${tono(mf?.get('5a|rentabilidad'))}`}>{pct(mf?.get('5a|rentabilidad'))}</td>
                           <td className="pl-3">{r?.nota ? <>{Math.round(r.nota.nota)}{r.nota.percentil != null && <span className="text-suave"> p{Math.round(r.nota.percentil)}</span>}</> : <span className="text-suave">—</span>}</td>
+                          <td className="pl-3 text-left"><Once p={puestos.get(f.isin)} semana={semana} /></td>
                           <td className="whitespace-normal pl-3 text-left">
                             {r?.senales.map((s) => <a key={s.tipo} href="#/revision" title={s.motivo} className="mr-1 inline-block rounded-sm bg-aviso/15 px-2 text-[11px] text-aviso">{s.tipo}</a>)}
                           </td>
@@ -505,5 +511,19 @@ export default function Cartera({ id }: { id: number }) {
         )}
       </div>
     </article>
+  )
+}
+
+/** El «once»: el puesto del fondo en su liga (categoría), en amarillo; tachado con su fecha si no es de esta semana. */
+function Once({ p, semana }: { p: Puestos | undefined; semana: string }) {
+  if (!p) return <span className="text-suave">—</span>
+  const v = viejo(p, semana), m = movimiento(p)
+  return (
+    <span className="inline-flex items-baseline gap-2">
+      <span className={`estrecha inline-block min-w-[3.25rem] bg-once px-1.5 text-center text-[16px] font-extrabold text-sobre-once ${v ? 'line-through opacity-60' : ''}`}>{p.puestos.at(-1)}.º</span>
+      <span className="text-[12px] text-suave">de {p.de}</span>
+      {v ? <span className="text-[11px] text-baja">{new Date(v + 'T12:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+        : m ? <span className={`estrecha text-[14px] font-bold ${m > 0 ? 'text-zona-alta' : 'text-zona-baja'}`}>{m > 0 ? `▲ ${m}` : `▼ ${-m}`}</span> : null}
+    </span>
   )
 }

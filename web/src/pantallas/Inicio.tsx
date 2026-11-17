@@ -1,3 +1,4 @@
+import { tintas } from '../calculo/jornada'
 import { useEffect, useRef, useState } from 'react'
 import { calcularCartera } from '../calculo/cartera'
 import { cifra, fecha, hoy, pct } from '../calculo/formato'
@@ -68,8 +69,8 @@ const seMueve = (f: Seguido) => Math.abs(Math.round(f.semana ?? 0)) >= 2 // redo
 const tono = (v?: number | null) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 const Seccion = ({ titulo, extra, children, className = '' }: { titulo: string; extra?: React.ReactNode; children: React.ReactNode; className?: string }) => (
   <section className={className}>
-    <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-borde pb-1">
-      <h2 className="text-xl font-semibold tracking-tight">{titulo}</h2>{extra}
+    <div className="mb-3 flex items-baseline justify-between gap-3 border-b-2 border-texto pb-1">
+      <h2 className="estrecha text-[22px] font-extrabold uppercase leading-tight">{titulo}</h2>{extra}
     </div>
     {children}
   </section>
@@ -126,8 +127,8 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
         {!carteras ? <p className="text-suave">Cargando…</p>
           : carteras instanceof Error ? <Fallo e={carteras} />
           : !carteras.length ? <p className="text-suave">Aún no hay ninguna cartera modelo: «+ nueva cartera» crea una.</p>
-          : carteras.length === 1 ? <CarteraAncha c={carteras[0]} r={resumenes.get(carteras[0].id)} cargando={!resumenes.has(carteras[0].id)} senales={senalesDe(carteras[0].id)} />
-          : <Carrusel carteras={carteras} ancha={(c) => <CarteraAncha c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} senales={senalesDe(c.id)} />} />}
+          : carteras.length === 1 ? <CarteraAncha c={carteras[0]} r={resumenes.get(carteras[0].id)} cargando={!resumenes.has(carteras[0].id)} senales={senalesDe(carteras[0].id)} tinta={tintas(carteras.map((x) => x.id)).get(carteras[0].id)} />
+          : <Carrusel carteras={carteras} ancha={(c) => <CarteraAncha c={c} r={resumenes.get(c.id)} cargando={!resumenes.has(c.id)} senales={senalesDe(c.id)} tinta={tintas(carteras.map((x) => x.id)).get(c.id)} />} />}
       </Seccion>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -168,7 +169,7 @@ const PildoraSemana = ({ v }: { v: number | null }) => v == null ? null
 const colorLinea = (l: number[]) => (l.length > 1 && l.at(-1)! < l[0] ? 'baja' : 'acento')
 
 /** Con una sola cartera, ocupa todo el ancho: cifras, el último año y el tipo de activo con los avisos de sus fondos. */
-function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCartera | null | Error | undefined; cargando: boolean; senales?: Senales }) {
+function CarteraAncha({ c, r, cargando, senales, tinta }: { c: Cartera; r: ResumenCartera | null | Error | undefined; cargando: boolean; senales?: Senales; tinta?: string }) {
   if (cargando || !r || r instanceof Error) return <div className="h-full rounded-lg border border-borde bg-panel p-5 text-suave">{r instanceof Error ? <Fallo e={r} /> : cargando ? 'calculando…' : 'Sin fondos o sin datos suficientes.'}</div>
   // Lo que pide atención en el reparto: fondos con señales de revisión o fuera de la banda de rebalanceo (el detalle, en la cartera).
   const avisos = r.fondos.flatMap((f) => {
@@ -182,7 +183,7 @@ function CarteraAncha({ c, r, cargando, senales }: { c: Cartera; r: ResumenCarte
     <div className="grid grid-cols-[minmax(0,1fr)] h-full gap-6 rounded-lg border border-borde bg-panel p-4 sm:p-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)]">
       {/* Solo el nombre es el enlace (el lector de pantalla no lee todas las cifras como su nombre); su ::after cubre la columna. */}
       <div className="relative flex flex-col gap-3">
-        <div className="flex flex-wrap items-baseline gap-2"><a href={`#/cartera/${c.id}`} className="font-medium after:absolute after:inset-0 hover:text-acento">{c.nombre}</a><PildoraSemana v={r.semana} /></div>
+        <div className="flex flex-wrap items-baseline gap-2"><i aria-hidden="true" className="inline-block h-3 w-3 self-center" style={{ background: tinta }} /><a href={`#/cartera/${c.id}`} className="font-medium after:absolute after:inset-0 hover:text-acento">{c.nombre}</a><PildoraSemana v={r.semana} /></div>
         <div><span className={`cifra text-6xl tabular ${tono(r.año)}`}>{pct(r.año)}</span><span className="ml-2 text-suave">en el año</span></div>
         <Cifras r={r} />
         <p className="mt-auto text-[12px] text-suave">Rebalanceo {c.rebalanceo}{r.ultimoRebalanceo ? `, el último el ${fecha(r.ultimoRebalanceo)}` : ''}{c.objetivo ? ` · ${c.objetivo}` : ''}</p>

@@ -267,7 +267,7 @@ function Posiciones({ titulo, filas, incompletas }: { titulo: string; filas: Pos
     <Tarjeta titulo={titulo}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[32rem] text-right tabular">
-          <thead className="text-[12px] text-suave">
+          <thead className="rotulo">
             <tr className="border-b border-borde">
               <th className="py-1 text-left font-normal">Nombre</th>
               <th className="text-left font-normal">Sector</th>

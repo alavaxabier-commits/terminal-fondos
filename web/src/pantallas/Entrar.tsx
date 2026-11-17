@@ -43,14 +43,14 @@ export default function Entrar() {
     <div className="flex min-h-full items-center justify-center p-6">
       {enviado ? (
         <div className="w-full max-w-sm space-y-4">
-          <h1 className="flex items-center gap-2 text-xl!"><i aria-hidden="true" className="inline-block h-3 w-3 rounded-xs bg-acento" />Terminal de fondos</h1>
+          <h1 className="border-b-[3px] border-once pb-1 text-3xl!">Terminal de fondos</h1>
           <p>Te hemos enviado un enlace a <span className="text-acento">{correo}</span>.</p>
           <p className="text-suave">Ábrelo en este mismo dispositivo. Si no llega en un par de minutos, mira en spam.</p>
           <button className="text-suave underline" onClick={() => setEnviado(false)}>volver</button>
         </div>
       ) : (
         <form onSubmit={entrar} className="w-full max-w-sm space-y-4">
-          <h1 className="flex items-center gap-2 text-xl!"><i aria-hidden="true" className="inline-block h-3 w-3 rounded-xs bg-acento" />Terminal de fondos</h1>
+          <h1 className="border-b-[3px] border-once pb-1 text-3xl!">Terminal de fondos</h1>
           <input type="email" required autoFocus placeholder="correo" aria-label="Correo" value={correo}
                  onChange={(e) => setCorreo(e.target.value)} className={campo} autoComplete="email" />
           <input type="password" required placeholder="contraseña" value={clave} aria-label="Contraseña"

@@ -3,6 +3,8 @@ import { cifra, hoy, pct } from '../calculo/formato'
 import { aPesosTipo, BLOQUES, grupoPesos, GRUPOS_PESOS, NOMBRE_BLOQUE, PESOS_TIPO_DEFECTO, PLAZOS, pesosEfectivos, type Bloque, type GrupoPesos, type PesosTipo, type Plazo } from '../calculo/nota'
 import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
 import Franja from '../componentes/Franja'
+import Mini from '../componentes/Mini'
+import { movimiento, tintas, ultimaSemana, viejo, zona, type Puestos } from '../calculo/jornada'
 import Tarjeta from '../componentes/Tarjeta'
 import TarjetaFondo from '../componentes/TarjetaFondo'
 import type { Senal } from '../calculo/senales'
@@ -12,6 +14,9 @@ import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
 
 const POR_PAGINA = 100
+/** Lo de la jornada que necesitan las filas: puestos de la nota guardada, carteras de cada fondo y la tinta de cada cartera. */
+type Jornada = { puestos: Map<string, Puestos>; ultima: string; carteras: Map<string, { id: number; nombre: string }[]>; tinta: Map<number, string> }
+const fechaCorta = (f: string) => new Date(f + 'T12:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 const control = 'rounded-md border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento'
 const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 /** Color de cada bloque de la nota: el mismo en los pesos, en la barra de cada fondo y en la leyenda. Seis bloques no caben en
@@ -53,6 +58,8 @@ export default function Screener() {
   const [panel, setPanel] = useState<'filtros' | 'pesos' | null>(null)
   const [cats, setCats] = useState<Awaited<ReturnType<typeof q.categoriasReferencia>> | null>(null)
   const [senales, setSenales] = useState<Map<string, Senal[]>>(new Map())
+  const [puestos, setPuestos] = useState<Map<string, Puestos> | null>(null)
+  const [deCarteras, setDeCarteras] = useState<Map<string, { id: number; nombre: string }[]>>(new Map())
   const [nombrePerfil, setNombrePerfil] = useState('')
   const [guardado, setGuardado] = useState('')
   // con el tipo monetario, el ranking cambia a la vista Monetarios (por defecto, por 3M); al salir, vuelve a la nota
@@ -66,6 +73,9 @@ export default function Screener() {
     q.carteras().then(setCarteras).catch(falla)
     q.seguimiento().then((s) => setSeguidos(new Set(s.map((x) => x.isin)))).catch(falla)
     q.categoriasReferencia().then(setCats).catch(falla)
+    // la jornada: si falla, la tabla sale sin puestos ni movimientos (y lo dice la leyenda)
+    q.puestos().then(setPuestos).catch(() => setPuestos(new Map()))
+    q.fondosEnCarteras().then(setDeCarteras).catch(falla)
     // señales de revisión de los fondos de las carteras, para la tarjeta (si fallan, la tarjeta sale sin ellas)
     revisar().then((r) => {
       const m = new Map<string, Senal[]>()
@@ -114,6 +124,9 @@ export default function Screener() {
   const totalPesos = BLOQUES.reduce((s, k) => s + (k === 'diversificacion' && !div ? 0 : editados[k]), 0)
   const pesoReal = (k: Bloque) => (k === 'diversificacion' && !div ? 0 : editados[k] / (totalPesos || 1))
   const elegido = puntuados.find((f) => f.isin === sel) ?? null
+  const jornada = useMemo<Jornada>(() => ({
+    puestos: puestos ?? new Map(), ultima: ultimaSemana((puestos ?? new Map()).values()), carteras: deCarteras, tinta: tintas(carteras.map((c) => c.id)),
+  }), [puestos, deCarteras, carteras])
   const categorias = useMemo(() => {
     const n = new Map<string, number>()
     for (const f of datos ?? [])
@@ -200,9 +213,9 @@ export default function Screener() {
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
-        <div className="space-y-2">
-          <p className="rotulo text-acento!">{monetarios ? 'Universo · vista monetarios: rendimiento reciente' : 'Universo · nota 0–100 dentro de su categoría'}</p>
+        <div className="space-y-1">
           <h1 className="text-3xl! sm:text-4xl!">Screener</h1>
+          <p className="text-[13px] text-suave">{monetarios ? 'Vista monetarios: rendimiento reciente.' : 'Cada categoría es una liga: nota de 0 a 100 dentro de su categoría.'}</p>
         </div>
         <div role="group" aria-label="Modo de ranking" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
           {(['juntos', 'separados', 'indexados', 'activos'] as Modo[]).map((m) => (
@@ -211,6 +224,16 @@ export default function Screener() {
           ))}
         </div>
       </header>
+
+      {/* Pestañas de liga: el tipo de activo (el mismo filtro que en el panel). */}
+      <div role="group" aria-label="Tipo de activo" className="flex gap-0.5 overflow-x-auto border-b-2 border-texto">
+        {([undefined, ...TIPOS] as (Filtros['tipo'] | undefined)[]).map((t) => (
+          <button key={t ?? 'todos'} aria-pressed={filtros.tipo === t} onClick={() => filtrar({ tipo: t, grupo: undefined, categoria: undefined })}
+            className={`estrecha whitespace-nowrap px-3.5 pb-1 pt-1.5 text-[15px] font-bold uppercase ${filtros.tipo === t ? 'bg-texto text-fondo' : 'bg-borde/60 text-texto hover:bg-borde'}`}>
+            {t ?? 'Todos'}
+          </button>
+        ))}
+      </div>
 
       {datos ? <Franja cifras={franja} /> : <p className="text-suave">Cargando el universo…</p>}
 
@@ -375,8 +398,8 @@ export default function Screener() {
           {listas.map(([titulo, filas]) => (
             <Tarjeta key={titulo} titulo={titulo ? `${titulo} · ${filas.length}` : undefined}>
               {monetarios
-                ? <TablaMonetarios filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} />
-                : <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} pocos={pocos} plazo={plazo} pesos={pesos} />}
+                ? <TablaMonetarios filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} jornada={jornada} />
+                : <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} pocos={pocos} plazo={plazo} pesos={pesos} jornada={jornada} cargandoJornada={puestos == null} />}
               {filas.length > mostrar && (
                 <button onClick={() => setMostrar((n) => n + POR_PAGINA)} className="boton mt-3 text-[13px]">Ver {Math.min(POR_PAGINA, filas.length - mostrar)} más</button>
               )}
@@ -386,6 +409,7 @@ export default function Screener() {
             {monetarios
               ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. En clases de distribución el cupón no entra y la cifra sale baja. Pasa el cursor por una cifra para ver su percentil.'
               : 'La barra de la nota se reparte por bloques, con los colores de los pesos. 3A: métricas a 3 años · «de N»: categoría con pocos fondos · ★ ya en seguimiento. Al final, los fondos con menos de 3 años, sin nota. Sin gestión conocida, un fondo cuenta como activo.'}
+            {' '}La jornada (franja azul: cuartil alto de su categoría; roja: cuartil bajo; «Sem.»: puestos ganados o perdidos; la línea: su puesto en las últimas 8 semanas, arriba es mejor) sale de la nota guardada cada lunes con los pesos por defecto, no de los pesos de esta pantalla. Un puesto tachado es de una semana anterior. En amarillo, los fondos de tus carteras, con el cuadro del color de cada una.
           </p>
         </div>
         {elegido && (
@@ -435,7 +459,7 @@ function CampoNumero({ valor, cambiar }: { valor: number | undefined; cambiar: (
 
 type PropsTabla = {
   filas: Puntuado[]; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; conCategoria: boolean
-  orden: Orden; setOrden: (o: Orden) => void
+  orden: Orden; setOrden: (o: Orden) => void; jornada: Jornada
 }
 
 /** Cabecera ordenable: la flecha dice hacia dónde (↑ de menor a mayor, para las cifras donde menos es mejor). */
@@ -449,9 +473,13 @@ function Cabecera({ o, texto, titulo, orden, setOrden, clase = '' }: { o: Orden;
 }
 
 /** Nombre, etiquetas y categoría de un fondo en la lista. */
-function CeldaFondo({ f, conCategoria, extra }: { f: Puntuado; conCategoria: boolean; extra?: React.ReactNode }) {
+function CeldaFondo({ f, conCategoria, extra, jornada }: { f: Puntuado; conCategoria: boolean; extra?: React.ReactNode; jornada: Jornada }) {
   return (
     <td className="whitespace-normal py-2 pl-3 text-left">
+      {jornada.carteras.get(f.isin)?.map((c) => (
+        <i key={c.id} title={`En la cartera ${c.nombre}`} aria-label={`En la cartera ${c.nombre}`} role="img"
+          className="mr-1.5 inline-block h-2.5 w-2.5 align-[0px]" style={{ background: jornada.tinta.get(c.id) }} />
+      ))}
       <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.nombre}</a>
       {f.myinvestor && <span className="ml-1.5 rounded-sm bg-acento/15 px-1.5 align-[1px] text-[10px] text-acento" title="Se puede comprar en MyInvestor">MI</span>}
       {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-sm bg-borde/60 px-1.5 align-[1px] text-[10px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
@@ -461,12 +489,18 @@ function CeldaFondo({ f, conCategoria, extra }: { f: Puntuado; conCategoria: boo
   )
 }
 
-function Fila({ f, i, sel, setSel, seguidos, seguir, children }: { f: Puntuado; i: number | null; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; children: React.ReactNode }) {
+/** Fila de la clasificación: franja de zona al borde, tinte de zona (o amarillo si es tuyo), filete fuerte cada cinco filas. */
+function Fila({ f, i, k, sel, setSel, seguidos, seguir, jornada, children }: { f: Puntuado; i: number | null; k: number; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; jornada: Jornada; children: React.ReactNode }) {
   const elegida = sel === f.isin
+  const p = jornada.puestos.get(f.isin)
+  const z = p ? zona(p.puestos.at(-1)!, p.de) : 'media'
+  const tuyo = jornada.carteras.has(f.isin)
+  const fondo = elegida ? 'bg-acento/15' : tuyo ? 'bg-tuyo' : z === 'alta' ? 'bg-tinte-alta' : z === 'baja' ? 'bg-tinte-baja' : 'hover:bg-borde/30'
+  const franja = z === 'alta' ? 'shadow-[inset_5px_0_0_var(--color-zona-alta)]' : z === 'baja' ? 'shadow-[inset_5px_0_0_var(--color-zona-baja)]' : ''
   return (
     <tr data-isin={f.isin} aria-selected={elegida} onClick={() => setSel(f.isin)}
-      className={`cursor-pointer border-t border-borde/60 ${elegida ? 'bg-acento/8' : 'hover:bg-borde/25'}`}>
-      <td className={`py-2 pl-1 text-left text-suave ${elegida ? 'shadow-[inset_2px_0_0_var(--color-acento)]' : ''}`}>{i ?? ''}</td>
+      className={`cursor-pointer border-t ${k > 0 && k % 5 === 0 ? 'border-texto/60' : 'border-borde/70'} ${fondo}`}>
+      <td className={`estrecha py-2 pl-3 text-left text-[17px] font-extrabold leading-none ${franja} ${elegida ? 'text-acento' : ''}`}>{i ?? ''}</td>
       {children}
       <td className="pl-2">
         <button onClick={(e) => { e.stopPropagation(); if (!seguidos.has(f.isin)) seguir(f.isin) }} aria-label={seguidos.has(f.isin) ? 'En seguimiento' : 'Añadir a seguimiento'}
@@ -480,15 +514,30 @@ function Fila({ f, i, sel, setSel, seguidos, seguir, children }: { f: Puntuado; 
 const ConPct = ({ v, p, texto, clase = '' }: { v: number | null; p: number | null; texto: string; clase?: string }) =>
   <td className={`pl-3 ${v == null ? 'text-suave' : clase}`} title={p == null ? undefined : `Percentil ${Math.round(p)} en su categoría (100 = mejor)`}>{v == null ? '—' : texto}</td>
 
-function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, pesos }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; pesos: PesosTipo }) {
+/** Puestos ganados o perdidos en la semana; tachado con su fecha si el último puesto no es de esta semana. */
+function CeldaSemana({ p, ultima }: { p: Puestos | undefined; ultima: string }) {
+  if (!p) return <td className="pl-3 text-suave">—</td>
+  const v = viejo(p, ultima), m = movimiento(p)
+  if (v) return <td className="pl-3 text-left text-suave" title={`Sin nota esta semana: su último puesto es del ${fechaCorta(v)}`}><s>{p.puestos.at(-1)}.º</s> <span className="text-[11px] text-baja">{fechaCorta(v)}</span></td>
+  return (
+    <td className={`estrecha pl-3 text-left text-[15px] font-bold ${m == null || m === 0 ? 'text-suave' : m > 0 ? 'text-zona-alta' : 'text-zona-baja'}`}
+      title={`Puesto ${p.puestos.at(-1)} de ${p.de} en su categoría${m ? (m > 0 ? `; sube ${m}` : `; baja ${-m}`) : ''}`}>
+      {m == null ? 'nuevo' : m > 0 ? `▲ ${m}` : m < 0 ? `▼ ${-m}` : '='}
+    </td>
+  )
+}
+
+function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, pesos, jornada, cargandoJornada }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; pesos: PesosTipo; cargandoJornada: boolean }) {
   const cab = { orden, setOrden }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[46rem] whitespace-nowrap text-right text-[13px] tabular">
-        <thead className="text-[12px] text-suave">
+      <table className="w-full min-w-[54rem] whitespace-nowrap text-right text-[13px] tabular">
+        <thead className="rotulo">
           <tr>
-            <th className="w-8 pb-1.5 pl-1 text-left font-normal">#</th>
+            <th className="w-10 pb-1.5 pl-3 text-left font-normal">#</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
+            <th className="pb-1.5 pl-3 text-left font-normal" title="Puestos ganados o perdidos en su categoría desde la semana anterior (nota guardada)">{cargandoJornada ? 'Sem. …' : 'Sem.'}</th>
+            <th className="pb-1.5 pl-3 text-left font-normal" title="Su puesto en la categoría en las últimas 8 semanas (arriba, mejor)">8 sem.</th>
             <Cabecera o="nota" texto="Nota" clase="text-left" {...cab} />
             <Cabecera o="ter" texto="TER" {...cab} />
             <Cabecera o="r3" texto="3 años" titulo="Rentabilidad anualizada a 3 años" {...cab} />
@@ -502,15 +551,18 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
           {filas.map((f, i) => {
             const w = pesosEfectivos(f.bloques, pesos[grupoPesos(f.categoria, f.gestion === 'indexada')])
             return (
-              <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
-                <CeldaFondo f={f} conCategoria={conCategoria} extra={<>
+              <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
+                <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} extra={<>
                   {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
                   {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
                 </>} />
+                <CeldaSemana p={jornada.puestos.get(f.isin)} ultima={jornada.ultima} />
+                <td className="pl-3 text-left">{(jornada.puestos.get(f.isin)?.puestos.length ?? 0) > 1
+                  ? <Mini valores={jornada.puestos.get(f.isin)!.puestos.map((x) => -x)} color="texto" className="h-4 w-16" /> : null}</td>
                 <td className="pl-3 text-left">
                   {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span> : (
                     <span className="inline-flex items-center gap-2">
-                      <span className="cifra w-[3ch] shrink-0 text-right text-xl leading-none">{Math.round(f.nota)}</span>
+                      <span className="cifra w-[3ch] shrink-0 text-right text-[21px] font-extrabold leading-none">{Math.round(f.nota)}</span>
                       <span aria-hidden className="flex h-1.5 w-20 gap-px overflow-hidden rounded-sm bg-borde/60">
                         {BLOQUES.filter((k) => w[k]).map((k) => <span key={k} style={{ width: `${w[k]! * f.bloques[k]!}%`, background: COLOR_BLOQUE[k] }} />)}
                       </span>
@@ -531,20 +583,20 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
 }
 
 /** Vista Monetarios: rendimiento reciente en lugar de la nota (especificación, «Vista Monetarios»). */
-function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden }: PropsTabla) {
+function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, jornada }: PropsTabla) {
   const cab = { orden, setOrden }
   const c = (f: Puntuado, k: string) => [cifraDe(f, k), percentilDe(f, k)] as const
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[50rem] whitespace-nowrap text-right text-[13px] tabular">
-        <thead className="text-[12px] text-suave">
+        <thead className="rotulo">
           <tr className="text-[11px]">
             <th colSpan={2} />
             <th colSpan={3} className="border-b border-borde pb-1 pl-3 text-center font-normal">Lo que rinde ahora, en % anual</th>
             <th colSpan={5} />
           </tr>
           <tr>
-            <th className="w-8 pb-1.5 pl-1 text-left font-normal">#</th>
+            <th className="w-10 pb-1.5 pl-3 text-left font-normal">#</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
             <Cabecera o="m1" texto="Último mes" titulo="Lo que ha ganado el último mes, pasado a un año (% anual)" {...cab} />
             <Cabecera o="m2" texto="2 meses" titulo="Lo que ha ganado en los últimos 2 meses, pasado a un año (% anual)" {...cab} />
@@ -561,8 +613,8 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
             const [dif, pDif] = c(f, '3m|diferencial_estr')
             const [neg, pNeg] = c(f, '12m|meses_negativos')
             return (
-              <Fila key={f.isin} f={f} i={i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
-                <CeldaFondo f={f} conCategoria={conCategoria} />
+              <Fila key={f.isin} f={f} i={i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
+                <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} />
                 {(['1m|rentabilidad', '2m|rentabilidad', '3m|rentabilidad'] as const).map((k) => {
                   const [v, p] = c(f, k)
                   return <ConPct key={k} v={v} p={p} texto={pct(v, 2, false)} clase={k === '3m|rentabilidad' ? 'font-medium' : ''} />

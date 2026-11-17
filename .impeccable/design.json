@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T17:00:00Z",
+  "title": "Design System: Terminal de fondos",
+  "extensions": {
+    "colorMeta": {
+      "azul-liga": { "role": "primary", "displayName": "Azul de liga", "canonical": "#1d4f9f", "dark": "#86aef0" },
+      "zona-baja": { "role": "secondary", "displayName": "Rojo de liga", "canonical": "#c0392b", "dark": "#d9574a" },
+      "amarillo-once": { "role": "secondary", "displayName": "Amarillo once", "canonical": "#f0c23a", "dark": "#e2b52e" },
+      "papel": { "role": "neutral", "displayName": "Papel", "canonical": "#f3f2ec", "dark": "#111214" },
+      "tinta": { "role": "neutral", "displayName": "Tinta", "canonical": "#141414", "dark": "#ecebe6" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Título de pantalla", "purpose": "h1 de cada pantalla, en mayúsculas." },
+      "cifra": { "displayName": "Cifra de liga", "purpose": "Puestos, notas y cifras que se comparan entre filas." },
+      "label": { "displayName": "Rótulo", "purpose": "Cabeceras de tabla y de bloque." }
+    },
+    "shadows": [
+      { "name": "franja-zona", "value": "inset 5px 0 0 var(--color-zona-alta | --color-zona-baja)", "purpose": "Marca de zona al borde de la fila, no profundidad." },
+      { "name": "pantalla-actual", "value": "inset 0 -3px 0 var(--color-once)", "purpose": "Subrayado de la pantalla actual en la cabecera." }
+    ],
+    "motion": [
+      { "name": "cambio-color", "value": "color, background-color, border-color, box-shadow .15s", "purpose": "Único movimiento: cambios de color al pasar o elegir; nada con reduced-motion." }
+    ],
+    "breakpoints": [ { "name": "sm", "value": "640px" }, { "name": "md", "value": "768px" }, { "name": "lg", "value": "1024px" } ]
+  },
+  "components": [
+    { "name": "Pestaña de liga", "kind": "nav", "refersTo": "tab-liga", "description": "Tipo de activo en el Screener.",
+      "html": "<div class=\"ds-tabs\"><button class=\"on\">Todos</button><button>Renta variable</button></div>",
+      "css": ".ds-tabs{display:flex;gap:2px;border-bottom:2px solid #141414}.ds-tabs button{font:700 15px 'Barlow Condensed',sans-serif;text-transform:uppercase;padding:6px 14px 4px;background:#dcdad1;color:#141414;border:0}.ds-tabs .on{background:#141414;color:#f3f2ec}" },
+    { "name": "Once", "kind": "custom", "refersTo": "once", "description": "Puesto de un fondo de cartera en su liga.",
+      "html": "<span class=\"ds-once\">4.º</span> <small>de 98</small>",
+      "css": ".ds-once{font:800 16px 'Barlow Condensed',sans-serif;background:#f0c23a;color:#141414;padding:0 6px;min-width:3.25rem;display:inline-block;text-align:center}" }
+  ],
+  "narrative": {
+    "northStar": "La jornada",
+    "overview": "Cada categoría es una liga y el Screener su clasificación del lunes: puesto, zona, movimiento de la semana y tus fondos en amarillo, sobre papel claro con cabecera negra.",
+    "keyCharacteristics": ["Cabecera negra con subrayado amarillo", "Estrecha pesada para puestos y notas", "Franja y tinte de zona", "Filete cada cinco filas", "Un color fijo por cartera"],
+    "rules": [
+      { "name": "La regla del amarillo", "body": "El amarillo es solo para lo tuyo.", "section": "colors" },
+      { "name": "La regla de la zona", "body": "Azul y rojo de liga marcan cuartiles, no decoran.", "section": "colors" },
+      { "name": "La regla de la estrecha", "body": "Lo que se compara entre filas va en la estrecha pesada.", "section": "typography" }
+    ],
+    "dos": ["Do tachar con su fecha un dato viejo", "Do usar la tinta fija de cada cartera"],
+    "donts": ["Don't poner antetítulos", "Don't usar sombras ni degradados", "Don't decorar con los colores de liga"]
+  }
+}

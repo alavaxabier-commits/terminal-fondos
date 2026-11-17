@@ -99,7 +99,7 @@ export function MetricasCartera({ calc }: { calc: CalculoCartera }) {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] tabular">
                 <thead>
-                  <tr className="text-[12px] text-suave">
+                  <tr className="rotulo">
                     <th className="pb-1.5 text-left font-normal" />
                     {ventanas.map((v) => <th key={v} className="w-[14%] pb-1.5 pl-4 text-right font-normal">{plazo(v)}</th>)}
                   </tr>
@@ -151,7 +151,7 @@ export function Aportacion({ calc, fondos }: { calc: CalculoCartera; fondos: Fon
       <div className="overflow-x-auto">
         <table className="w-full min-w-[40rem] text-right tabular text-[13px] whitespace-nowrap">
           <thead>
-            <tr className="text-[12px] text-suave">
+            <tr className="rotulo">
               <th className="pb-1.5 text-left font-normal">Fondo</th>
               <th className="pl-3 font-normal">Peso</th>
               <th className="pl-3 font-normal">Hoy</th>

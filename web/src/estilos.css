@@ -1,64 +1,76 @@
 @import "tailwindcss";
 
-/* Estética «noche y azul cielo» (paleta blue-black-cornflower de design-taste-frontend, para fintech): Urbanist para leer y para
-   las cifras grandes, DM Mono para códigos y etiquetas, esquinas rectas. Azul de acento; verde/rojo solo para subir/bajar
-   (siempre con signo o símbolo) y ámbar para avisos. Claro cálido sin blanco puro; oscuro con data-tema="oscuro" o, sin
-   elección, si el sistema lo pide. Contraste del texto ≥ 4,5:1 medido en los dos temas.
-   Base «suavizada»: los mismos tonos con menos saturación, nada fluorescente.
-   Series (serie1…3): tinta, ocre y frambuesa, apagadas, sin verde y lejos de «sube», «baja» y «aviso» (ΔE ≥ 13);
-   validadas con el script de dataviz con todos los pares a la vez, en los dos temas. serie4 y serie5: dos grises,
-   uno marcado y otro tenue (dataviz: más de tres colores no se leen juntos); llevan el nombre al final de la línea. */
+/* Estética «La jornada»: cada categoría es una liga (dirección en .impeccable/surfaces/web-src-app-tsx.md).
+   Papel claro y tinta negra; cabecera negra; azul de liga para la zona alta, la selección y el acento; rojo de liga para la
+   zona baja; amarillo («once») solo para los fondos de tus carteras. Barlow para leer, Barlow Condensed pesada para puestos,
+   notas, cifras y rótulos; DM Mono solo para códigos (ISIN). Esquinas casi rectas, filetes en vez de sombras.
+   Verde y rojo apagados solo para subir/bajar (siempre con signo o símbolo); ámbar para avisos. Texto ≥ 4,5:1 en los dos temas.
+   Series (serie1…5): las validadas con dataviz (tinta, ocre, frambuesa y dos grises), sin cambios. */
 @theme static {  /* static: todas las variables, también las que solo se leen desde JS (token(), var(--color-${…})) */
-  --font-sans: "Urbanist", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-estrecha: "Barlow Condensed", "Barlow", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
   --radius-xs: 1px;
   --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --color-fondo: #f3efe8;
-  --color-panel: #faf8f4;
-  --color-borde: #e2ddd3;
-  --color-texto: #1a1814;
-  --color-suave: #5e5a54;
-  --color-acento: #2f5f93;
-  --color-sobre-acento: #faf8f4;
-  --color-sube: #2e6a4c;
-  --color-baja: #9a4535;
-  --color-aviso: #7a5e22;
-  --color-gris: #9a978f;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --color-fondo: #f3f2ec;
+  --color-panel: #fbfaf6;
+  --color-borde: #dcdad1;
+  --color-texto: #141414;
+  --color-suave: #5c5a53;
+  --color-acento: #1d4f9f;
+  --color-sobre-acento: #ffffff;
+  --color-sube: #2b6a3f;
+  --color-baja: #b0352a;
+  --color-aviso: #85600f;
+  --color-gris: #8a887f;
+  --color-cabecera: #141414;
+  --color-sobre-cabecera: #f3f2ec;
+  --color-once: #f0c23a;
+  --color-sobre-once: #141414;
+  --color-tuyo: #fbefc6;
+  --color-zona-alta: #1d4f9f;
+  --color-zona-baja: #c0392b;
+  --color-tinte-alta: #e6ecf6;
+  --color-tinte-baja: #f6e3df;
   --color-serie1: #5e82c5;
   --color-serie2: #c48225;
   --color-serie3: #bb5c84;
   --color-serie4: #6f6b64;
   --color-serie5: #b0aca3;
 }
-/* Cifra grande: la misma letra que el resto (dataviz: nada de serifa en las cifras), proporcional y algo apretada. */
-@utility cifra { font-weight: 500; letter-spacing: -0.02em; }
+/* Cifra grande: la estrecha pesada de la liga, tabular (dataviz: nada de serifa en las cifras). */
+@utility cifra { font-family: var(--font-estrecha); font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 
 @layer base {
   :root[data-tema="oscuro"] {
-    --color-fondo: #0d1117; --color-panel: #161b24; --color-borde: #262d39; --color-texto: #e6e8ec; --color-suave: #8e95a2;
-    --color-acento: #7fb2de; --color-sobre-acento: #0d1117; --color-sube: #7cc39f; --color-baja: #e8978a; --color-aviso: #d6b574; --color-gris: #5d6577;
+    --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
+    --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
+    --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
+    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #18233a; --color-tinte-baja: #34201d;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
     color-scheme: dark;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-tema]) {
-      --color-fondo: #0d1117; --color-panel: #161b24; --color-borde: #262d39; --color-texto: #e6e8ec; --color-suave: #8e95a2;
-      --color-acento: #7fb2de; --color-sobre-acento: #0d1117; --color-sube: #7cc39f; --color-baja: #e8978a; --color-aviso: #d6b574; --color-gris: #5d6577;
-      --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
+      --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
+    --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
+    --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
+    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #18233a; --color-tinte-baja: #34201d;
+    --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
       color-scheme: dark;
     }
   }
 
-  /* Movimiento discreto de la skill de diseño: los botones suben 1 px al pasar el ratón y bajan al pulsar; foco siempre visible. */
-  button, [role="tab"], a { transition: color .15s, background-color .15s, border-color .15s, transform .15s; }
-  button:not(:disabled):hover { transform: translateY(-1px); }
-  button:not(:disabled):active { transform: translateY(1px); }
+  /* Movimiento: solo cambios de color; el foco, siempre visible. Lo que pinta el navegador (selección, cursor de texto,
+     barras de desplazamiento, casillas y deslizadores) también con la paleta. */
+  button, [role="tab"], a { transition: color .15s, background-color .15s, border-color .15s, box-shadow .15s; }
   :focus-visible { outline: 2px solid var(--color-acento); outline-offset: 2px; }
+  :root { accent-color: var(--color-acento); caret-color: var(--color-acento); scrollbar-color: var(--color-gris) transparent; }
+  a { text-underline-offset: 3px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; }
-    button:not(:disabled):hover, button:not(:disabled):active { transform: none; }
   }
 }
 
@@ -75,8 +87,10 @@
   &:hover:not(:disabled) { background: color-mix(in srgb, var(--color-acento) 88%, var(--color-texto)); }
   &:disabled { background: transparent; border-color: var(--color-borde); color: var(--color-suave); cursor: default; }
 }
-/* Etiqueta pequeña en mayúsculas (códigos, cabeceras de bloque): la mono de la paleta. */
-@utility rotulo { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-suave); }
+/* Rótulo de liga: estrecha, mayúsculas y algo de aire (cabeceras de bloque y de tabla). */
+@utility rotulo { font-family: var(--font-estrecha); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-suave); }
+/* Cifra de liga: puestos y notas en la estrecha pesada, con números tabulares. */
+@utility estrecha { font-family: var(--font-estrecha); font-variant-numeric: tabular-nums; }
 
 html, body, #raiz { height: 100%; }
 body {
@@ -84,11 +98,12 @@ body {
   color: var(--color-texto);
   font-family: var(--font-sans);
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
-::selection { background: color-mix(in srgb, var(--color-acento) 25%, transparent); }
+::selection { background: var(--color-once); color: var(--color-sobre-once); }
 input, select, textarea { font: inherit; }
 .tabular { font-variant-numeric: tabular-nums; }
 /* Fuera de capa a propósito: manda sobre text-lg/font-bold de los h1 de cada pantalla. */
-h1 { font-weight: 500; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.03em; }
+h1 { font-family: var(--font-estrecha); font-weight: 800; font-size: 2rem; line-height: 1.05; letter-spacing: 0; text-transform: uppercase; text-wrap: balance; }

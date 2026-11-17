@@ -35,7 +35,7 @@ export default function Revision() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-bold text-acento">Revisión</h1>
+        <h1 className="text-3xl! sm:text-4xl!">Revisión</h1>
         <p className="text-suave">
           {marcados.length} fondos marcados en {new Set(marcados.map((m) => m.cartera.id)).size} de {datos.carteras.length} carteras
           {semana && ` · nota de la semana del ${fecha(semana)} (pesos por defecto, sin Diversificación)`}

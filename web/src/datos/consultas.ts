@@ -148,6 +148,23 @@ export async function clases(fundId: string): Promise<Fondo[]> {
 }
 
 /** Carteras (no archivadas) en las que está un fondo, con su peso. */
+/** Puestos de cada fondo en su categoría en las últimas 8 semanas (nota guardada): una llamada, ≈2 s. */
+export async function puestos(): Promise<Map<string, import('../calculo/jornada').Puestos>> {
+  const { data, error: e } = await supabase.rpc('puestos_semanales')
+  error(e)
+  return new Map(Object.entries((data ?? {}) as Record<string, import('../calculo/jornada').Puestos>))
+}
+
+/** En qué carteras (no archivadas) está cada fondo: para la tinta de cartera y el «once» del Screener. */
+export async function fondosEnCarteras(): Promise<Map<string, { id: number; nombre: string }[]>> {
+  const { data, error: e } = await supabase.from('cartera_fondo').select('isin,cartera!inner(id,nombre,archivada)').eq('cartera.archivada', false)
+  error(e)
+  const m = new Map<string, { id: number; nombre: string }[]>()
+  for (const x of (data ?? []) as unknown as { isin: string; cartera: { id: number; nombre: string } }[])
+    m.set(x.isin, [...(m.get(x.isin) ?? []), { id: x.cartera.id, nombre: x.cartera.nombre }])
+  return m
+}
+
 export async function carterasDe(isin: string): Promise<{ id: number; nombre: string; peso: number }[]> {
   const { data, error: e } = await supabase.from('cartera_fondo').select('peso,cartera!inner(id,nombre,archivada)')
     .eq('isin', isin).eq('cartera.archivada', false)

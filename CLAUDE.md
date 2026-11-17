@@ -1,6 +1,6 @@
 # Terminal de fondos · nota técnica
 
-App personal de Xabier (un solo usuario) para seguir fondos y escoger candidatos para **carteras modelo**. Estética «noche y azul cielo» (Urbanist y DM Mono, esquinas rectas; tokens en `web/src/estilos.css`, con los colores de las series validados con dataviz), con tema claro u oscuro (botón sol/luna en la cabecera, `componentes/tema.ts`; sin elección guardada, el del sistema); los colores de los gráficos son nombres de token. Independiente de la app de Finanzas.
+App personal de Xabier (un solo usuario) para seguir fondos y escoger candidatos para **carteras modelo**. Estética «La jornada»: cada categoría es una liga (Barlow y Barlow Condensed, DM Mono solo para ISIN, cabecera negra, amarillo solo para lo tuyo; sistema en `DESIGN.md`, tokens en `web/src/estilos.css`, con los colores de las series validados con dataviz; puesto, zona y movimiento semanal salen de `fondos.puestos_semanales()` y `calculo/jornada.ts`), con tema claro u oscuro (botón sol/luna en la cabecera, `componentes/tema.ts`; sin elección guardada, el del sistema); los colores de los gráficos son nombres de token. Independiente de la app de Finanzas.
 Responde y escribe en **español**. Prioriza la simplicidad. Explica las decisiones y pregunta cuando haga falta.
 El código manda: esta nota solo dice dónde está cada cosa y qué no se puede romper. Qué hace cada fase y por qué: la especificación (Claude Doc «Terminal de fondos — Especificación»).
 

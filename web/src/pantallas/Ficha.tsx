@@ -205,9 +205,9 @@ export default function Ficha({ isin }: { isin: string }) {
     <article className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         <div className="min-w-0 space-y-2">
-          <p className="rotulo text-acento!">{f.categoria ?? 'sin categoría'}</p>
           <h1 className="text-3xl! sm:text-4xl!">{f.nombre}</h1>
           <div className="flex flex-wrap gap-1.5 text-suave">
+            <Pastilla>{f.categoria ?? 'sin categoría'}</Pastilla>
             <Pastilla className="font-mono">{f.isin}</Pastilla>
             <Pastilla>{f.divisa}{cubierta(f.nombre) && ' cubierta'}</Pastilla>
             {f.gestion && <Pastilla>{f.gestion === 'indexada' ? 'Indexado' : 'Gestión activa'}</Pastilla>}
@@ -378,7 +378,7 @@ export default function Ficha({ isin }: { isin: string }) {
               <Tarjeta titulo="Rendimiento reciente" extra={<span className="text-[12px] text-suave">monetario · anualizado, con la serie diaria y neto de gastos</span>}>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[520px] tabular">
-                    <thead><tr className="text-[12px] text-suave"><th />{['Último mes', '2 meses', '3 meses'].map((t) => <th key={t} className="w-[20%] pb-1.5 pl-4 text-right font-normal">{t}</th>)}</tr></thead>
+                    <thead><tr className="rotulo"><th />{['Último mes', '2 meses', '3 meses'].map((t) => <th key={t} className="w-[20%] pb-1.5 pl-4 text-right font-normal">{t}</th>)}</tr></thead>
                     <tbody>
                       {([['rentabilidad', 'Lo que rinde ahora, en % anual', 'Lo ganado en ese tiempo, pasado a un año.'], ['diferencial_estr', 'Frente al €STR', 'Lo que rinde de más sobre el €STR medio de esos meses.']] as const).map(([k, et, ayuda]) => (
                         <tr key={k} className="border-t border-borde/60">
@@ -411,7 +411,7 @@ export default function Ficha({ isin }: { isin: string }) {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[600px] tabular">
                     <thead>
-                      <tr className="text-[12px] text-suave">
+                      <tr className="rotulo">
                         <th className="pb-1.5 text-left font-normal" />
                         {RANGOS.map(([v]) => <th key={v} className="w-[14%] pb-1.5 pl-4 text-right font-normal">{v === '1a' ? '1 año' : `${v.slice(0, -1)} años`}</th>)}
                       </tr>
