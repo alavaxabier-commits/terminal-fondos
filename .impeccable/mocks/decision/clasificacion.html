@@ -175,7 +175,6 @@ const CART=[['Vanguard Glb Stk Idx',40,1],['Amundi Prime Euro Govies',30,4],['Al
 // Línea de puestos: 1 arriba; escala fija 1..10 en los dos ejes.
 function spark(h,w=70,hh=18,col='#141414'){const x=i=>(i/(h.length-1))*(w-4)+2,y=p=>((p-1)/9)*(hh-4)+2;
  return `<svg class="spark" width="${w}" height="${hh}" viewBox="0 0 ${w} ${hh}"><polyline fill="none" stroke="${col}" stroke-width="1.5" points="${h.map((p,i)=>x(i)+','+y(p)).join(' ')}"/><circle cx="${x(h.length-1)}" cy="${y(h.at(-1))}" r="2.5" fill="${col}"/></svg>`}
-const u=n=>F.length+ULT.length>0?n:n;
 
 // 1
 document.getElementById('b1').innerHTML=`<header><span class="marca">Terminal de fondos</span>${NAV}</header><div class="tabs">${TABS(0)}</div>
@@ -205,11 +204,11 @@ ${ULT.map((f,i)=>`<tr><td class="pos">${97+i}</td><td>${f[0]}</td><td><span clas
 
 // 4 · gráfico de puestos (bump): 8 semanas, puestos 1..10, escala fija
 const W=520,H=250,px=i=>40+i*((W-60)/7),py=p=>14+(p-1)*((H-34)/9);
-const top=F.slice(0,5),col=['#f0c23a','#ffffff','#9fc0f0','#ffffff99','#ffffff66'];
+const primeros=F.slice(0,5),col=['#f0c23a','#ffffff','#9fc0f0','#ffffff99','#ffffff66'];
 const bump=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Puestos de los cinco primeros en las últimas ocho semanas">
 ${Array.from({length:10},(_,k)=>`<text x="22" y="${py(k+1)+4}" fill="#ffffffaa" font-size="11" font-family="Barlow Condensed" text-anchor="end">${k+1}</text>`).join('')}
 ${Array.from({length:8},(_,i)=>`<line x1="${px(i)}" x2="${px(i)}" y1="8" y2="${H-18}" stroke="#ffffff22"/><text x="${px(i)}" y="${H-4}" fill="#ffffffaa" font-size="11" font-family="Barlow Condensed" text-anchor="middle">S${38+i}</text>`).join('')}
-${top.map((f,j)=>`<polyline fill="none" stroke="${col[j]}" stroke-width="${j==0?3.5:2}" points="${f[7].map((p,i)=>px(i)+','+py(p)).join(' ')}"/><circle cx="${px(7)}" cy="${py(f[7][7])}" r="${j==0?5:3.5}" fill="${col[j]}"/>`).join('')}
+${primeros.map((f,j)=>`<polyline fill="none" stroke="${col[j]}" stroke-width="${j==0?3.5:2}" points="${f[7].map((p,i)=>px(i)+','+py(p)).join(' ')}"/><circle cx="${px(7)}" cy="${py(f[7][7])}" r="${j==0?5:3.5}" fill="${col[j]}"/>`).join('')}
 </svg>`;
 document.getElementById('b4').innerHTML=`<header><span class="marca">Terminal de fondos</span>${NAV}</header>
 <div class="izq"><div class="tabs">${TABS(0)}</div>
