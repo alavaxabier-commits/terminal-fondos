@@ -36,7 +36,8 @@ Una herramienta personal hecha a medida: métricas calculadas como Morningstar (
 ## Brand Commitments
 
 - Nombre: «Terminal de fondos». Voz: español, directa y sobria.
-- Estética ya establecida y vinculante: «noche y azul cielo», Urbanist y DM Mono, esquinas rectas, tema claro y oscuro (botón sol/luna; sin elección, el del sistema). Tokens en `web/src/estilos.css`; colores de series validados con dataviz.
+- Rediseño en marcha (noviembre de 2026): la estética anterior («noche y azul cielo», Urbanist y DM Mono, esquinas rectas, `web/src/estilos.css`) ya no es vinculante. Nada visual se conserva por obligación: ni los temas, ni las tipografías, ni la convención de color de subidas y bajadas. Lo que no puede salir es un resultado frío, una hoja de cálculo sin carácter que no apetezca abrir. Los colores de las series se validan de nuevo con dataviz.
+- Decisión del rediseño: **la convención del sector, sin un mundo propio**, hecha al nivel de acabado de **Linear** y del **panel de Stripe**: herramienta de trabajo precisa, densa y pulida. Se descartaron dos tiradas de direcciones con mundo propio (fichero de biblioteca, clasificación deportiva, avisos de la AEMET y carta de añadas).
 - Independiente de la app de Finanzas.
 
 ## Evidence on Hand

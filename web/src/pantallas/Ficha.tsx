@@ -98,7 +98,7 @@ const BarraPercentil = ({ p }: { p: number }) => (
   </span>
 )
 export const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
-  <span className={`rounded-sm bg-borde/50 px-2.5 py-0.5 text-[12px] ${className}`}>{children}</span>
+  <span className={`rounded-md border border-borde bg-panel px-2 py-0.5 text-[12px] ${className}`}>{children}</span>
 
 /** Métricas de la pestaña, agrupadas por lo que miden, con una línea que explica cada una (claves de FILAS). */
 export const GRUPOS: [string, string, [string, string][]][] = [
@@ -205,13 +205,13 @@ export default function Ficha({ isin }: { isin: string }) {
     <article className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         <div className="min-w-0 space-y-2">
-          <p className="rotulo text-acento!">{f.categoria ?? 'sin categoría'}</p>
+          <p className="text-[13px] font-medium text-acento">{f.categoria ?? 'sin categoría'}</p>
           <h1 className="text-3xl! sm:text-4xl!">{f.nombre}</h1>
           <div className="flex flex-wrap gap-1.5 text-suave">
             <Pastilla className="font-mono">{f.isin}</Pastilla>
             <Pastilla>{f.divisa}{cubierta(f.nombre) && ' cubierta'}</Pastilla>
             {f.gestion && <Pastilla>{f.gestion === 'indexada' ? 'Indexado' : 'Gestión activa'}</Pastilla>}
-            {datos.myinvestor.has(f.isin) && <Pastilla className="bg-acento/15! text-acento">En MyInvestor</Pastilla>}
+            {datos.myinvestor.has(f.isin) && <Pastilla className="border-acento/30! bg-acento/10! text-acento">En MyInvestor</Pastilla>}
             {seguido && <Pastilla className="text-acento">★ en seguimiento</Pastilla>}
             {!f.en_universo && <Pastilla className="text-aviso">fuera del universo</Pastilla>}
           </div>
@@ -219,7 +219,7 @@ export default function Ficha({ isin }: { isin: string }) {
         <div className="flex flex-wrap gap-2">
           <button onClick={() => alternar({ isin: f.isin, nombre: f.nombre })} disabled={llena} aria-pressed={enBandeja}
             title={llena ? `Como mucho ${MAX_BANDEJA} fondos en el comparador` : undefined}
-            className={`boton ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}</button>
+            className={`boton ${enBandeja ? 'text-acento' : 'text-texto'}`}>{enBandeja ? '− Comparar' : '+ Comparar'}<kbd className="ml-1 rounded-sm border border-borde px-1 font-sans text-[11px] text-suave">C</kbd></button>
           <button onClick={seguir} disabled={seguido}
             className="boton-pri">{seguido ? '★ Siguiendo' : '★ Seguir'}</button>
         </div>

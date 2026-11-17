@@ -111,18 +111,18 @@ export default function App() {
   const comparar = ruta.match(/^#\/comparar(?:\/([A-Z0-9,]*))?$/)
   return (
     <div className="mx-auto flex min-h-full max-w-7xl flex-col">
-      <header className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde bg-fondo/95 px-4 backdrop-blur">
+      <header className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde bg-panel/95 px-4 backdrop-blur">
         <a href="#/" className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight text-texto">
           <i aria-hidden="true" className="inline-block h-3 w-3 rounded-xs bg-acento" />
           <span className="hidden sm:inline">Terminal de fondos</span>
         </a>
-        {/* Pestañas de terminal: la pantalla actual, subrayada en acento a ras del filete de la cabecera. */}
-        <nav aria-label="Pantallas" className="order-last -mb-px flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
+        {/* Navegación de herramienta: la pantalla actual, resaltada con un fondo suave. */}
+        <nav aria-label="Pantallas" className="order-last flex min-h-11 w-full min-w-0 items-center gap-0.5 overflow-x-auto md:order-none md:w-auto">
           {PANTALLAS.map(([h, t]) => {
             const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
             return (
               <a key={h} href={h} aria-current={actual ? 'page' : undefined}
-                className={`flex items-center whitespace-nowrap border-b-2 px-3 ${actual ? 'border-acento text-texto' : 'border-transparent text-suave hover:text-texto'}`}>{t}</a>
+                className={`flex items-center whitespace-nowrap rounded-md px-2.5 py-1 ${actual ? 'bg-texto/[0.07] font-medium text-texto' : 'text-suave hover:bg-texto/[0.04] hover:text-texto'}`}>{t}</a>
             )
           })}
         </nav>
