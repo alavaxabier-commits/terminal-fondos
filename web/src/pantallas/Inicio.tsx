@@ -9,8 +9,10 @@ import { evolucion, type NotaSemanal, type Senal } from '../calculo/senales'
 import type { Estado } from '../App'
 import Mini from '../componentes/Mini'
 import { exposicion, type Fila } from '../calculo/exposicion'
-import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, refCartera, seguidos, type Cartera } from '../datos/consultas'
+import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, refCartera, seguidos, type Cartera, fondosEnCarteras, datosNovedades, seguimiento, umbrales } from '../datos/consultas'
 import { serieEur } from '../datos/series'
+import { novedades, umbralesNovedades, type Novedad } from '../calculo/novedades'
+import ListaNovedades from '../componentes/ListaNovedades'
 import { cargarFondo } from './Cartera'
 
 type ResumenCartera = {
@@ -76,6 +78,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
   const [carteras, setCarteras] = useState<Cartera[] | Error | null>(null)
   const [resumenes, setResumenes] = useState<Map<number, ResumenCartera | null | Error>>(new Map())
   const [seg, setSeg] = useState<Seguido[] | Error | null>(null)
+  const [nov, setNov] = useState<{ lista: Novedad[]; enCarteras: Map<string, { id: number }[]>; dias: number } | Error | null>(null)
   const [error, setError] = useState('')
   const falla = (e: Error) => setError(e.message)
 
@@ -95,6 +98,13 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
         return e ? [{ isin: f.isin, nombre: f.fondo.nombre, categoria: f.fondo.categoria, myinvestor: f.myinvestor, nota: e.nota, semana: e.semana, nuevo: Date.parse(f.alta) >= semana, divisa: f.fondo.divisa }] : []
       }).sort((a, b) => Number(seMueve(b)) - Number(seMueve(a)) || Number(b.nuevo) - Number(a.nuevo) || Math.abs(b.semana ?? 0) - Math.abs(a.semana ?? 0) || b.nota - a.nota))
     }).catch(setSeg)
+    // Novedades de los fondos de tus carteras y de seguimiento (cambios de gestor de los últimos días, flujos y patrimonio).
+    Promise.all([fondosEnCarteras(), seguimiento(), umbrales()]).then(async ([enCarteras, segs, us]) => {
+      const u = umbralesNovedades(us)
+      const isins = [...new Set([...enCarteras.keys(), ...segs.map((x) => x.isin)])]
+      const desde = new Date(Date.now() - u.novedad_dias * 864e5).toISOString().slice(0, 10)
+      setNov({ lista: novedades(await datosNovedades(isins, desde), u), enCarteras, dias: u.novedad_dias })
+    }).catch(setNov)
   }, [])
 
   const senalesDe = (id: number): Senales | undefined => revision
@@ -116,6 +126,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
           : <TablaCarteras carteras={carteras} resumenes={resumenes} senalesDe={senalesDe} />}
       </Seccion>
 
+      <Novedades nov={nov} carteras={Array.isArray(carteras) ? carteras : []} />
       <ListaSeguimiento seg={seg} />
       <p className="text-[12px] text-suave">Índices de la cinta: con su fondo indexado en euros. «Año»: desde el 31 de diciembre; la línea, el último año.</p>
     </div>
@@ -321,5 +332,31 @@ function AlarmasDescargas({ tareas }: { tareas: Tarea[] }) {
       </ul>
       <p className="mt-2 text-suave">Puede que Morningstar haya cambiado algo: el detalle está en GitHub Actions y en el registro de descargas.</p>
     </section>
+  )
+}
+
+const FILTROS = [['todas', 'Todas'], ['gestor', 'Gestor'], ['flujos', 'Flujos'], ['patrimonio', 'Patrimonio']] as const
+/** Novedades de tus fondos sin entrar en cada ficha: cambios de gestor recientes y movimientos fuertes de su patrimonio. */
+function Novedades({ nov, carteras }: { nov: { lista: Novedad[]; enCarteras: Map<string, { id: number }[]>; dias: number } | Error | null; carteras: Cartera[] }) {
+  const [filtro, setFiltro] = useState<(typeof FILTROS)[number][0]>('todas')
+  const tinta = tintas(carteras.map((c) => c.id))
+  const lista = nov && !(nov instanceof Error) ? nov.lista.filter((n) => filtro === 'todas' || (filtro === 'flujos' ? n.tipo === 'salidas' || n.tipo === 'entradas' : n.tipo === filtro)) : []
+  return (
+    <Seccion titulo="Novedades de tus fondos" extra={
+      <div role="group" aria-label="Qué novedades ver" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
+        {FILTROS.map(([k, t]) => (
+          <button key={k} onClick={() => setFiltro(k)} aria-pressed={filtro === k}
+            className={`rounded-sm px-2.5 py-1 ${filtro === k ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{t}</button>
+        ))}
+      </div>
+    }>
+      {!nov ? <p className="py-2 text-suave">Cargando…</p> : nov instanceof Error ? <Fallo e={nov} /> : (<>
+        <p className="mb-1 text-[12px] text-suave">De los fondos de tus carteras y de seguimiento: cambios de gestor de los últimos {nov.dias} días y flujos o patrimonio fuera de los umbrales (se ajustan en Revisión). El cuadro de color dice en qué cartera está.</p>
+        {lista.length
+          ? <ListaNovedades lista={lista} conFondo tintas={new Map([...nov.enCarteras].map(([i, cs]) => [i, cs.map((c) => tinta.get(c.id)).filter((t): t is string => !!t)]))}
+              enlace={(n) => <a href={`#/fondo/${n.isin}`} className="text-acento hover:underline">ver ficha ›</a>} />
+          : <p className="py-2 text-[13px] text-suave">{nov.lista.length ? 'Ninguna novedad de este tipo.' : `Nada nuevo en tus fondos: ningún cambio de gestor en ${nov.dias} días ni movimiento fuerte de patrimonio.`}</p>}
+      </>)}
+    </Seccion>
   )
 }

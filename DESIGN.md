@@ -213,6 +213,12 @@ Solo en Inicio, bajo la cabecera y a todo el ancho: papel de panel con filete ab
 ### Tablero de carteras
 Inicio: una fila por cartera con su tinta, «en el año» en estrecha 800, rentabilidades, riesgo a 3 años, la línea del último año en su tinta, el tipo de activo en tonos neutros (la tinta ya usa los colores de las series) y los avisos. En el móvil, un bloque por cartera.
 
+### Mapa de métricas (ficha)
+Métrica × plazo (1, 3, 5, 10 años): cada celda, la cifra en estrecha y su percentil; fondo azul claro en el mejor 25 % de su categoría, rojo claro en el peor 25 %, neutro en medio, sin color si la métrica no tiene mejor ni peor y rayado si no hay cifra. La cabecera de plazos se pega bajo la cabecera de la web al bajar (`--alto-cabecera`). Al lado, el detalle de la celda: la cifra, «mejor que el N %» y la tira frente a su categoría (caja = mitad central, raya = 8 de cada 10, marca = mediana; a la derecha, mejor).
+
+### Novedades
+Lista con el tipo en estrecha ámbar (cambio de gestor, salidas o entradas fuertes, patrimonio bajo), el fondo con la tinta de sus carteras, el texto y cuándo. En la ficha, recuadro ámbar suave arriba del Resumen; en Inicio, sección entre carteras y seguimiento, con filtros.
+
 ### Once
 El puesto de un fondo de cartera: bloque amarillo con el puesto en estrecha 800, «de N» y el movimiento de la semana.
 

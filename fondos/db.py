@@ -293,8 +293,12 @@ class Repo:
         for cid, isin in self._filas('''select cf.cartera_id, cf.isin from fondos.cartera_fondo cf
                                         join fondos.cartera c on c.id = cf.cartera_id where not c.archivada'''):
             carteras.setdefault(cid, []).append(isin)
+        patrimonio: dict[str, dict] = {}  # para los flujos
+        for isin, fecha, pat in self._filas('''select f.isin, h.fecha, h.patrimonio_meur from fondos.historial_patrimonio h
+                                               join fondos.fondo f on f.id = h.fondo_id'''):
+            patrimonio.setdefault(isin, {})[fecha] = float(pat)
         return {'fondos': fondos, 'valores': valores, 'diarios': diarios, 'tipos': tipos, 'estr': estr,
-                'indices': indices, 'categorias': categorias, 'carteras': carteras}
+                'indices': indices, 'categorias': categorias, 'carteras': carteras, 'patrimonio': patrimonio}
 
     def guardar_metricas(self, filas: list[tuple], refs: dict[str, tuple]):
         """Sustituye todas las métricas y las series de referencia de una vez, en una transacción: nunca se ven a medias

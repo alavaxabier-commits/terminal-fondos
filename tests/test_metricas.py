@@ -265,3 +265,17 @@ def test_bloques_propios_por_tipo():
     assert bloques_nota(pct, False, tipo='monetario')[0]['rentabilidad'] == 80
     assert bloques_nota(pct, False, tipo='renta fija')[0]['tir'] == 70
     assert 'tir' not in bloques_nota(pct, False, tipo='renta variable')[0]
+
+
+def test_flujos_quitan_la_rentabilidad_y_exigen_historia():
+    from fondos.nucleo import metricas as m
+    d = dt.date
+    patrimonio = {d(2026, 1, 4): 100.0, d(2026, 3, 1): 120.0, d(2026, 5, 3): 90.0}
+    valores = {d(2026, 1, 2): 10.0, d(2026, 2, 27): 11.0, d(2026, 4, 30): 10.0}
+    f = m.metricas_flujos(patrimonio, valores, d(2026, 5, 10))
+    # de enero a marzo el valor sube un 10 %: de 100 a 120 son 10 de flujo; de marzo a mayo baja a 10/11: 90 − 120·10/11
+    assert f[('3m', 'flujo')] == pytest.approx(10 + 90 - 120 * 10 / 11)
+    assert f[('3m', 'flujo_pct')] == pytest.approx(f[('3m', 'flujo')] / 100)
+    assert ('1a', 'flujo') not in f  # sin dato de hace un año
+    assert m.metricas_flujos({d(2026, 5, 3): 90.0}, valores, d(2026, 5, 10)) == {}
+    assert 'flujo' in m.SIN_PERCENTIL

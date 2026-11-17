@@ -119,3 +119,6 @@ h1 { font-family: var(--font-estrecha); font-weight: 800; font-size: 2rem; line-
   .cinta-pista { animation: none; }
   .cinta-copia { display: none; }
 }
+
+/* Celda sin cifra en el mapa de métricas de la ficha (sin historia o sin calcular): rayado suave. */
+.rayado { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--color-borde) 55%, transparent) 6px 7px); }

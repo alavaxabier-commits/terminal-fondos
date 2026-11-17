@@ -114,7 +114,13 @@ export default function App() {
   return (
     <div className="flex min-h-full flex-col">
       {/* Cabecera de liga: banda negra a todo el ancho; la pantalla actual, subrayada en amarillo. */}
-      <header className="sticky top-0 z-10 bg-cabecera text-sobre-cabecera">
+      {/* Su alto (cambia en el móvil, donde las pantallas bajan a otra fila) en --alto-cabecera: lo usan las cabeceras pegadas. */}
+      <header className="sticky top-0 z-10 bg-cabecera text-sobre-cabecera" ref={(el) => {
+        if (!el) return
+        const o = new ResizeObserver(() => document.documentElement.style.setProperty('--alto-cabecera', `${el.offsetHeight}px`))
+        o.observe(el)
+        return () => o.disconnect()
+      }}>
         <div className="mx-auto flex min-h-12 max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4">
           <a href="#/" className="estrecha shrink-0 text-[19px] font-extrabold uppercase leading-none tracking-[0.01em]">
             <span className="hidden sm:inline">Terminal de fondos</span><span className="sm:hidden">Fondos</span>

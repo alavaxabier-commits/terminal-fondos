@@ -443,3 +443,50 @@ export function avisoDiversificacion(base: { isins: string[]; calculada_en: stri
     ? `La cartera ha cambiado desde el ${new Date(base.calculada_en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}: la diversificación del screener todavía usa sus fondos de entonces y se recalcula en la próxima descarga diaria (o lanzando «metricas» a mano).`
     : 'La diversificación de esta cartera aún no se ha calculado: estará tras la próxima descarga diaria (o lanzando «metricas» a mano).'
 }
+
+// ------------------------------------------------------------------ ficha: categoría, gestión, patrimonio y novedades
+export type Distribucion = Map<string, { n: number; cuantiles: number[] }> // clave 'ventana|nombre'; cuantiles 10, 25, 50, 75, 90
+/** Cómo se reparte cada métrica en una categoría (una clase por fondo, como los percentiles). */
+export async function distribucion(categoria: string): Promise<Distribucion> {
+  const { data, error: e } = await supabase.rpc('distribucion_categoria', { p_categoria: categoria })
+  error(e)
+  return new Map(((data ?? []) as { ventana: string; nombre: string; n: number; cuantiles: (string | number)[] }[])
+    .map((r) => [`${r.ventana}|${r.nombre}`, { n: r.n, cuantiles: r.cuantiles.map(Number) }]))
+}
+
+export type CambioGestor = { isin: string; fecha: string; entran: string[]; salen: string[] }
+/** Cambios en el equipo gestor de unos fondos, desde una fecha (los más recientes primero). */
+export async function cambiosGestor(isins: string[], desde = '1900-01-01'): Promise<CambioGestor[]> {
+  if (!isins.length) return []
+  const { data, error: e } = await supabase.from('cambio_gestor').select('fecha,entran,salen,fondo!inner(isin)')
+    .in('fondo.isin', isins).gte('fecha', desde).order('fecha', { ascending: false })
+  error(e)
+  return ((data ?? []) as unknown as (Omit<CambioGestor, 'isin'> & { fondo: { isin: string } })[]).map(({ fondo, ...c }) => ({ ...c, isin: fondo.isin }))
+}
+
+/** Patrimonio del fondo guardado cada domingo que cambia (millones de su divisa). */
+export async function historialPatrimonio(isin: string): Promise<Punto[]> {
+  const { data, error: e } = await supabase.from('historial_patrimonio').select('fecha,patrimonio_meur,fondo!inner(isin)')
+    .eq('fondo.isin', isin).order('fecha')
+  error(e)
+  return ((data ?? []) as unknown as { fecha: string; patrimonio_meur: string }[]).map((r) => ({ fecha: r.fecha, valor: Number(r.patrimonio_meur) }))
+}
+
+/** Lo que necesitan las novedades de unos fondos: ficha, flujo a 3 meses y cambios de gestor desde una fecha. */
+export async function datosNovedades(isins: string[], desde: string): Promise<import('../calculo/novedades').FondoNovedades[]> {
+  if (!isins.length) return []
+  const [fichas, flujos, cambios] = await Promise.all([
+    supabase.from('fondo').select('isin,nombre,divisa,patrimonio_meur').in('isin', isins),
+    supabase.from('metrica').select('isin,nombre,valor').in('isin', isins).eq('ventana', '3m').in('nombre', ['flujo', 'flujo_pct']),
+    cambiosGestor(isins, desde),
+  ])
+  error(fichas.error); error(flujos.error)
+  const flujo = (isin: string, nombre: string) => {
+    const x = ((flujos.data ?? []) as { isin: string; nombre: string; valor: string }[]).find((r) => r.isin === isin && r.nombre === nombre)
+    return x ? Number(x.valor) : null
+  }
+  return ((fichas.data ?? []) as { isin: string; nombre: string; divisa: string | null; patrimonio_meur: string | null }[]).map((f) => ({
+    isin: f.isin, nombre: f.nombre, divisa: f.divisa, patrimonio: f.patrimonio_meur == null ? null : Number(f.patrimonio_meur),
+    flujo3m: flujo(f.isin, 'flujo'), flujoPct3m: flujo(f.isin, 'flujo_pct'), cambios: cambios.filter((c) => c.isin === f.isin),
+  }))
+}
