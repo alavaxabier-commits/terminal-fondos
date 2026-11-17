@@ -16,6 +16,7 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
   const caja = useRef<HTMLDivElement>(null)
   const tema = useCambioTema()
   const [tabla, setTabla] = useState(false)
+  const [ocultas, setOcultas] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!caja.current || tabla) return
@@ -31,13 +32,17 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
     if (!g) return
     const [texto, suave, borde, panel, acento] = ['texto', 'suave', 'borde', 'panel', 'acento'].map(token)
     const fuente = getComputedStyle(document.body).fontFamily
+    // En el móvil, menos sitio para el nombre de las líneas grises: si no, el gráfico se queda en la mitad.
+    const estrecho = caja.current.clientWidth < 520, largo = estrecho ? 9 : 16
+    const grises = lineas.some((l) => GRISES.has(l.color))
     g.setOption(
       {
         backgroundColor: 'transparent',
         textStyle: { fontFamily: fuente, color: suave },
         aria: { enabled: true },
-        grid: { left: 44, right: lineas.some((l) => GRISES.has(l.color)) ? 132 : 52, top: lineas.length > 1 ? 32 : 12, bottom: 48 },
-        legend: { show: lineas.length > 1, type: 'scroll', top: 0, left: 0, right: 0, pageTextStyle: { color: suave }, textStyle: { color: texto }, itemWidth: 14, itemHeight: 3, icon: 'rect' },
+        grid: { left: 44, right: grises ? (estrecho ? 104 : 132) : 52, top: 12, bottom: 48 },
+        // La leyenda va en HTML, encima (se parte en varias filas y no pisa el gráfico); aquí solo dice qué líneas se ven.
+        legend: { show: false, selected: Object.fromEntries(lineas.map((l) => [l.nombre, !ocultas.has(l.nombre)])) },
         tooltip: {
           trigger: 'axis',
           axisPointer: { type: 'line', lineStyle: { color: suave, width: 1 } },
@@ -63,20 +68,36 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
           lineStyle: { width: 2, color: token(l.color) },
           // Último valor al final; las líneas en gris (4.º y 5.º fondo del comparador) llevan además su nombre.
           endLabel: { show: lineas.length <= 5, color: GRISES.has(l.color) ? suave : texto, fontSize: 11,
-            formatter: (p: { value: [string, number] }) => `${cifra(p.value[1], 1)}${GRISES.has(l.color) ? ` ${l.nombre.length > 16 ? l.nombre.slice(0, 15) + '…' : l.nombre}` : ''}` },
+            formatter: (p: { value: [string, number] }) => `${cifra(p.value[1], 1)}${GRISES.has(l.color) ? ` ${l.nombre.length > largo ? l.nombre.slice(0, largo - 1) + '…' : l.nombre}` : ''}` },
+          // Si dos líneas acaban cerca, sus valores se apartan en vertical en lugar de pisarse.
+          labelLayout: { moveOverlap: 'shiftY' },
           itemStyle: { color: token(l.color) },
           data: l.serie.map((p) => [p.fecha, Number(p.valor.toFixed(2))]),
         })),
       },
       { notMerge: true },
     )
-  }, [lineas, tema, tabla])
+  }, [lineas, tema, tabla, ocultas])
 
+  const alternar = (n: string) => setOcultas((o) => { const x = new Set(o); if (!x.delete(n)) x.add(n); return x })
   return (
     <div>
-      <div className="flex justify-end">
+      <div className="flex items-start gap-3">
+        {lineas.length > 1 && !tabla && (
+          <ul className="flex min-w-0 flex-1 flex-wrap gap-x-4 gap-y-1 text-[12px]">
+            {lineas.map((l) => (
+              <li key={l.nombre} className="min-w-0 max-w-full">
+                <button type="button" onClick={() => alternar(l.nombre)} aria-pressed={!ocultas.has(l.nombre)} title={l.nombre}
+                  className={`flex max-w-full items-center gap-1.5 text-left ${ocultas.has(l.nombre) ? 'text-suave line-through' : 'text-texto hover:text-acento'}`}>
+                  <span aria-hidden className="h-[3px] w-3.5 shrink-0" style={{ background: `var(--color-${l.color})` }} />
+                  <span className="truncate">{l.nombre}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <button type="button" onClick={() => setTabla((t) => !t)} aria-pressed={tabla}
-          className={`rounded-sm px-2 py-0.5 font-mono text-[11px] ${tabla ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>
+          className={`ml-auto shrink-0 rounded-sm px-2 py-0.5 font-mono text-[11px] ${tabla ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>
           {tabla ? 'Gráfico' : 'Tabla'}
         </button>
       </div>

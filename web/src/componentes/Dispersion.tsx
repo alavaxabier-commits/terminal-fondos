@@ -37,7 +37,9 @@ export default function Dispersion({ puntos }: { puntos: Punto[] }) {
       // Nombre junto a cada punto (dataviz: con más de 3 colores en una dispersión, el color solo no basta) y anillo del fondo del panel.
       series: puntos.map((p) => ({ name: p.nombre, type: 'scatter', symbolSize: 11, itemStyle: { color: token(p.color), borderColor: panel, borderWidth: 2 },
         label: { show: true, position: 'top', color: texto, fontSize: 11, formatter: () => (p.nombre.length > 26 ? p.nombre.slice(0, 25) + '…' : p.nombre) },
-        labelLayout: { hideOverlap: true }, data: [[p.x, p.y]] })),
+        // Que el nombre no se salga por los lados (un punto junto al borde lo cortaba).
+        labelLayout: (l: { labelRect: { x: number; width: number } }) => ({ hideOverlap: true,
+          dx: Math.max(0, 4 - l.labelRect.x) + Math.min(0, g.getWidth() - 4 - l.labelRect.x - l.labelRect.width) }), data: [[p.x, p.y]] })),
     }, { notMerge: true })
   }, [puntos, tema])
 

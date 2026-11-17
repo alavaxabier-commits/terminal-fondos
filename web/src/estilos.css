@@ -8,7 +8,7 @@
    Series (serie1…3): tinta, ocre y frambuesa, apagadas, sin verde y lejos de «sube», «baja» y «aviso» (ΔE ≥ 13);
    validadas con el script de dataviz con todos los pares a la vez, en los dos temas. serie4 y serie5: dos grises,
    uno marcado y otro tenue (dataviz: más de tres colores no se leen juntos); llevan el nombre al final de la línea. */
-@theme {
+@theme static {  /* static: todas las variables, también las que solo se leen desde JS (token(), var(--color-${…})) */
   --font-sans: "Urbanist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
   --radius-xs: 1px;

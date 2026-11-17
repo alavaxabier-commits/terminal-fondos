@@ -186,7 +186,7 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
               <li key={a.isin} className="py-1.5">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-2">
                   <button onClick={() => elegir(a.isin)} className="truncate text-left hover:text-acento">{a.nombre}</button>
-                  <span className="tabular">{monetario ? pct(cifraDe(a, '3m|rentabilidad'), 2, false) : <span className="cifra text-lg leading-none">{Math.round(a.nota!)}</span>}</span>
+                  <span className="min-w-14 text-right tabular">{monetario ? pct(cifraDe(a, '3m|rentabilidad'), 2, false) : <span className="cifra text-lg leading-none">{Math.round(a.nota!)}</span>}</span>
                   <span className="text-right tabular text-suave">{a.ter == null ? '—' : `${cifra(a.ter)} %`}</span>
                 </div>
                 <p className="text-[11px] text-suave">{motivo}{a.myinvestor ? ' · en MyInvestor' : ''}</p>

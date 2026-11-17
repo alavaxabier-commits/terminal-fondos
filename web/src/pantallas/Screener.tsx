@@ -510,7 +510,7 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
                 <td className="pl-3 text-left">
                   {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span> : (
                     <span className="inline-flex items-center gap-2">
-                      <span className="cifra w-7 text-right text-xl leading-none">{Math.round(f.nota)}</span>
+                      <span className="cifra w-[3ch] shrink-0 text-right text-xl leading-none">{Math.round(f.nota)}</span>
                       <span aria-hidden className="flex h-1.5 w-20 gap-px overflow-hidden rounded-sm bg-borde/60">
                         {BLOQUES.filter((k) => w[k]).map((k) => <span key={k} style={{ width: `${w[k]! * f.bloques[k]!}%`, background: COLOR_BLOQUE[k] }} />)}
                       </span>
