@@ -1,0 +1,222 @@
+<title>La clasificación en cuatro grados</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Marco neutro; cada versión es un boceto del Screener con su propia intensidad y no sigue el tema. */
+:root{--bg:#f4f4f2;--fg:#1c1c1e;--suave:#5f6066;--linea:#dcdcd8;--chip:#fff;--acento:#1d4f9f;--f:"Barlow",ui-sans-serif,system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181b;--fg:#ececee;--suave:#a2a3aa;--linea:#2e3036;--chip:#22242a;--acento:#8fb0ea;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17181b;--fg:#ececee;--suave:#a2a3aa;--linea:#2e3036;--chip:#22242a;--acento:#8fb0ea;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.5}
+.pag{max-width:1240px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:"Barlow Condensed";font-weight:800;font-size:34px;text-transform:uppercase;letter-spacing:.01em;margin:0 0 8px;text-wrap:balance}
+.intro{color:var(--suave);max-width:70ch;margin:0}
+.escala{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:22px 0 0;padding:0;list-style:none}
+.escala a{display:block;padding:8px 10px;color:var(--fg);text-decoration:none;font-size:14px;border-top:4px solid var(--linea);background:var(--chip)}
+.escala li:nth-child(2) a{border-top-color:#9db3d8}.escala li:nth-child(3) a{border-top-color:#4d76bd}.escala li:nth-child(4) a{border-top-color:#1d4f9f}
+.escala b{display:block;font-family:"Barlow Condensed";font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}
+.ver{margin-top:56px;padding-top:24px;border-top:1px solid var(--linea)}
+.kick{font-family:"Barlow Condensed";font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--acento)}
+.ver h2{font-family:"Barlow Condensed";font-weight:800;font-size:28px;text-transform:uppercase;margin:2px 0 6px}
+.tesis{margin:0 0 18px;max-width:74ch}
+.marco{overflow-x:auto;border:1px solid var(--linea)}.marco>div{min-width:1100px}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px 32px;margin-top:18px}
+.datos h3{font-family:"Barlow Condensed";font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);margin:0 0 4px}
+.datos p{margin:0;font-size:14px}
+table{border-collapse:collapse;width:100%}td,th{text-align:left}.num{text-align:right;font-variant-numeric:tabular-nums}
+.cond{font-family:"Barlow Condensed"}
+
+/* Común a los bocetos */
+.s{font-family:"Barlow",sans-serif;font-size:13px;height:660px;overflow:hidden;--azul:#1d4f9f;--rojo:#c0392b;--ama:#f0c23a;--tin:#141414;--pap:#f3f2ec}
+.s nav{display:flex;gap:18px}.s nav a{text-decoration:none;color:inherit}
+
+/* 1 · Prudente: tabla de resultados */
+.v1{background:#f7f6f2;color:var(--tin);display:grid;grid-template-rows:auto auto 1fr}
+.v1 header{display:flex;align-items:baseline;gap:28px;padding:14px 28px;border-bottom:1px solid #d8d6ce}
+.v1 .marca{font-family:"Barlow Condensed";font-weight:700;font-size:17px;text-transform:uppercase}
+.v1 nav a{color:#5e5c55}.v1 nav a.on{color:var(--tin);font-weight:600}
+.v1 .tabs{display:flex;gap:22px;padding:12px 28px 0;border-bottom:1px solid #d8d6ce}
+.v1 .tabs span{padding-bottom:8px;color:#5e5c55}.v1 .tabs span.on{color:var(--tin);font-weight:600;border-bottom:2px solid var(--tin)}
+.v1 .cu{display:grid;grid-template-columns:1fr 280px;gap:32px;padding:16px 28px}
+.v1 th{font-weight:500;color:#77756d;font-size:12px;padding:6px 8px;border-bottom:1px solid #cfcdc4}
+.v1 td{padding:6px 8px;border-bottom:1px solid #e6e4dc}
+.v1 td.z{width:3px;padding:0}.v1 .za{background:var(--azul)}.v1 .zb{background:var(--rojo)}
+.v1 .pos{width:30px;color:#77756d}.v1 .up{color:var(--azul)}.v1 .dn{color:var(--rojo)}.v1 .mov{width:40px;font-size:12px}
+.v1 .tuyo td:nth-child(3)::after{content:"●";color:#c49a12;margin-left:6px;font-size:9px;vertical-align:2px}
+.v1 aside h4{font-weight:600;margin:0 0 8px}.v1 aside div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e6e4dc}
+
+/* 2 · Moderada: jornada */
+.v2{background:var(--pap);color:var(--tin);display:grid;grid-template-rows:auto auto 1fr}
+.v2 header{display:flex;align-items:center;gap:28px;padding:12px 28px;background:var(--tin);color:#fff}
+.v2 .marca{font-family:"Barlow Condensed";font-weight:800;font-size:20px;text-transform:uppercase}
+.v2 nav a.on{box-shadow:inset 0 -3px var(--ama)}
+.v2 .tabs{display:flex;gap:2px;padding:14px 28px 0;border-bottom:2px solid var(--tin)}
+.v2 .tabs span{padding:6px 14px;font-family:"Barlow Condensed";font-weight:700;font-size:15px;text-transform:uppercase;background:#e2e0d6}.v2 .tabs span.on{background:var(--tin);color:#fff}
+.v2 .cu{display:grid;grid-template-columns:1fr 300px;gap:28px;padding:14px 28px}
+.v2 th{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;font-size:12px;color:#77756d;padding:4px 8px;border-bottom:1px solid var(--tin)}
+.v2 td{padding:5px 8px;border-bottom:1px solid #dcdad1}
+.v2 tr.za td{background:#e6ecf6}.v2 tr.zb td{background:#f6e3df}
+.v2 td.z{width:6px;padding:0}.v2 tr.za td.z{background:var(--azul)}.v2 tr.zb td.z{background:var(--rojo)}
+.v2 .pos{font-family:"Barlow Condensed";font-weight:800;font-size:18px;width:34px}
+.v2 .nota{font-family:"Barlow Condensed";font-weight:800;font-size:19px}
+.v2 .mov{font-family:"Barlow Condensed";font-weight:700;width:38px}.v2 .up{color:var(--azul)}.v2 .dn{color:var(--rojo)}
+.v2 tr.tuyo td:not(.z){background:#fbefc6}
+.v2 .spark{width:70px}
+.v2 .card{border:2px solid var(--tin);background:#fff;padding:12px}
+.v2 .card h4{font-family:"Barlow Condensed";font-weight:800;font-size:18px;text-transform:uppercase;margin:0 0 8px}
+.v2 .card div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #e6e4dc}
+
+/* 3 · Decidida: la tabla del lunes */
+.v3{background:var(--pap);color:var(--tin);display:grid;grid-template-columns:1fr 320px;grid-template-rows:auto 1fr}
+.v3 header{grid-column:1/-1;background:var(--tin);color:#fff;padding:14px 28px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 28px}
+.v3 .marca{font-family:"Barlow Condensed";font-weight:800;font-size:16px;text-transform:uppercase;letter-spacing:.04em;color:var(--ama)}
+.v3 nav{justify-self:end}.v3 nav a{opacity:.8}.v3 nav a.on{opacity:1;font-weight:600}
+.v3 .titulo{grid-column:1/-1;font-family:"Barlow Condensed";font-weight:900;font-size:52px;line-height:.9;text-transform:uppercase;letter-spacing:-.01em;margin-top:8px}
+.v3 .titulo small{font-size:18px;font-weight:600;color:#b9b7ae;letter-spacing:.02em;margin-left:12px}
+.v3 .tabs{grid-column:1/-1;display:flex;gap:2px;margin-top:12px}
+.v3 .tabs span{padding:6px 14px;font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;font-size:14px;color:#b9b7ae}.v3 .tabs span.on{background:var(--pap);color:var(--tin)}
+.v3 main{padding:12px 28px}
+.v3 th{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;font-size:12px;color:#77756d;padding:4px 8px;border-bottom:2px solid var(--tin)}
+.v3 td{padding:4px 8px;border-bottom:1px solid #dcdad1}
+.v3 tr.zona td{border:0;padding:6px 8px 3px;font-family:"Barlow Condensed";font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:12px;color:#fff}
+.v3 tr.zona.a td{background:var(--azul)}.v3 tr.zona.b td{background:var(--rojo)}.v3 tr.zona.m td{background:#77756d}
+.v3 .pos{font-family:"Barlow Condensed";font-weight:900;font-size:22px;width:38px}
+.v3 .nota{font-family:"Barlow Condensed";font-weight:800;font-size:22px}
+.v3 .chip{display:inline-block;min-width:34px;text-align:center;font-family:"Barlow Condensed";font-weight:800;padding:0 6px;color:#fff}
+.v3 .chip.up{background:var(--azul)}.v3 .chip.dn{background:var(--rojo)}.v3 .chip.eq{background:#b9b7ae}
+.v3 tr.tuyo td{background:#fbefc6}
+.v3 aside{background:var(--ama);padding:16px 18px}
+.v3 aside h4{font-family:"Barlow Condensed";font-weight:900;font-size:26px;text-transform:uppercase;margin:0;line-height:1}
+.v3 aside p{margin:2px 0 12px;font-weight:600}
+.v3 aside .f{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-bottom:2px solid var(--tin)}
+.v3 aside .f b{font-family:"Barlow Condensed";font-weight:900;font-size:24px}
+
+/* 4 · Atrevida: la temporada */
+.v4{background:var(--azul);color:#fff;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr}
+.v4 header{grid-column:1/-1;display:flex;align-items:baseline;gap:28px;padding:14px 28px}
+.v4 .marca{font-family:"Barlow Condensed";font-weight:900;font-size:20px;text-transform:uppercase;color:var(--ama)}
+.v4 nav a{opacity:.75}.v4 nav a.on{opacity:1;font-weight:700;box-shadow:inset 0 -3px var(--ama)}
+.v4 .izq{padding:4px 28px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.v4 .lider{display:grid;grid-template-columns:auto 1fr;gap:0 18px;align-items:end}
+.v4 .lider .uno{font-family:"Barlow Condensed";font-weight:900;font-size:150px;line-height:.78;color:var(--ama)}
+.v4 .lider h3{font-family:"Barlow Condensed";font-weight:800;font-size:30px;line-height:1;text-transform:uppercase;margin:0}
+.v4 .lider p{margin:4px 0 0;opacity:.85}
+.v4 .tabs{display:flex;gap:2px}.v4 .tabs span{padding:5px 12px;font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;border:1px solid #ffffff55}.v4 .tabs span.on{background:#fff;color:var(--azul)}
+.v4 .bump{background:#174285;padding:10px 12px}
+.v4 .bump h4{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px;font-size:13px;opacity:.85}
+.v4 .der{background:var(--pap);color:var(--tin);padding:14px 22px;overflow:hidden}
+.v4 th{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;font-size:12px;color:#77756d;padding:4px 8px;border-bottom:2px solid var(--tin)}
+.v4 td{padding:5px 8px;border-bottom:1px solid #dcdad1}
+.v4 td.z{width:8px;padding:0}.v4 .za{background:var(--azul)}.v4 .zb{background:var(--rojo)}
+.v4 .pos{font-family:"Barlow Condensed";font-weight:900;font-size:20px;width:34px}
+.v4 .nota{font-family:"Barlow Condensed";font-weight:800;font-size:20px}
+.v4 .up{color:var(--azul);font-weight:700}.v4 .dn{color:var(--rojo);font-weight:700}
+.v4 tr.tuyo td:not(.z){background:#fbefc6}
+</style>
+
+<div class="pag">
+  <h1>La clasificación en cuatro grados</h1>
+  <p class="intro">El mismo mundo, cada categoría como una liga, en cuatro intensidades. Todas son el Screener con la misma información. De una a otra cambia cuánto color, tamaño y gesto propio se atreven a poner. Los fondos, sus ISIN, la nota y el TER son reales; los movimientos de la semana, la evolución de puestos y las carteras son de ejemplo.</p>
+  <ul class="escala">
+    <li><a href="#v1"><b>1 · Prudente</b>Tabla de resultados</a></li>
+    <li><a href="#v2"><b>2 · Moderada</b>La jornada</a></li>
+    <li><a href="#v3"><b>3 · Decidida</b>La tabla del lunes</a></li>
+    <li><a href="#v4"><b>4 · Atrevida</b>La temporada</a></li>
+  </ul>
+
+  <section class="ver" id="v1">
+    <div class="kick">1 · Prudente</div><h2>Tabla de resultados</h2>
+    <p class="tesis">La liga apenas se nota. Hay una línea fina de zona al borde, un número de puesto, una flecha discreta y un punto amarillo en tus fondos. El resto es una tabla clara sobre papel.</p>
+    <div class="marco"><div class="s v1" id="b1"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Es la más tranquila. Encaja con «calma y claridad» sin esfuerzo.</p></div><div><h3>Riesgo</h3><p>Puede quedarse en una tabla correcta sin carácter, lo que no querías («demasiado frío»).</p></div></div>
+  </section>
+
+  <section class="ver" id="v2">
+    <div class="kick">2 · Moderada</div><h2>La jornada</h2>
+    <p class="tesis">La cabecera pasa a negro, las cifras usan letra estrecha y pesada, y las filas del cuartil alto y bajo llevan un tinte suave. Cada fondo tiene una línea pequeña con sus puestos de las últimas ocho semanas.</p>
+    <div class="marco"><div class="s v2" id="b2"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Se ve la liga de un vistazo y la tabla sigue mandando. La evolución de puestos sale de la nota semanal que ya guardamos.</p></div><div><h3>Riesgo</h3><p>Está en el punto medio, y si no se cuida puede parecer indecisa.</p></div></div>
+  </section>
+
+  <section class="ver" id="v3">
+    <div class="kick">3 · Decidida</div><h2>La tabla del lunes</h2>
+    <p class="tesis">El nombre de la categoría va en grande, como titular. Las zonas son bandas con nombre que cortan la tabla, los movimientos van en etiquetas de color y tus carteras ocupan una columna amarilla, como el once titular.</p>
+    <div class="marco"><div class="s v3" id="b3"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Tiene carácter claro y se recuerda, sin dejar de ser una herramienta.</p></div><div><h3>Riesgo</h3><p>El amarillo y el titular piden disciplina, porque usados en todas partes cansan.</p></div></div>
+  </section>
+
+  <section class="ver" id="v4">
+    <div class="kick">4 · Atrevida</div><h2>La temporada</h2>
+    <p class="tesis">La pantalla se tiñe del azul de la liga. El líder sale con un 1 gigante y un gráfico enseña cómo han cambiado de puesto los primeros fondos semana a semana. La tabla vive en una hoja de papel a la derecha.</p>
+    <div class="marco"><div class="s v4" id="b4"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Es la más memorable, y el gráfico de puestos es una forma nueva de ver la nota en el tiempo.</p></div><div><h3>Riesgo</h3><p>Es la que más se acerca a lo deportivo y a la emoción, y la más alejada de «calma».</p></div></div>
+  </section>
+</div>
+
+<script>
+// Reales: nombre, ISIN, nota, percentil y TER. De ejemplo: movimiento, historia de puestos y carteras.
+const F=[
+ ['Vanguard Glb Stk Idx € H Acc','IE00B03HD316',85.5,100,0.18,2,'Base',[5,4,4,3,3,3,2,1]],
+ ['State Street World Unvsl Index Eq I EURH','LU2168639685',85.5,100,0.29,0,'',[2,2,3,2,2,1,2,2]],
+ ['Fidelity MSCI World Index EUR P Acc H','IE00BYX5P602',85.1,98.9,0.17,-1,'',[1,1,1,1,1,2,1,3]],
+ ['iShares Dev Wld Idx (IE) D Acc EUR H','IE000M0KK797',85.0,98.9,0.14,1,'Renta',[3,3,2,4,5,5,5,4]],
+ ['MFS Meridian Contrarian Value WSH1 EUR','LU2495342268',83.8,98.9,0.65,3,'',[9,8,8,7,6,6,8,5]],
+ ['Algebris Financial Equity I GBP Acc','IE00BWY57036',83.6,97.8,0.91,-2,'Base',[4,5,5,5,4,4,4,6]],
+ ['T. Rowe Price US Lg Cap Val Eq In EUR 1','LU2594029642',82.2,96.6,0.56,0,'',[7,7,6,6,7,7,7,7]],
+ ['BNPP Rspnb US Value Mlt-Fac Eq IH € R','LU1458428833',81.7,95.5,0.61,1,'',[10,9,9,9,9,8,9,8]],
+ ['M&G (Lux) Japan Smlr Comps C H USD Acc','LU1797817605',80.3,94.4,0.99,-3,'',[6,6,7,8,8,9,6,9]],
+ ['GS Japan Equity RS Acc EURH Snap','LU2365097539',80.0,93.3,0.72,0,'',[8,10,10,10,10,10,10,10]]];
+const ULT=[['Templeton Global Climate Chg A Acc','LU0128520375',33.4,3.3,1.84,-4],['Pictet Security R EUR','LU0270904351',31.2,2.2,2.71,-1]];
+const es=(x,d=1)=>x.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});
+const mv=m=>m>0?'▲ '+m:m<0?'▼ '+(-m):'=';
+const cls=m=>m>0?'up':m<0?'dn':'';
+const NAV='<nav><a>Inicio</a><a class="on">Screener</a><a>Seguimiento</a><a>Revisión</a><a>Carteras</a><a>Comparar</a></nav>';
+const TABS=on=>['R. variable otros','R. variable global','Mixtos moderados','Renta fija euro','Monetarios'].map((t,i)=>`<span class="${i==on?'on':''}">${t}</span>`).join('');
+const CART=[['Vanguard Glb Stk Idx',40,1],['Amundi Prime Euro Govies',30,4],['Algebris Financial Eq',15,6],['MyInvestor Monetario',15,2]];
+// Línea de puestos: 1 arriba; escala fija 1..10 en los dos ejes.
+function spark(h,w=70,hh=18,col='#141414'){const x=i=>(i/(h.length-1))*(w-4)+2,y=p=>((p-1)/9)*(hh-4)+2;
+ return `<svg class="spark" width="${w}" height="${hh}" viewBox="0 0 ${w} ${hh}"><polyline fill="none" stroke="${col}" stroke-width="1.5" points="${h.map((p,i)=>x(i)+','+y(p)).join(' ')}"/><circle cx="${x(h.length-1)}" cy="${y(h.at(-1))}" r="2.5" fill="${col}"/></svg>`}
+const u=n=>F.length+ULT.length>0?n:n;
+
+// 1
+document.getElementById('b1').innerHTML=`<header><span class="marca">Terminal de fondos</span>${NAV}</header><div class="tabs">${TABS(0)}</div>
+<div class="cu"><table><thead><tr><th></th><th>#</th><th>Fondo</th><th>Semana</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">TER %</th></tr></thead><tbody>
+${F.map((f,i)=>`<tr class="${f[6]?'tuyo':''}"><td class="z ${i<3?'za':''}"></td><td class="pos">${i+1}</td><td>${f[0]}</td><td class="mov ${cls(f[5])}">${mv(f[5])}</td><td class="num">${es(f[2])}</td><td class="num">${es(f[3])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+${ULT.map((f,i)=>`<tr><td class="z zb"></td><td class="pos">${97+i}</td><td>${f[0]}</td><td class="mov ${cls(f[5])}">${mv(f[5])}</td><td class="num">${es(f[2])}</td><td class="num">${es(f[3])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+</tbody></table><aside><h4>Cartera Base</h4>${CART.map(([n,p,o])=>`<div><span>${n}</span><span>${p} % · ${o}.º</span></div>`).join('')}</aside></div>`;
+
+// 2
+document.getElementById('b2').innerHTML=`<header><span class="marca">Terminal de fondos</span>${NAV}</header><div class="tabs">${TABS(0)}</div>
+<div class="cu"><table><thead><tr><th></th><th>Pos.</th><th>Fondo</th><th>Sem.</th><th>8 semanas</th><th class="num">Nota</th><th class="num">TER %</th></tr></thead><tbody>
+${F.map((f,i)=>`<tr class="${i<3?'za':''} ${f[6]?'tuyo':''}"><td class="z"></td><td class="pos">${i+1}</td><td>${f[0]}</td><td class="mov ${cls(f[5])}">${mv(f[5])}</td><td>${spark(f[7])}</td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+${ULT.map((f,i)=>`<tr class="zb"><td class="z"></td><td class="pos">${97+i}</td><td>${f[0]}</td><td class="mov ${cls(f[5])}">${mv(f[5])}</td><td></td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+</tbody></table><div class="card"><h4>Cartera Base</h4>${CART.map(([n,p,o])=>`<div><span>${n}</span><span>${p} % · ${o}.º</span></div>`).join('')}</div></div>`;
+
+// 3
+document.getElementById('b3').innerHTML=`<header><span class="marca">Terminal de fondos</span>${NAV}
+<div class="titulo">Renta variable · otros<small>98 fondos · nota del lunes 16 nov</small></div><div class="tabs">${TABS(0)}</div></header>
+<main><table><thead><tr><th>Pos.</th><th>Fondo</th><th>Sem.</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">TER %</th></tr></thead><tbody>
+<tr class="zona a"><td colspan="6">Cuartil alto · puestos 1 a 24</td></tr>
+${F.slice(0,7).map((f,i)=>`<tr class="${f[6]?'tuyo':''}"><td class="pos">${i+1}</td><td>${f[0]}</td><td><span class="chip ${cls(f[5])||'eq'}">${f[5]>0?'+'+f[5]:f[5]<0?f[5]:'='}</span></td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[3])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+<tr class="zona m"><td colspan="6">Zona media · 25 a 74</td></tr>
+<tr class="zona b"><td colspan="6">Cuartil bajo · 75 a 98</td></tr>
+${ULT.map((f,i)=>`<tr><td class="pos">${97+i}</td><td>${f[0]}</td><td><span class="chip dn">${f[5]}</span></td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[3])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+</tbody></table></main>
+<aside><h4>Tu once: Base</h4><p>Puesto en su categoría</p>${CART.map(([n,p,o])=>`<div class="f"><b>${o}.º</b><span>${n}</span><span>${p} %</span></div>`).join('')}</aside>`;
+
+// 4 · gráfico de puestos (bump): 8 semanas, puestos 1..10, escala fija
+const W=520,H=250,px=i=>40+i*((W-60)/7),py=p=>14+(p-1)*((H-34)/9);
+const top=F.slice(0,5),col=['#f0c23a','#ffffff','#9fc0f0','#ffffff99','#ffffff66'];
+const bump=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Puestos de los cinco primeros en las últimas ocho semanas">
+${Array.from({length:10},(_,k)=>`<text x="22" y="${py(k+1)+4}" fill="#ffffffaa" font-size="11" font-family="Barlow Condensed" text-anchor="end">${k+1}</text>`).join('')}
+${Array.from({length:8},(_,i)=>`<line x1="${px(i)}" x2="${px(i)}" y1="8" y2="${H-18}" stroke="#ffffff22"/><text x="${px(i)}" y="${H-4}" fill="#ffffffaa" font-size="11" font-family="Barlow Condensed" text-anchor="middle">S${38+i}</text>`).join('')}
+${top.map((f,j)=>`<polyline fill="none" stroke="${col[j]}" stroke-width="${j==0?3.5:2}" points="${f[7].map((p,i)=>px(i)+','+py(p)).join(' ')}"/><circle cx="${px(7)}" cy="${py(f[7][7])}" r="${j==0?5:3.5}" fill="${col[j]}"/>`).join('')}
+</svg>`;
+document.getElementById('b4').innerHTML=`<header><span class="marca">Terminal de fondos</span>${NAV}</header>
+<div class="izq"><div class="tabs">${TABS(0)}</div>
+<div class="lider"><div class="uno">1</div><div><h3>Vanguard Glb Stk Idx € H Acc</h3><p>Nota 85,5 · sube 2 puestos · en tu cartera Base</p></div></div>
+<div class="bump"><h4>Puestos de los cinco primeros · últimas 8 semanas</h4>${bump}</div></div>
+<div class="der"><table><thead><tr><th></th><th>Pos.</th><th>Fondo</th><th>Sem.</th><th class="num">Nota</th><th class="num">TER %</th></tr></thead><tbody>
+${F.map((f,i)=>`<tr class="${f[6]?'tuyo':''}"><td class="z ${i<3?'za':''}"></td><td class="pos">${i+1}</td><td>${f[0]}</td><td class="${cls(f[5])}">${mv(f[5])}</td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+${ULT.map((f,i)=>`<tr><td class="z zb"></td><td class="pos">${97+i}</td><td>${f[0]}</td><td class="dn">${mv(f[5])}</td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+</tbody></table></div>`;
+</script>
