@@ -101,15 +101,15 @@ class Repo:
 
     # ------------------------------------------------------------ composición (X-Ray)
     def fondos_para_composicion(self, tanda: int) -> list[tuple[str, str]]:
-        """(isin, ms_id) que toca descargar: los míos una vez al mes y el resto del universo cada dos meses,
-        primero los que nunca se han descargado y luego los más antiguos."""
+        """(isin, ms_id) que toca descargar: todos una vez al mes:
+        primero los míos, después los que nunca se han descargado y luego los más antiguos."""
         return self._filas("""
             select f.isin, f.ms_id
             from fondos.fondo f
             left join fondos.fondo_diario d using (isin)
             left join fondos.composicion c using (isin)
             where (f.en_universo or d.isin is not null) and f.ms_id is not null
-              and (c.isin is null or c.descargada_en < now() - case when d.isin is null then interval '55 days' else interval '27 days' end)
+              and (c.isin is null or c.descargada_en < now() - interval '27 days')
             order by d.isin is null, c.descargada_en nulls first, f.isin
             limit %s""", (tanda,))
 

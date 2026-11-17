@@ -281,7 +281,7 @@ def main(argv=None) -> int:
         s = sub.add_parser(nombre)
         s.add_argument('--tanda', type=int, default=ingesta.TANDA)
     s = sub.add_parser('composicion')
-    s.add_argument('--tanda', type=int, default=600, help='fondos como mucho (600 por semana: el universo entero en dos meses)')
+    s.add_argument('--tanda', type=int, default=1300, help='fondos como mucho (1.300 por semana: el universo entero en un mes, ~100 min a una petición cada 1,5 s)')
     sub.add_parser('macro')
     sub.add_parser('metricas')
     n = sub.add_parser('notas')
