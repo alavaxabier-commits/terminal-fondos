@@ -7,7 +7,7 @@ import { exposicion } from '../calculo/exposicion'
 import { base100, haceAnos, lineasCartera, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import Reparto from '../componentes/Reparto'
-import { AnoAno, corto, costeCartera, Crisis, Juntos, Solapes } from '../componentes/EstadisticasCartera'
+import { AnoAno, corto, costeCartera, Crisis, Juntos } from '../componentes/EstadisticasCartera'
 import { conjunto, FranjaConjunto, TablaLiga, TablaPapel } from '../componentes/FondosCartera'
 import MapaCartera from '../componentes/MapaCartera'
 import { novedades as calcularNovedades, umbralesNovedades, type Novedad } from '../calculo/novedades'
@@ -494,10 +494,7 @@ export default function Cartera({ id }: { id: number }) {
               metricas={(isin) => datos.get(isin)?.metricas} percentiles={(isin) => datos.get(isin)?.percentiles}
               revision={revision} puestos={puestos} semana={semana} />
             {hayCalculo && calc && (
-              <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 [&>*]:min-w-0 ${fondosE.length <= 5 ? 'lg:grid-cols-2' : ''}`}>
-                <Juntos calc={calc} fondos={fondosE} />
-                <Tarjeta titulo="Posiciones en común"><Solapes fondos={fondosE} titulo={false} /></Tarjeta>
-              </div>
+              <Juntos calc={calc} fondos={fondosE} />
             )}
           </>
         )}

@@ -223,6 +223,42 @@ export function exposicion(fondos: Fondo[]): Exposicion {
   }
 }
 
+export type Vista = 'regiones' | 'sectores' | 'calidad'
+export type Aporte = {
+  cols: string[]
+  filas: { nombre: string; peso: number; valores: number[] | null; sin?: string }[] // null: el fondo no tiene esa parte (o no la desglosa)
+  total: number[] // la cartera: la suma de las filas, igual que en exposicion()
+}
+
+/**
+ * Quién aporta qué: puntos de la parte de la cartera (acciones para regiones y sectores, bonos para la calidad) que pone
+ * cada fondo en cada región, sector o calidad. Cada celda es su % en esa casilla × su parte de la de la cartera.
+ */
+export function aportaciones(fondos: Fondo[], vista: Vista): Aporte {
+  const rf = vista === 'calidad'
+  const neto = (f: Fondo) => f.c?.activos?.neto?.[rf ? '3' : '1'] ?? 0
+  const desglosa = (c: Composicion) => !!(vista === 'regiones' ? c.regiones : vista === 'sectores' ? c.sectores_rv : c.calidad_rf)
+  const con = fondos.filter((f) => f.c && neto(f) > 0 && desglosa(f.c))
+  const total = con.reduce((s, f) => s + f.peso * neto(f), 0)
+  const cols = vista === 'regiones' ? BLOQUES_REGION.map(([n]) => n)
+    : vista === 'sectores' ? GRUPOS_SECTOR.flatMap(([, ini]) => Object.entries(SECTORES).filter(([c]) => c.startsWith(ini)).map(([, n]) => n))
+      : Object.values(CALIDAD)
+  const filas = fondos.map((f) => {
+    if (!total || !con.includes(f)) return { nombre: f.nombre, peso: f.peso, valores: null, sin: neto(f) > 0 ? 'Sin desglose' : rf ? 'Sin bonos' : 'Sin renta variable' }
+    const x = exposicion([{ ...f, peso: 100 }])
+    const de: Fila[] = vista === 'regiones' ? x.regiones.map((g) => [g.nombre, g.pct]) : vista === 'sectores' ? x.sectores.flatMap((g) => g.filas) : x.calidad
+    const w = (f.peso * neto(f)) / total
+    return { nombre: f.nombre, peso: f.peso, valores: cols.map((n) => (de.find(([k]) => k === n)?.[1] ?? 0) * w) }
+  })
+  const suma = cols.map((_, i) => filas.reduce((s, r) => s + (r.valores?.[i] ?? 0), 0))
+  const quedan = cols.map((_, i) => filas.some((r) => Math.abs(r.valores?.[i] ?? 0) >= 0.05)) // sin columnas vacías
+  return {
+    cols: cols.filter((_, i) => quedan[i]),
+    filas: filas.map((r) => ({ ...r, valores: r.valores && r.valores.filter((_, i) => quedan[i]) })),
+    total: suma.filter((_, i) => quedan[i]),
+  }
+}
+
 export type Solape = { a: string; b: string; pct: number; comunes: string[]; completo: boolean }
 
 /**
