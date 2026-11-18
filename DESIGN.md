@@ -219,6 +219,9 @@ Métrica × plazo (1, 3, 5, 10 años): cada celda, la cifra en estrecha y su per
 ### Novedades
 Lista con el tipo en estrecha ámbar (cambio de gestor, salidas o entradas fuertes, patrimonio bajo), el fondo con la tinta de sus carteras, el texto y cuándo. En la ficha, recuadro ámbar suave arriba del Resumen; en Inicio, sección entre carteras y seguimiento, con filtros.
 
+### Cartera
+Resumen: gráfico grande con los fondos y sus pesos al lado (y el riesgo que pone cada uno, en pequeño), al pie lo que quita diversificar, quién pone más riesgo y la pareja más parecida; debajo, el año natural en una fila (dos barras por año, cartera y referencia, la cifra y la diferencia), tipo de activo (peso y riesgo) y crisis. «A revisar» es una sola línea ámbar bajo las cifras (señales y novedades), no una tarjeta. Fondos: la franja «la cartera en conjunto» (al editar, con la diferencia frente a la guardada), «Qué pone cada fondo en la cartera» (su papel: peso, hoy, riesgo, aporta, coste, parecido; ahí se editan los pesos) y «Cada fondo en su categoría» (el fondo por sí solo, con selector de plazo). Al editar, un recuadro con borde azul de 2 px sobre las pestañas. Métricas: el mapa de la ficha, pero el color dice mejor o peor que la referencia y el detalle pone en la tira la cartera, la referencia y cada fondo.
+
 ### Once
 El puesto de un fondo de cartera: bloque amarillo con el puesto en estrecha 800, «de N» y el movimiento de la semana.
 

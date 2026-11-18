@@ -81,3 +81,26 @@ export function cambiosCartera(antes: Map<string, number>, ahora: Map<string, nu
     ...(pesos.length ? [{ sale: null, entra: null, motivo: con(m, `Pesos: ${pesos.join(', ')}`) }] : []),
   ]
 }
+
+/** Lectura del riesgo de una cartera calculada (pesos en el orden de calc.fondos): lo que quita diversificar (volatilidad media
+ *  de los fondos menos la de la cartera, a 3 años), el fondo que más riesgo pone, la pareja más parecida y, de cada fondo, su
+ *  correlación media con los demás ponderada por sus pesos (cerca de 0, diversifica). */
+export function lecturaRiesgo(calc: CalculoCartera, pesos: number[]) {
+  const vol = calc.metricas['3a']?.volatilidad ?? null
+  const quita = calc.volatilidadMedia != null && vol != null ? calc.volatilidadMedia - vol : null
+  let mayor: number | null = null
+  calc.fondos.forEach((f, i) => { if (f.riesgo != null && (mayor == null || f.riesgo > calc.fondos[mayor].riesgo!)) mayor = i })
+  const m = calc.correlacion?.matriz
+  let pareja: { a: number; b: number; c: number } | null = null
+  const parecido = calc.fondos.map((_, i) => {
+    if (!m) return null
+    let s = 0, t = 0
+    m[i].forEach((c, j) => {
+      if (j === i || c == null) return
+      s += pesos[j] * c; t += pesos[j]
+      if (j > i && (!pareja || c > pareja.c)) pareja = { a: i, b: j, c }
+    })
+    return t ? s / t : null
+  })
+  return { vol, quita, mayor, pareja: pareja as { a: number; b: number; c: number } | null, parecido }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { calcularCartera, cambiosCartera, type RefSerie } from '../calculo/cartera'
+import { calcularCartera, cambiosCartera, lecturaRiesgo, type RefSerie } from '../calculo/cartera'
 import type { Composicion } from '../calculo/exposicion'
 import { cifra, fecha, hoy, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
@@ -7,7 +7,10 @@ import { exposicion } from '../calculo/exposicion'
 import { base100, haceAnos, lineasCartera, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import Reparto from '../componentes/Reparto'
-import { Aportacion, AnoAno, costeCartera, Crisis, Juntos, MetricasCartera, Solapes } from '../componentes/EstadisticasCartera'
+import { AnoAno, corto, costeCartera, Crisis, Juntos, Solapes } from '../componentes/EstadisticasCartera'
+import { conjunto, FranjaConjunto, TablaLiga, TablaPapel } from '../componentes/FondosCartera'
+import MapaCartera from '../componentes/MapaCartera'
+import { novedades as calcularNovedades, umbralesNovedades, type Novedad } from '../calculo/novedades'
 import Exposicion from '../componentes/Exposicion'
 import Franja from '../componentes/Franja'
 import Grafico from '../componentes/Grafico'
@@ -18,10 +21,10 @@ import { revisar, type FondoRevisado } from '../datos/revision'
 import { serieEur } from '../datos/series'
 import { Pastilla } from './Ficha'
 import Cargando from '../componentes/Cargando'
-import { movimiento, viejo, ultimaSemana, type Puestos } from '../calculo/jornada'
+import { ultimaSemana, type Puestos } from '../calculo/jornada'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
-export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; ref: RefSerie | null }
+export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; percentiles: Map<string, number>; ref: RefSerie | null }
 type Linea = { fondo: q.Fondo; peso: number }
 type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
 
@@ -48,6 +51,7 @@ export async function cargarFondo(f: q.Fondo, cats: Awaited<ReturnType<typeof q.
     comp: comps[0]?.datos ?? null,
     fechaCartera: comps[0]?.fecha_cartera ?? null,
     metricas: new Map(ms.map((m) => [`${m.ventana}|${m.nombre}`, Number(m.valor)])),
+    percentiles: new Map(ms.filter((m) => m.percentil != null).map((m) => [`${m.ventana}|${m.nombre}`, Number(m.percentil)])),
     ref: (clave && refs.get(clave)) || null,
   }
 }
@@ -68,6 +72,7 @@ export default function Cartera({ id }: { id: number }) {
   const [rango, setRango] = useState(0)
   const [indices, setIndices] = useState<{ id: string; nombre: string }[]>([])
   const [refFija, setRefFija] = useState<RefSerie | null>(null)
+  const [novedades, setNovedades] = useState<Novedad[]>([])
 
   async function leer() {
     const [c, cs, estr, h] = await Promise.all([q.cartera(id), q.categoriasReferencia(), q.referenciaSeries(['indice:estr']), q.cambios(id)])
@@ -78,6 +83,12 @@ export default function Cartera({ id }: { id: number }) {
     setRefFija(c ? await q.refCartera(c.cartera) : null)
     if (c?.fondos.length) q.baseDiversificacion(id).then((b) => setAvisoDiv(q.avisoDiversificacion(b, c.fondos.map((f) => f.fondo.isin)))).catch((e: Error) => setError(e.message))
     revisar([id]).then((r) => setRevision(new Map(r.carteras[0]?.fondos.map((f) => [f.fondo.isin, f])))).catch((e: Error) => setError(e.message))
+    // novedades de sus fondos (cambios de gestor, flujos, patrimonio), con los umbrales de Revisión, como en Inicio
+    if (c?.fondos.length) q.umbrales().then(async (us) => {
+      const u = umbralesNovedades(us)
+      const desde = new Date(Date.now() - u.novedad_dias * 864e5).toISOString().slice(0, 10)
+      setNovedades(calcularNovedades(await q.datosNovedades(c.fondos.map((f) => f.fondo.isin), desde), u))
+    }).catch((e: Error) => setError(e.message))
     if (c && !c.fondos.length) { setBorrador({ ...c.cartera, fondos: [], motivo: '' }); setPestana('fondos') } // cartera nueva: directa a editar
   }
   // el «once»: puesto de cada fondo en su categoría esta semana (si falla, la columna sale vacía)
@@ -115,6 +126,16 @@ export default function Cartera({ id }: { id: number }) {
   const simulacion = useMemo(() => simularCartera(fondosCalc, reb, bandas), [fondosCalc, reb, bandas])
   const sim = simulacion.valor
   const calc = useMemo(() => (fondosCalc.length ? calcularCartera(fondosCalc, reb, rf, hoy(), bandas, refFija) : null), [fondosCalc, reb, rf, bandas, refFija])
+  // Al editar, la cartera guardada calculada igual, para enseñar cuánto cambia cada cifra.
+  const fondosGuardados = useMemo(() => (borrador && guardada
+    ? guardada.fondos.filter((l) => l.peso > 0 && datos.has(l.fondo.isin))
+      .map((l) => ({ isin: l.fondo.isin, peso: l.peso, ...datos.get(l.fondo.isin)!, vol3: datos.get(l.fondo.isin)!.metricas.get('3a|volatilidad') ?? null }))
+    : []), [borrador != null, guardada, datos]) // eslint-disable-line react-hooks/exhaustive-deps
+  const calcGuardado = useMemo(() => {
+    if (!guardada || !fondosGuardados.length || fondosGuardados.length !== guardada.fondos.filter((l) => l.peso > 0).length) return null
+    const g = guardada.cartera
+    return calcularCartera(fondosGuardados, g.rebalanceo, rf, hoy(), { banda: g.banda || 5, tipo: g.banda_tipo, revision: g.revision }, refFija)
+  }, [fondosGuardados, guardada, rf, refFija])
   const grafica = useMemo(() => {
     if (sim.length < 2) return []
     const desde = rango ? haceAnos(sim.at(-1)!.fecha, rango) : sim[0].fecha
@@ -183,7 +204,6 @@ export default function Cartera({ id }: { id: number }) {
   const fondosE = conPeso.map((l) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, peso: l.peso, ter: ter(l.fondo), c: datos.get(l.fondo.isin)?.comp ?? null }))
   const coste = costeCartera(fondosE)
   const expo = listos ? exposicion(fondosE.map((f) => ({ peso: f.peso, nombre: f.nombre, c: f.c }))) : null
-  const nSenales = [...revision.values()].reduce((n, r) => n + r.senales.length, 0)
   const m = calc?.metricas
   const ref = calc?.referencia ?? {}
   const ytd = m?.ytd?.rentabilidad
@@ -212,84 +232,42 @@ export default function Cartera({ id }: { id: number }) {
     </label>
   )
 
+  // Lo que dice la cartera en conjunto (Resumen y Fondos) y, al editar, la guardada para comparar
+  const ahora = conjunto(hayCalculo ? calc : null, coste, fondosE)
+  const fondosGuardadosE = guardada.fondos.filter((l) => l.peso > 0).map((l) => ({ nombre: l.fondo.nombre, peso: l.peso, ter: ter(l.fondo) }))
+  const antes = borrador ? conjunto(calcGuardado, costeCartera(fondosGuardadosE), fondosGuardadosE) : undefined
+  const pareja = hayCalculo && calc ? lecturaRiesgo(calc, fondosE.map((f) => f.peso)).pareja : null
+  const riesgoDe = new Map(calc?.fondos.map((f) => [f.isin, f.riesgo]))
+  const expoRiesgo = hayCalculo && calc && fondosE.every((f) => riesgoDe.get(f.isin) != null)
+    ? exposicion(fondosE.map((f) => ({ peso: Math.max(0, riesgoDe.get(f.isin)! * 100), nombre: f.nombre, c: f.c }))) : null
+
+  // «A revisar»: señales de revisión y novedades de sus fondos, en una línea
+  const aRevisar = [
+    ...[...revision.values()].flatMap((r) => r.senales.map((x) => ({ isin: r.fondo.isin, nombre: r.fondo.nombre, titulo: x.tipo, texto: x.motivo }))),
+    ...novedades.map((n) => ({ isin: n.isin, nombre: n.nombre, titulo: n.titulo.toLowerCase(), texto: n.texto })),
+  ]
+
   return (
     <article className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
-        {borrador ? (
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <input value={borrador.nombre} onChange={(e) => editar({ nombre: e.target.value })} aria-label="Nombre de la cartera"
-              className={`${campo} text-3xl font-medium tracking-tight`} />
-            <div className="flex flex-wrap items-center gap-2 text-[13px]">
-              {selectorRef}
-              <label className="flex items-center gap-2 text-suave">
-                Rebalanceo
-                <select value={borrador.rebalanceo} onChange={(e) => editar({ rebalanceo: e.target.value as q.Rebalanceo })} className={campo}>
-                  <option value="mensual">mensual</option>
-                  <option value="trimestral">trimestral</option>
-                  <option value="semestral">semestral</option>
-                  <option value="anual">anual</option>
-                  <option value="bandas">por bandas</option>
-                  <option value="ninguno">ninguno (los pesos derivan)</option>
-                </select>
-              </label>
-              {borrador.rebalanceo === 'bandas' && (
-                <label className="flex flex-wrap items-center gap-2 text-suave">
-                  ±
-                  <input type="number" min={0.5} max={100} step={0.5} value={borrador.banda} aria-label="Banda"
-                    onChange={(e) => editar({ banda: Number(e.target.value) })} className={`${campo} w-16 text-right`} />
-                  <select value={borrador.banda_tipo} onChange={(e) => editar({ banda_tipo: e.target.value as Bandas['tipo'] })}
-                    aria-label="Tipo de banda" className={campo}>
-                    <option value="puntos">puntos</option>
-                    <option value="relativa">% del peso de cada fondo</option>
-                  </select>
-                  revisada
-                  <select value={borrador.revision} onChange={(e) => editar({ revision: e.target.value as Bandas['revision'] })}
-                    aria-label="Revisión de la banda" className={campo}>
-                    <option value="diaria">cada día</option>
-                    <option value="mensual">al final de cada mes</option>
-                    <option value="trimestral">al final de cada trimestre</option>
-                    <option value="semestral">al final de cada semestre</option>
-                    <option value="anual">al final de cada año</option>
-                  </select>
-                </label>
-              )}
-              <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="Objetivo (opcional)"
-                aria-label="Objetivo" className={`${campo} min-w-0 flex-1`} />
-            </div>
-          </div>
-        ) : (
-          <div className="min-w-0 space-y-2">
-            <h1 className="text-3xl! sm:text-4xl!">{cartera.nombre}</h1>
-            <div className="flex flex-wrap gap-1.5 text-suave">
-              <Pastilla>Cartera modelo{cartera.objetivo && ` · ${cartera.objetivo}`}</Pastilla>
-              <Pastilla>{lineas.length} {lineas.length === 1 ? 'fondo' : 'fondos'}</Pastilla>
-              <Pastilla>Rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}</Pastilla>
-              {selectorRef}
-              {nSenales > 0 && <a href="#/revision"><Pastilla className="bg-aviso/15! text-aviso">{nSenales} {nSenales === 1 ? 'señal' : 'señales'} de revisión</Pastilla></a>}
-            </div>
-          </div>
-        )}
-        <div>
-          <div className="flex flex-wrap justify-end gap-2">
-            {borrador ? (
-              <>
-                {guardada.fondos.length > 0 && (
-                  <button onClick={() => setBorrador(null)} disabled={ocupado} className="boton">Cancelar</button>
-                )}
-                <button onClick={() => hacer(guardar)} disabled={!puedeGuardar || ocupado}
-                  className="boton-pri">Guardar</button>
-              </>
-            ) : (
-              <>
-                <a href={`#/simular/${id}`} title="Atajo: m" className="boton">Simular cambios</a>
-                <button onClick={() => hacer(duplicar)} disabled={ocupado} className="boton">Duplicar</button>
-                <button onClick={() => hacer(archivar)} disabled={ocupado} className="boton hover:text-baja">Archivar</button>
-                <button onClick={() => { setBorrador({ ...guardada.cartera, fondos: guardada.fondos, motivo: '' }); setPestana('fondos') }}
-                  className="boton-pri">Editar</button>
-              </>
-            )}
+        <div className="min-w-0 space-y-2">
+          <h1 className="text-3xl! sm:text-4xl!">{cartera.nombre || 'Sin nombre'}</h1>
+          <div className="flex flex-wrap gap-1.5 text-suave">
+            <Pastilla>Cartera modelo{cartera.objetivo && ` · ${cartera.objetivo}`}</Pastilla>
+            <Pastilla>{lineas.length} {lineas.length === 1 ? 'fondo' : 'fondos'}</Pastilla>
+            <Pastilla>Rebalanceo {cartera.rebalanceo === 'bandas' ? textoBandas(bandas) : cartera.rebalanceo}</Pastilla>
+            {selectorRef}
           </div>
         </div>
+        {!borrador && (
+          <div className="flex flex-wrap justify-end gap-2">
+            <a href={`#/simular/${id}`} title="Atajo: m" className="boton">Simular cambios</a>
+            <button onClick={() => hacer(duplicar)} disabled={ocupado} className="boton">Duplicar</button>
+            <button onClick={() => hacer(archivar)} disabled={ocupado} className="boton hover:text-baja">Archivar</button>
+            <button onClick={() => { setBorrador({ ...guardada.cartera, fondos: guardada.fondos, motivo: '' }); setPestana('fondos') }}
+              className="boton-pri">Editar</button>
+          </div>
+        )}
       </header>
 
       {calc && (
@@ -309,30 +287,100 @@ export default function Cartera({ id }: { id: number }) {
           </p>
         </>
       )}
-      {borrador && (
-        <p className="rounded-lg bg-aviso/10 px-3 py-2 text-[13px] text-aviso">
-          Editando: las cifras ya reflejan los cambios, pero no se guardan hasta pulsar «Guardar».
-          {Math.abs(suma - 100) >= 0.01 && <> Los pesos suman {cifra(suma, 1)} %; tienen que sumar 100 %.</>}
-        </p>
+      {!borrador && aRevisar.length > 0 && (
+        <div role="status" className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xs border border-aviso/40 bg-aviso/5 px-3 py-2 text-[13px]">
+          <span className="estrecha font-bold tracking-[0.04em] text-aviso uppercase">▲ {aRevisar.length} a revisar</span>
+          {aRevisar.slice(0, 3).map((x, i) => (
+            <span key={i} title={x.texto}><a href={`#/fondo/${x.isin}`} className="font-semibold hover:text-acento">{corto(x.nombre)}</a> · {x.titulo}</span>
+          ))}
+          {aRevisar.length > 3 && <span className="text-suave">y {aRevisar.length - 3} más</span>}
+          <button onClick={() => setPestana('fondos')} className="ml-auto text-[12px] text-suave hover:text-acento">ver en Fondos →</button>
+        </div>
       )}
       {!borrador && Math.abs(suma - 100) > 0.01 && <p className="text-baja">Los pesos suman {cifra(suma, 1)} %, no 100 %.</p>}
       {!borrador && avisoDiv && <p role="status" className="text-[13px] text-aviso">{avisoDiv}</p>}
 
-      <div role="tablist" aria-label="Secciones de la cartera" className="flex flex-wrap gap-5 border-b border-borde">
+      {borrador && (
+        <section aria-labelledby="t-editando" className="space-y-3 rounded-sm border-2 border-acento bg-panel p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="t-editando" className="estrecha text-[17px] font-bold tracking-[0.02em] uppercase">
+              Editando <span className="font-[Barlow] text-[13px] font-normal tracking-normal text-suave normal-case">· los pesos se cambian en «Qué pone cada fondo»; las cifras cambian al momento y se guardan al pulsar «Guardar»</span>
+            </h2>
+            <div className="flex gap-2">
+              {guardada.fondos.length > 0 && <button onClick={() => setBorrador(null)} disabled={ocupado} className="boton">Cancelar</button>}
+              <button onClick={() => hacer(guardar)} disabled={!puedeGuardar || ocupado} className="boton-pri">Guardar</button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[13px]">
+            <input value={borrador.nombre} onChange={(e) => editar({ nombre: e.target.value })} aria-label="Nombre de la cartera" placeholder="Nombre"
+              className={`${campo} min-w-48 font-semibold`} />
+            <label className="flex items-center gap-2 text-suave">
+              Rebalanceo
+              <select value={borrador.rebalanceo} onChange={(e) => editar({ rebalanceo: e.target.value as q.Rebalanceo })} className={campo}>
+                <option value="mensual">mensual</option>
+                <option value="trimestral">trimestral</option>
+                <option value="semestral">semestral</option>
+                <option value="anual">anual</option>
+                <option value="bandas">por bandas</option>
+                <option value="ninguno">ninguno (los pesos derivan)</option>
+              </select>
+            </label>
+            {borrador.rebalanceo === 'bandas' && (
+              <label className="flex flex-wrap items-center gap-2 text-suave">
+                ±
+                <input type="number" min={0.5} max={100} step={0.5} value={borrador.banda} aria-label="Banda"
+                  onChange={(e) => editar({ banda: Number(e.target.value) })} className={`${campo} w-16 text-right`} />
+                <select value={borrador.banda_tipo} onChange={(e) => editar({ banda_tipo: e.target.value as Bandas['tipo'] })}
+                  aria-label="Tipo de banda" className={campo}>
+                  <option value="puntos">puntos</option>
+                  <option value="relativa">% del peso de cada fondo</option>
+                </select>
+                revisada
+                <select value={borrador.revision} onChange={(e) => editar({ revision: e.target.value as Bandas['revision'] })}
+                  aria-label="Revisión de la banda" className={campo}>
+                  <option value="diaria">cada día</option>
+                  <option value="mensual">al final de cada mes</option>
+                  <option value="trimestral">al final de cada trimestre</option>
+                  <option value="semestral">al final de cada semestre</option>
+                  <option value="anual">al final de cada año</option>
+                </select>
+              </label>
+            )}
+            <input value={borrador.objetivo ?? ''} onChange={(e) => editar({ objetivo: e.target.value })} placeholder="Objetivo (opcional)"
+              aria-label="Objetivo" className={`${campo} min-w-0 flex-1`} />
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[8rem_minmax(0,1fr)_14rem]">
+            <span className="rotulo">Suma de pesos</span>
+            <span aria-hidden="true" className="relative h-3 overflow-hidden rounded-xs bg-borde/55">
+              <span className={`absolute inset-y-0 left-0 ${Math.abs(suma - 100) < 0.01 ? 'bg-sube' : 'bg-baja'}`} style={{ width: `${Math.min(suma, 100)}%` }} />
+            </span>
+            <span className={`font-semibold tabular ${Math.abs(suma - 100) < 0.01 ? 'text-sube' : 'text-baja'}`}>
+              {Math.abs(suma - 100) < 0.01 ? 'suman 100 %' : `suman ${cifra(suma, 1)} %: ${suma > 100 ? 'sobran' : 'faltan'} ${cifra(Math.abs(100 - suma), 1)}`}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Buscador texto="Añadir fondo: nombre o ISIN" onElegir={(f) => !lineas.some((l) => l.fondo.isin === f.isin) && editar({ fondos: [...lineas, { fondo: f, peso: 0 }] })} />
+            <input value={borrador.motivo} onChange={(e) => editar({ motivo: e.target.value })} placeholder="Motivo del cambio (opcional, va al historial)"
+              aria-label="Motivo del cambio" className={`${campo} flex-1`} />
+          </div>
+        </section>
+      )}
+
+      <div role="tablist" aria-label="Secciones de la cartera" className="flex items-end gap-0.5 overflow-x-auto border-b-2 border-texto">
         {pestanas.map((p) => (
           <button key={p} id={`pestana-${p}`} role="tab" aria-selected={pestana === p} aria-controls="panel-cartera" onClick={() => setPestana(p)}
-            className={`-mb-px border-b-2 pb-1.5 capitalize ${pestana === p ? 'border-acento text-texto' : 'border-transparent text-suave hover:text-texto'}`}>
+            className={`estrecha px-3.5 pt-1.5 pb-1 text-[15px] font-bold whitespace-nowrap uppercase ${pestana === p ? 'bg-texto text-fondo' : 'bg-borde/60 text-texto hover:bg-borde'}`}>
             {p}{p === 'fondos' ? ` · ${lineas.length}` : p === 'cambios' ? ` · ${historial.length}` : ''}
           </button>
         ))}
-        <span className="ml-auto self-center text-[11px] text-suave">← → cambiar</span>
+        <span className="ml-auto self-center pl-3 text-[11px] whitespace-nowrap text-suave">← → cambiar</span>
       </div>
 
       <div id="panel-cartera" role="tabpanel" aria-labelledby={`pestana-${pestana}`} className="space-y-5">
         {pestana === 'resumen' && (
           <>
             <Tarjeta>
-              <div className={lineas.length ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]' : ''}>
+              <div className={lineas.length ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]' : ''}>
                 <div className="min-w-0">
                   {hayCalculo && sim.length > 1 ? (
                     <>
@@ -360,13 +408,14 @@ export default function Cartera({ id }: { id: number }) {
                 {lineas.length > 0 && (
                   <div className="flex min-w-0 flex-col border-borde lg:border-l lg:pl-6">
                     <div className="mb-3 flex items-baseline justify-between gap-3">
-                      <h2 className="text-[15px] font-semibold tracking-tight">Fondos</h2>
+                      <h2 className="estrecha text-[17px] font-bold tracking-[0.02em] uppercase">Fondos</h2>
                       <button onClick={() => setPestana('fondos')} className="text-[12px] text-suave hover:text-acento">Ver todos →</button>
                     </div>
-                    <ul className="space-y-2">
+                    <ul className="space-y-3">
                       {principales.map(({ isin, nombre, peso, otros }) => {
                         const r = isin ? revision.get(isin) : undefined
                         const hoyP = isin ? pesoHoy.get(isin) : undefined
+                        const rg = isin ? riesgoDe.get(isin) : undefined
                         return (
                           <li key={isin ?? 'otros'} className="text-[13px]">
                             <div className="flex items-baseline justify-between gap-3">
@@ -375,115 +424,87 @@ export default function Cartera({ id }: { id: number }) {
                                 {isin ? <a href={`#/fondo/${isin}`} className="min-w-0 truncate hover:text-acento">{nombre}</a>
                                   : <span className="text-suave">Otros {otros} fondos</span>}
                               </span>
-                              <span className="shrink-0 tabular">{pct(peso / 100, 0, false)}</span>
+                              <span className="shrink-0 font-semibold tabular">{pct(peso / 100, 0, false)}</span>
                             </div>
-                            <div className="relative mt-1 h-1 rounded-sm bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
-                              <span className={`absolute inset-y-0 left-0 rounded-sm ${isin ? 'bg-acento' : 'bg-suave'}`} style={{ width: `${Math.min(peso, 100)}%` }} />
-                              {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2 w-0.5 rounded-sm bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
+                            <div className="relative mt-1 h-1.5 rounded-xs bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
+                              <span className={`absolute inset-y-0 left-0 rounded-xs ${isin ? 'bg-acento' : 'bg-suave'}`} style={{ width: `${Math.min(peso, 100)}%` }} />
+                              {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2.5 w-0.5 rounded-sm bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
                             </div>
+                            {isin && (rg != null || r?.fondo.ter != null) && (
+                              <p className="mt-0.5 text-[12px] text-suave tabular">
+                                {rg != null && `riesgo ${rg < 0.01 ? 'menos del 1 %' : pct(rg, 0, false)}`}{rg != null && r?.fondo.ter != null && ' · '}{r?.fondo.ter != null && `TER ${pct(Number(r.fondo.ter) / 100, 2, false)}`}
+                              </p>
+                            )}
                           </li>
                         )
                       })}
                     </ul>
-                    {calc && <p className="mt-auto pt-3 text-[11px] text-suave">Barra: peso objetivo · marca: peso de hoy.</p>}
+                    {calc && <p className="mt-auto pt-3 text-[11px] text-suave">Barra: peso objetivo · marca: peso de hoy. Riesgo: parte de la volatilidad de la cartera que pone cada fondo.</p>}
                   </div>
+                )}
+                {hayCalculo && calc && (
+                  <dl className="grid gap-4 border-t border-borde pt-3 sm:grid-cols-3 lg:col-span-2">
+                    <div>
+                      <dt className="text-[12px] text-suave">Diversificar quita · 3 años</dt>
+                      <dd className="flex flex-wrap items-baseline gap-x-2"><span className="cifra text-[26px] tabular">{ahora.quita == null ? '—' : `${cifra(ahora.quita * 100, 1)} pts`}</span>
+                        {ahora.quita != null && ahora.vol != null && <span className="text-[12px] text-suave">de volatilidad: fondos {pct(ahora.vol + ahora.quita, 1, false)} → cartera {pct(ahora.vol, 1, false)}</span>}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[12px] text-suave">Más riesgo lo pone</dt>
+                      <dd className="flex flex-wrap items-baseline gap-x-2"><span className="cifra text-[26px] text-acento tabular">{ahora.mayor ? pct(ahora.mayor.riesgo, 0, false) : '—'}</span>
+                        {ahora.mayor && <span className="text-[12px] text-suave">{corto(ahora.mayor.nombre)}, con el {pct(ahora.mayor.peso, 0, false)} del peso</span>}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[12px] text-suave">La pareja que más se parece</dt>
+                      <dd className="flex flex-wrap items-baseline gap-x-2"><span className="cifra text-[26px] tabular">{pareja ? cifra(pareja.c) : '—'}</span>
+                        {pareja && <span className="text-[12px] text-suave">{corto(fondosE[pareja.a].nombre)} y {corto(fondosE[pareja.b].nombre)}</span>}</dd>
+                    </div>
+                  </dl>
                 )}
               </div>
             </Tarjeta>
 
-
             {calc && <AnoAno calc={calc} />}
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
-              {calc && <Crisis calc={calc} />}
-              <Tarjeta titulo="Tipo de activo">
+              <Tarjeta titulo="Tipo de activo" extra={<button onClick={() => setPestana('exposición')} className="text-[12px] text-suave hover:text-acento">Exposición →</button>}>
                 {expo ? <Reparto activos={expo.activos} cobertura={expo.cobertura} /> : <Cargando alto="h-14" />}
+                {expoRiesgo && (
+                  <p className="mt-3 text-[13px]">
+                    En riesgo: {expoRiesgo.activos.filter(([, v]) => v >= 0.5).map(([n, v]) => `${n.toLowerCase()} ${pct(v / 100, 0, false)}`).join(' · ')}
+                    <span className="text-suave"> (la volatilidad que pone cada fondo, repartida según su composición)</span>
+                  </p>
+                )}
               </Tarjeta>
+              {calc && <Crisis calc={calc} />}
             </div>
           </>
         )}
 
         {pestana === 'fondos' && (
           <>
-            <Tarjeta titulo={borrador ? 'Fondos y pesos' : 'Fondos'} extra={<span className={`text-[12px] tabular ${Math.abs(suma - 100) >= 0.01 ? 'text-baja' : 'text-suave'}`}>suman {cifra(suma, 1)} %</span>}>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[60rem] whitespace-nowrap text-right tabular text-[13px]">
-                  <thead>
-                    <tr className="rotulo">
-                      <th className="pb-1.5 text-left font-normal">Fondo</th>
-                      <th className="pl-3 font-normal">Peso</th>
-                      <th className="pl-3 font-normal">TER</th>
-                      <th className="pl-3 font-normal" title="Rentabilidad anualizada a 3 años">Rent. 3a</th>
-                      <th className="pl-3 font-normal" title="Volatilidad a 3 años">Volat. 3a</th>
-                      <th className="pl-3 font-normal" title="Máxima caída a 3 años">Caída 3a</th>
-                      <th className="pl-3 font-normal" title="Sharpe a 3 años">Sharpe 3a</th>
-                      <th className="pl-3 font-normal" title="Rentabilidad anualizada a 5 años">Rent. 5a</th>
-                      <th className="pl-3 font-normal">Nota</th>
-                      <th className="pl-3 text-left font-normal" title="Puesto en su categoría por la nota guardada esta semana, y lo que ha subido o bajado">Puesto</th>
-                      <th className="pl-3 text-left font-normal">Señales</th>
-                      {borrador && <th />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lineas.map(({ fondo: f, peso }, k) => {
-                      const mf = datos.get(f.isin)?.metricas
-                      const r = revision.get(f.isin)
-                      return (
-                        <tr key={f.isin} className={`border-t border-borde/60 ${r?.senales.length ? 'bg-aviso/5' : ''}`}>
-                          <td className="whitespace-normal py-2 text-left">
-                            <a href={`#/fondo/${f.isin}`} className="hover:text-acento">{f.nombre}</a>
-                            <span className="block text-[12px] text-suave"><span className="font-mono">{f.isin}</span>{f.categoria && ` · ${f.categoria}`}</span>
-                          </td>
-                          <td className="pl-3">
-                            {borrador ? (
-                              <input type="number" min={0} max={100} step={0.5} value={peso} aria-label={`Peso de ${f.nombre}`}
-                                onChange={(e) => editar({ fondos: lineas.map((l, j) => (j === k ? { ...l, peso: Number(e.target.value) } : l)) })}
-                                className={`${campo} w-20 text-right`} />
-                            ) : pct(peso / 100, 0, false)}
-                          </td>
-                          <td className="pl-3">{pct((ter(f) ?? NaN) / 100, 2, false)}</td>
-                          <td className={`pl-3 ${tono(mf?.get('3a|rentabilidad'))}`}>{pct(mf?.get('3a|rentabilidad'))}</td>
-                          <td className="pl-3">{pct(mf?.get('3a|volatilidad'), 1, false)}</td>
-                          <td className="pl-3">{pct(mf?.get('3a|max_caida'))}</td>
-                          <td className="pl-3">{cifra(mf?.get('3a|sharpe'))}</td>
-                          <td className={`pl-3 ${tono(mf?.get('5a|rentabilidad'))}`}>{pct(mf?.get('5a|rentabilidad'))}</td>
-                          <td className="pl-3">{r?.nota ? <>{Math.round(r.nota.nota)}{r.nota.percentil != null && <span className="text-suave"> p{Math.round(r.nota.percentil)}</span>}</> : <span className="text-suave">—</span>}</td>
-                          <td className="pl-3 text-left"><Once p={puestos.get(f.isin)} semana={semana} /></td>
-                          <td className="whitespace-normal pl-3 text-left">
-                            {r?.senales.map((s) => <a key={s.tipo} href="#/revision" title={s.motivo} className="mr-1 inline-block rounded-sm bg-aviso/15 px-2 text-[11px] text-aviso">{s.tipo}</a>)}
-                          </td>
-                          {borrador && (
-                            <td className="pl-3">
-                              <button onClick={() => editar({ fondos: lineas.filter((_, j) => j !== k) })} aria-label={`Quitar ${f.nombre}`}
-                                className="min-h-8 rounded-sm px-3 text-suave hover:bg-baja/10 hover:text-baja">Quitar</button>
-                            </td>
-                          )}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+            {hayCalculo && calc && <FranjaConjunto a={ahora} antes={antes} />}
+            <TablaPapel filas={lineas.map((l) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, peso: l.peso, ter: ter(l.fondo) }))}
+              calc={hayCalculo ? calc : null} coste={coste}
+              editar={borrador ? {
+                peso: (k, v) => editar({ fondos: lineas.map((l, j) => (j === k ? { ...l, peso: v } : l)) }),
+                quitar: (k) => editar({ fondos: lineas.filter((_, j) => j !== k) }),
+              } : undefined} />
+            {!hayCalculo && lineas.length > 0 && sinCalculo}
+            <TablaLiga filas={lineas.map((l) => ({ isin: l.fondo.isin, nombre: l.fondo.nombre, peso: l.peso, ter: ter(l.fondo), categoria: l.fondo.categoria }))}
+              metricas={(isin) => datos.get(isin)?.metricas} percentiles={(isin) => datos.get(isin)?.percentiles}
+              revision={revision} puestos={puestos} semana={semana} />
+            {hayCalculo && calc && (
+              <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 [&>*]:min-w-0 ${fondosE.length <= 5 ? 'lg:grid-cols-2' : ''}`}>
+                <Juntos calc={calc} fondos={fondosE} />
+                <Tarjeta titulo="Posiciones en común"><Solapes fondos={fondosE} titulo={false} /></Tarjeta>
               </div>
-              {borrador && (
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <Buscador texto="Añadir fondo: nombre o ISIN" onElegir={(f) => !lineas.some((l) => l.fondo.isin === f.isin) && editar({ fondos: [...lineas, { fondo: f, peso: 0 }] })} />
-                  <input value={borrador.motivo} onChange={(e) => editar({ motivo: e.target.value })} placeholder="Motivo del cambio (opcional, va al historial)"
-                    aria-label="Motivo del cambio" className={`${campo} flex-1`} />
-                </div>
-              )}
-            </Tarjeta>
-            {hayCalculo && calc ? (
-              <>
-                <Aportacion calc={calc} fondos={fondosE} />
-                <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 [&>*]:min-w-0 ${fondosE.length <= 5 ? 'lg:grid-cols-2' : ''}`}>
-                  <Juntos calc={calc} fondos={fondosE} />
-                  <Tarjeta titulo="Posiciones en común"><Solapes fondos={fondosE} titulo={false} /></Tarjeta>
-                </div>
-              </>
-            ) : lineas.length > 0 && sinCalculo}
+            )}
           </>
         )}
 
-        {pestana === 'métricas' && (hayCalculo && calc ? <MetricasCartera calc={calc} /> : sinCalculo)}
+        {pestana === 'métricas' && (hayCalculo && calc
+          ? <MapaCartera calc={calc} fondos={fondosE.map((f) => ({ isin: f.isin, nombre: f.nombre, peso: f.peso, metricas: datos.get(f.isin)?.metricas }))} />
+          : sinCalculo)}
 
         {pestana === 'exposición' && (listos ? (
           <Exposicion
@@ -511,19 +532,5 @@ export default function Cartera({ id }: { id: number }) {
         )}
       </div>
     </article>
-  )
-}
-
-/** El «once»: el puesto del fondo en su liga (categoría), en amarillo; tachado con su fecha si no es de esta semana. */
-function Once({ p, semana }: { p: Puestos | undefined; semana: string }) {
-  if (!p) return <span className="text-suave">—</span>
-  const v = viejo(p, semana), m = movimiento(p)
-  return (
-    <span className="inline-flex items-baseline gap-2">
-      <span className={`estrecha inline-block min-w-[3.25rem] bg-once px-1.5 text-center text-[16px] font-extrabold text-sobre-once ${v ? 'line-through opacity-60' : ''}`}>{p.puestos.at(-1)}.º</span>
-      <span className="text-[12px] text-suave">de {p.de}</span>
-      {v ? <span className="text-[11px] text-baja">{new Date(v + 'T12:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
-        : m ? <span className={`estrecha text-[14px] font-bold ${m > 0 ? 'text-zona-alta' : 'text-zona-baja'}`}>{m > 0 ? `▲ ${m}` : `▼ ${-m}`}</span> : null}
-    </span>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcularCartera, cambiosCartera } from './cartera'
+import { calcularCartera, cambiosCartera, lecturaRiesgo, type CalculoCartera } from './cartera'
 import caso from './caso_metricas.json'
 import { semanal } from './metricas'
 
@@ -52,5 +52,24 @@ describe('cambiosCartera', () => {
       { sale: null, entra: null, motivo: 'cambio · Pesos: FA 50 → 60 %' },
     ])
     expect(cambiosCartera(new Map([['A', 100]]), new Map([['A', 100]]), '', String)).toEqual([])
+  })
+})
+
+describe('lecturaRiesgo', () => {
+  it('diversificación, fondo con más riesgo, pareja más parecida y parecido ponderado', () => {
+    const calc = {
+      metricas: { '3a': { volatilidad: 0.066 } }, volatilidadMedia: 0.084,
+      correlacion: { semanas: 156, matriz: [[1, 0.08, 0.27], [0.08, 1, 0.45], [0.27, 0.45, 1]] },
+      fondos: [{ riesgo: 0.84 }, { riesgo: 0.01 }, { riesgo: 0.15 }],
+    } as unknown as CalculoCartera
+    const l = lecturaRiesgo(calc, [50, 30, 20])
+    expect(l.quita).toBeCloseTo(0.018)
+    expect(l.mayor).toBe(0)
+    expect(l.pareja).toEqual({ a: 1, b: 2, c: 0.45 })
+    expect(l.parecido[0]).toBeCloseTo((30 * 0.08 + 20 * 0.27) / 50)
+  })
+  it('sin correlaciones ni volatilidad media', () => {
+    const calc = { metricas: {}, volatilidadMedia: null, correlacion: null, fondos: [{ riesgo: null }] } as unknown as CalculoCartera
+    expect(lecturaRiesgo(calc, [100])).toEqual({ vol: null, quita: null, mayor: null, pareja: null, parecido: [null] })
   })
 })
