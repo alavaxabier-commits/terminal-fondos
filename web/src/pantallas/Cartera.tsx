@@ -7,7 +7,7 @@ import { exposicion } from '../calculo/exposicion'
 import { base100, haceAnos, lineasCartera, type Punto } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import Reparto from '../componentes/Reparto'
-import { Aportacion, AnoAno, costeCartera, Crisis, Juntos, MetricasCartera, Solapes } from '../componentes/EstadisticasCartera'
+import { Aportacion, AnoAno, costeCartera, Crisis, Juntos, MetricasCartera } from '../componentes/EstadisticasCartera'
 import Exposicion from '../componentes/Exposicion'
 import Franja from '../componentes/Franja'
 import Grafico from '../componentes/Grafico'
@@ -468,10 +468,7 @@ export default function Cartera({ id }: { id: number }) {
             {hayCalculo && calc ? (
               <>
                 <Aportacion calc={calc} fondos={fondosE} />
-                <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 [&>*]:min-w-0 ${fondosE.length <= 5 ? 'lg:grid-cols-2' : ''}`}>
-                  <Juntos calc={calc} fondos={fondosE} />
-                  <Tarjeta titulo="Posiciones en común"><Solapes fondos={fondosE} titulo={false} /></Tarjeta>
-                </div>
+                <Juntos calc={calc} fondos={fondosE} />
               </>
             ) : lineas.length > 0 && sinCalculo}
           </>
