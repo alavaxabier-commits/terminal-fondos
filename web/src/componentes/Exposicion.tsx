@@ -199,14 +199,18 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
   return (
     <figure>
       <div
-        className="grid max-w-sm grid-cols-[auto_repeat(3,minmax(3rem,1fr))] gap-1 text-center"
+        className="grid max-w-sm grid-cols-[auto_auto_repeat(3,minmax(3rem,1fr))] gap-1 text-center"
         role="img"
         aria-label={`${fila} × ${col}: ${celdas.filter((x) => x.v >= 0.5).map((x) => `${x.f} · ${x.c} ${pct(x.v / 100, 0, false)}`).join(', ')}`}
       >
-        <span />
+        {/* El título de cada eje junto a su eje: arriba el de las columnas, en vertical a la izquierda el de las filas. */}
+        <span className="col-span-2" />
+        <span className="rotulo col-span-3 border-b border-borde pb-0.5">{col}</span>
+        <span className="col-span-2" />
         {cols.map((c) => <span key={`col-${c}`} className="pb-1 text-suave">{c}</span>)}
+        <span className="rotulo row-span-3 mr-1 rotate-180 border-l border-borde pl-0.5 [writing-mode:vertical-rl]">{fila}</span>
         {filas.map((f, i) => [
-          <span key={`fila-${f}`} className="pr-2 text-left text-suave">{f}</span>,
+          <span key={`fila-${f}`} className="self-center pr-2 text-left text-suave">{f}</span>,
           ...cols.map((c, j) => {
             const v = valores[String(i * 3 + j + 1)] ?? 0
             return (
@@ -217,7 +221,7 @@ function Caja({ valores, filas, cols, fila, col }: { valores: Record<string, num
           }),
         ])}
       </div>
-      <figcaption className="mt-2 text-[12px] text-suave">Filas: {fila.toLowerCase()} · columnas: {col.toLowerCase()} · % de la parte</figcaption>
+      <figcaption className="mt-2 text-[12px] text-suave">% de la parte</figcaption>
     </figure>
   )
 }
