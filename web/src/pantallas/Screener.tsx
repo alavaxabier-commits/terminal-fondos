@@ -224,8 +224,8 @@ export default function Screener() {
   const mayorPeso = [...BLOQUES].sort((a, b) => pesoReal(b) - pesoReal(a))[0]
   const desplegables: { k: Exclude<Panel, null>; t: string; v: string; puesto: boolean; no?: boolean }[] = [
     { k: 'perfil', t: 'Perfil', v: perfiles.length ? `${perfiles.length} guardado${perfiles.length > 1 ? 's' : ''}` : 'ninguno', puesto: false },
-    { k: 'liga', t: 'Liga', v: unir([filtros.grupo, filtros.categoria, filtros.gestion]) ? `${unir([filtros.grupo === 'otros' ? 'resto' : filtros.grupo, filtros.categoria, filtros.gestion])} · ${modo}` : `todas · ${modo}`,
-      puesto: !!(filtros.grupo || filtros.categoria || filtros.gestion) || modo !== 'juntos' },
+    { k: 'liga', t: 'Liga', v: `${unir([filtros.categoria, filtros.gestion]) || 'todas'} · ${modo}`,
+      puesto: !!(filtros.categoria || filtros.gestion) || modo !== 'juntos' },
     { k: 'cartera', t: 'Cartera', v: nombreCartera ? `${nombreCartera}${excluirSuyos ? ' · sin los suyos' : ''}` : 'ninguna', puesto: carteraId !== '' },
     { k: 'coste', t: 'Coste y riesgo', v: unir([filtros.terMax != null && `TER ≤ ${cifra(filtros.terMax)} %`, filtros.srriMax && `SRRI ≤ ${filtros.srriMax}`,
       filtros.anosMin != null && `≥ ${cifra(filtros.anosMin, 0)} años`, filtros.patrimonioMin != null && `≥ ${cifra(filtros.patrimonioMin, 0)} M€`]) || 'sin límites',
@@ -255,18 +255,6 @@ export default function Screener() {
     ),
     liga: (
       <div className="space-y-2.5">
-        {filtros.tipo && grupos(filtros.tipo).length > 0 && (
-          <div className="space-y-1.5">
-            <span className="text-[13px]">{NOMBRE_GRUPO[filtros.tipo]}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {grupos(filtros.tipo).filter((g) => porGrupo.get(g)).map((g) => (
-                <Opcion key={g} on={filtros.grupo === g} onClick={() => filtrar({ grupo: filtros.grupo === g ? undefined : g, categoria: undefined })}>
-                  {g === 'otros' ? 'resto' : g} <span className="opacity-60">{porGrupo.get(g)}</span>
-                </Opcion>
-              ))}
-            </div>
-          </div>
-        )}
         <Campo etiqueta={`Categoría (${categorias.length})`}>
           <select value={filtros.categoria ?? ''} onChange={(e) => filtrar({ categoria: e.target.value || undefined })} className={`${control} max-w-52`}>
             <option value="">todas</option>
@@ -389,6 +377,19 @@ export default function Screener() {
           </button>
         ))}
       </div>
+
+      {/* Segundo nivel de la liga: el grupo del tipo elegido (región o estilo, tipo de bono, perfil), siempre a la vista. */}
+      {filtros.tipo && grupos(filtros.tipo).length > 0 && (
+        <div role="group" aria-label={NOMBRE_GRUPO[filtros.tipo]} className="-mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="rotulo mr-1">{NOMBRE_GRUPO[filtros.tipo]}</span>
+          <Opcion on={!filtros.grupo} onClick={() => filtrar({ grupo: undefined, categoria: undefined })}>todos</Opcion>
+          {grupos(filtros.tipo).filter((g) => porGrupo.get(g)).map((g) => (
+            <Opcion key={g} on={filtros.grupo === g} onClick={() => filtrar({ grupo: filtros.grupo === g ? undefined : g, categoria: undefined })}>
+              {g === 'otros' ? 'resto' : g} <span className="opacity-60">{porGrupo.get(g)}</span>
+            </Opcion>
+          ))}
+        </div>
+      )}
 
       {datos ? <Franja cifras={franja} /> : <p className="text-suave">Cargando el universo…</p>}
 
