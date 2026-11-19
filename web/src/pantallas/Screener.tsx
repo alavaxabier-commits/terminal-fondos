@@ -230,7 +230,7 @@ export default function Screener() {
   const mayorPeso = [...BLOQUES].sort((a, b) => pesoReal(b) - pesoReal(a))[0]
   const desplegables: { k: Exclude<Panel, null>; t: string; v: string; puesto: boolean; no?: boolean }[] = [
     { k: 'perfil', t: 'Perfil', v: perfiles.length ? `${perfiles.length} guardado${perfiles.length > 1 ? 's' : ''}` : 'ninguno', puesto: false },
-    { k: 'liga', t: 'Liga', v: unir([filtros.categoria, GESTIONES.find(([k]) => k === gestionVista)?.[2]]) || 'todas',
+    { k: 'liga', t: 'Categoría', v: unir([filtros.categoria, GESTIONES.find(([k]) => k === gestionVista)?.[2]]) || 'todas',
       puesto: !!(filtros.categoria || filtros.gestion) || modo !== 'juntos' },
     { k: 'cartera', t: 'Cartera', v: nombreCartera ? `${nombreCartera}${excluirSuyos ? ' · sin los suyos' : ''}` : 'ninguna', puesto: carteraId !== '' },
     { k: 'coste', t: 'Coste y riesgo', v: unir([filtros.terMax != null && `TER ≤ ${cifra(filtros.terMax)} %`, filtros.srriMax && `SRRI ≤ ${filtros.srriMax}`,
@@ -351,7 +351,7 @@ export default function Screener() {
       </div>
     ),
   }
-  const titulos: Record<Exclude<Panel, null>, string> = { perfil: 'Perfil', liga: 'Liga', cartera: 'Frente a una cartera', coste: 'Coste y riesgo', donde: 'Dónde', pesos: 'Pesos de la nota' }
+  const titulos: Record<Exclude<Panel, null>, string> = { perfil: 'Perfil', liga: 'Categoría', cartera: 'Frente a una cartera', coste: 'Coste y riesgo', donde: 'Dónde', pesos: 'Pesos de la nota' }
   // un desplegable no bloquea: la tabla se recalcula con él abierto; se cierra con ✕, Esc o al pulsar fuera
   // función, no componente: definido aquí dentro se volvería a montar en cada cambio y los campos perderían el foco
   const desplegable = (k: Exclude<Panel, null>, clase: string) => (
