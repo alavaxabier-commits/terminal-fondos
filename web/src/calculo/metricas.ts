@@ -216,14 +216,19 @@ export function rendMeses(s: Map<string, number>): Map<string, number> {
   return out
 }
 
-/** Años naturales cerrados (los 12 meses con dato) a partir de rentabilidades mensuales. */
+/** Años naturales cerrados (los 12 meses con dato) y el año en curso (de enero al mes en curso o al anterior, todos con
+ *  dato; el último puede ir a medias, hasta el último valor) a partir de rentabilidades mensuales. */
 export function anosDeMeses(r: Map<string, number>, hoy: string): Metricas {
   const out: Metricas = {}
-  const ano = +hoy.slice(0, 4)
+  const ano = +hoy.slice(0, 4), mes = +hoy.slice(5, 7)
+  const clave = (a: number, m: number) => `${a}-${String(m).padStart(2, '0')}-01`
   for (let a = ano - 10; a < ano; a++) {
-    const meses = Array.from({ length: 12 }, (_, m) => r.get(`${a}-${String(m + 1).padStart(2, '0')}-01`))
+    const meses = Array.from({ length: 12 }, (_, m) => r.get(clave(a, m + 1)))
     if (meses.every((x) => x != null)) out[String(a)] = { rentabilidad: prod(meses as number[]) - 1 }
   }
+  const enCurso: number[] = []
+  for (let m = 1; m <= mes && r.has(clave(ano, m)); m++) enCurso.push(r.get(clave(ano, m))!)
+  if (enCurso.length && enCurso.length >= mes - 1) out.ytd = { rentabilidad: prod(enCurso) - 1 }
   return out
 }
 

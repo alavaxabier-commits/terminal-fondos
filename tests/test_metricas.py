@@ -265,3 +265,13 @@ def test_bloques_propios_por_tipo():
     assert bloques_nota(pct, False, tipo='monetario')[0]['rentabilidad'] == 80
     assert bloques_nota(pct, False, tipo='renta fija')[0]['tir'] == 70
     assert 'tir' not in bloques_nota(pct, False, tipo='renta variable')[0]
+
+
+def test_mensuales_con_curso_anade_el_mes_a_medias():
+    from fondos.nucleo.metricas import mensuales, mensuales_con_curso
+    serie = {dt.date(2026, 9, 30): 100.0, dt.date(2026, 10, 30): 102.0, dt.date(2026, 11, 18): 104.04}
+    assert mensuales(serie) == {(2026, 10): pytest.approx(0.02)}
+    assert mensuales_con_curso(serie) == {(2026, 10): pytest.approx(0.02), (2026, 11): pytest.approx(0.02)}
+    # si el último dato ya es un cierre, no hay mes a medias que añadir
+    cerrado = {dt.date(2026, 9, 30): 100.0, dt.date(2026, 10, 30): 102.0}
+    assert mensuales_con_curso(cerrado) == mensuales(cerrado)

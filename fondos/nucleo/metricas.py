@@ -223,6 +223,21 @@ def mensuales(serie: dict[dt.date, float]) -> dict[tuple[int, int], float]:
             if (b[0] * 12 + b[1]) - (a[0] * 12 + a[1]) == 1}
 
 
+def mensuales_con_curso(serie: dict[dt.date, float]) -> dict[tuple[int, int], float]:
+    """Como `mensuales`, más el mes en curso: del cierre del mes anterior al último dato. Para las referencias de las
+    carteras, que necesitan el año en curso (YTD = producto de los meses del año, de cierre de diciembre al último dato)."""
+    out = mensuales(serie)
+    if not serie:
+        return out
+    ultima = max(serie)
+    k = (ultima.year, ultima.month)
+    anterior = (ultima.year - 1, 12) if ultima.month == 1 else (ultima.year, ultima.month - 1)
+    cierres = cierres_mes(serie)
+    if k not in out and anterior in cierres and es_cierre(cierres[anterior][0]):
+        out[k] = serie[ultima] / cierres[anterior][1] - 1
+    return out
+
+
 def tasa_mensual(estr: dict[dt.date, float]) -> dict[tuple[int, int], float]:
     """€STR diario (% anual) → rentabilidad de cada mes."""
     por_mes: dict[tuple[int, int], list[float]] = {}
