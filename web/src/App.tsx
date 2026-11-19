@@ -110,6 +110,8 @@ export default function App() {
   const cartera = ruta.match(/^#\/cartera\/(\d+)$/)?.[1]
   const simular = ruta.match(/^#\/simular\/(\d+)(?:\/([A-Z0-9]{12})\/([A-Z0-9]{12}))?$/)
   const comparar = ruta.match(/^#\/comparar(?:\/([A-Z0-9,]*))?$/)
+  // el Screener tiene tabla y ficha lado a lado: usa hasta 96 rem (cabecera, contenido y pie, alineados)
+  const ancho = ruta === '#/screener' ? 'max-w-[96rem]' : 'max-w-7xl'
   const inicio = !fondo && !cartera && !simular && !comparar && !['#/screener', '#/seguimiento', '#/revision'].includes(ruta)
   return (
     <div className="flex min-h-full flex-col">
@@ -121,7 +123,7 @@ export default function App() {
         o.observe(el)
         return () => o.disconnect()
       }}>
-        <div className="mx-auto flex min-h-12 max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4">
+        <div className={`mx-auto flex min-h-12 ${ancho} flex-wrap items-center gap-x-5 gap-y-2 px-4`}>
           <a href="#/" className="estrecha shrink-0 text-[19px] font-extrabold uppercase leading-none tracking-[0.01em]">
             <span className="hidden sm:inline">Terminal de fondos</span><span className="sm:hidden">Fondos</span>
           </a>
@@ -154,13 +156,13 @@ export default function App() {
         </div>
       </header>
       {inicio && <Cinta />}
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-5 px-4 py-5">
+      <main className={`mx-auto w-full flex-1 space-y-5 px-4 py-5 ${ancho}`}>
         {!comparar && <Bandeja />}
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
           : simular ? <Simular key={simular[0]} id={+simular[1]} sale={simular[2]} entra={simular[3]} />
           : comparar ? <Comparar isins={comparar[1] ? [...new Set(comparar[1].split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5) : bandeja.map((x) => x.isin)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
       </main>
-      <BarraEstado estado={estado} />
+      <BarraEstado estado={estado} ancho={ancho} />
       {contrasena && <CambiarContrasena cerrar={() => setContrasena(false)} />}
       {ayuda && (
         <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
@@ -188,7 +190,7 @@ const cuando = (ts: string) => {
 }
 
 /** Barra de estado al pie: descargas (o sus alarmas, que se detallan en Inicio), espacio de la base y fondos a revisar. */
-function BarraEstado({ estado: { descargas, base, revision, error } }: { estado: Estado }) {
+function BarraEstado({ estado: { descargas, base, revision, error }, ancho }: { estado: Estado; ancho: string }) {
   const mal = descargas?.some((t) => t.alarmas.length || t.atrasada)
   const ultima = descargas?.reduce((m, t) => (t.ts > m ? t.ts : m), '')
   const uso = base ? mb(base.total) / LIMITE_MB : 0
@@ -196,7 +198,7 @@ function BarraEstado({ estado: { descargas, base, revision, error } }: { estado:
   const aRevisar = revision?.carteras.reduce((n, c) => n + c.fondos.filter((f) => f.senales.length).length, 0) ?? 0
   return (
     <footer className="sticky bottom-0 z-10 border-t border-borde bg-panel text-[12px] text-suave">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 px-4 py-1">
+      <div className={`mx-auto flex ${ancho} flex-wrap items-center gap-x-4 px-4 py-1`}>
       {mal ? <a href="#/" className="text-baja hover:underline">▲ alarmas en las descargas</a>
         : ultima ? <span title={descargas!.map((t) => `${t.tarea} ${cuando(t.ts)}`).join(' · ')}><span className="text-sube" aria-hidden="true">● </span>descargas {cuando(ultima)}</span>
         : <span>{descargas ? 'sin registro de descargas' : 'descargas …'}</span>}

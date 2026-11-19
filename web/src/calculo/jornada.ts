@@ -1,21 +1,19 @@
 // «La jornada»: cada categoría es una liga. Con los puestos de la nota guardada (nota_semanal, pesos por defecto) de las
-// últimas semanas: zona del fondo, puestos ganados o perdidos desde la semana anterior y si su último puesto es viejo.
+// últimas semanas: puestos ganados o perdidos en un mes y si su último puesto es viejo.
 
 export type Puestos = { puestos: number[]; fechas: string[]; de: number }
-export type Zona = 'alta' | 'media' | 'baja'
 
-/** Cuartil alto (los primeros 25 % de su categoría), bajo (los últimos 25 %) o zona media. */
-export function zona(puesto: number, de: number): Zona {
-  if (de < 4) return 'media' // shortcut: con menos de 4 fondos no hay cuartiles que digan algo
-  if (puesto <= Math.ceil(de / 4)) return 'alta'
-  if (puesto > de - Math.ceil(de / 4)) return 'baja'
-  return 'media'
-}
-
-/** Puestos ganados (+) o perdidos (−) entre las dos últimas semanas en que tuvo nota; null si solo tiene una. */
-export function movimiento(p: Puestos): number | null {
-  const n = p.puestos.length
-  return n < 2 ? null : p.puestos[n - 2] - p.puestos[n - 1]
+/**
+ * Puestos ganados (+) o perdidos (−) desde el lunes de hace `semanas` semanas (por defecto, un mes) hasta su último puesto;
+ * null si ese lunes no tuvo nota (un fondo nuevo, o un hueco): no se compara con otra semana para no mezclar plazos.
+ */
+export function movimiento(p: Puestos, semanas = 4): number | null {
+  const ultima = p.fechas.at(-1)
+  if (!ultima) return null
+  const d = new Date(`${ultima}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - 7 * semanas)
+  const i = p.fechas.indexOf(d.toISOString().slice(0, 10))
+  return i < 0 ? null : p.puestos[i] - p.puestos.at(-1)!
 }
 
 /** Fecha del último puesto si no es de la última semana con notas (el dato es viejo: se enseña tachado, no se oculta). */

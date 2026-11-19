@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* Estética «La jornada»: cada categoría es una liga (dirección en .impeccable/surfaces/web-src-app-tsx.md).
-   Papel claro y tinta negra; cabecera negra; azul de liga para la zona alta, la selección y el acento; rojo de liga para la
-   zona baja; amarillo («once») solo para los fondos de tus carteras. Barlow para leer, Barlow Condensed pesada para puestos,
+   Papel claro y tinta negra; cabecera negra; azul de liga para la selección y el acento; tintes azul y rojo de liga
+   para lo mejor y lo peor en los mapas de métricas; amarillo («once») solo para los fondos de tus carteras. Barlow para leer, Barlow Condensed pesada para puestos,
    notas, cifras y rótulos; DM Mono solo para códigos (ISIN). Esquinas casi rectas, filetes en vez de sombras.
    Verde y rojo apagados solo para subir/bajar (siempre con signo o símbolo); ámbar para avisos. Texto ≥ 4,5:1 en los dos temas.
    Series (serie1…5): las validadas con dataviz (tinta, ocre, frambuesa y dos grises), sin cambios. */
@@ -30,8 +30,6 @@
   --color-once: #f0c23a;
   --color-sobre-once: #141414;
   --color-tuyo: #fbefc6;
-  --color-zona-alta: #1d4f9f;
-  --color-zona-baja: #c0392b;
   --color-tinte-alta: #e6ecf6;
   --color-tinte-baja: #f6e3df;
   --color-serie1: #5e82c5;
@@ -48,7 +46,7 @@
     --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
     --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
     --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
-    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
+    --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
     color-scheme: dark;
   }
@@ -57,7 +55,7 @@
       --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
     --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
     --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
-    --color-zona-alta: #5f8fdc; --color-zona-baja: #d9574a; --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
+    --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
       color-scheme: dark;
     }

@@ -188,7 +188,7 @@ export function TablaLiga({ filas, metricas, percentiles, revision, puestos, sem
               <th className={`${th} text-right`}>TER</th>
               {COLUMNAS.map(([k, t]) => <th key={k} className={`${th} w-28 text-center`}>{t}</th>)}
               <th className={`${th} pl-3 text-left`}>Nota</th>
-              <th className={`${th} pl-3 text-left`} title="Puesto en su categoría por la nota guardada esta semana, y lo que ha subido o bajado">Puesto</th>
+              <th className={`${th} pl-3 text-left`} title="Puesto en su categoría por la nota guardada esta semana, y lo que ha subido o bajado en un mes">Puesto</th>
               <th className={`${th} pl-3 text-left`}>Señales</th>
             </tr>
           </thead>
@@ -236,7 +236,7 @@ export function Once({ p, semana }: { p: Puestos | undefined; semana: string }) 
       <span className={`estrecha inline-block min-w-[3.25rem] bg-once px-1.5 text-center text-[16px] font-extrabold text-sobre-once ${v ? 'line-through opacity-60' : ''}`}>{p.puestos.at(-1)}.º</span>
       <span className="text-[12px] text-suave">de {p.de}</span>
       {v ? <span className="text-[11px] text-baja">{new Date(v + 'T12:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
-        : m ? <span className={`estrecha text-[14px] font-bold ${m > 0 ? 'text-zona-alta' : 'text-zona-baja'}`}>{m > 0 ? `▲ ${m}` : `▼ ${-m}`}</span> : null}
+        : m ? <span title="Puestos ganados o perdidos en un mes" className={`estrecha text-[14px] font-bold ${m > 0 ? 'text-sube' : 'text-baja'}`}>{m > 0 ? `▲ ${m}` : `▼ ${-m}`}</span> : null}
     </span>
   )
 }
