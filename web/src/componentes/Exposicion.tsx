@@ -86,7 +86,7 @@ export default function Exposicion({ fondos }: { fondos: FondoX[] }) {
             </div>
           )}
           <p className="text-[12px] text-suave">
-            {elegido ? `Cartera de ${elegido} según Morningstar` : 'Cartera de cada fondo según Morningstar, ponderada por su peso'}
+            {elegido ? `Cartera de ${elegido} según Morningstar` : fondos.length === 1 ? 'Cartera del fondo según Morningstar' : 'Cartera de cada fondo según Morningstar, ponderada por su peso'}
             {x.cobertura < 99.5 && <span className="text-aviso"> · solo el {p1(x.cobertura, 0)} de la cartera tiene datos</span>}
             {x.cortos.length > 0 && <> · cifras netas: {x.cortos.join(', ')} {x.cortos.length > 1 ? 'tienen' : 'tiene'} posiciones cortas</>}
             {antiguas.length > 0 && <span className="text-aviso"> · cartera antigua: {antiguas.map((f) => `${f.nombre} (${fecha(f.fechaCartera)})`).join(', ')}</span>}

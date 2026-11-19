@@ -51,7 +51,7 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
           textStyle: { color: texto, fontFamily: fuente },
           valueFormatter: (v: unknown) => (typeof v === 'number' ? v.toFixed(1) : String(v)),
         },
-        xAxis: { type: 'time', axisLine: { lineStyle: { color: borde } }, splitLine: { show: false } },
+        xAxis: { type: 'time', axisLine: { lineStyle: { color: borde } }, axisLabel: { hideOverlap: true }, splitLine: { show: false } },
         yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: borde, type: 'solid' } } },
         dataZoom: [{ type: 'inside' }, {
           type: 'slider', height: 18, bottom: 8, borderColor: borde, textStyle: { color: suave },

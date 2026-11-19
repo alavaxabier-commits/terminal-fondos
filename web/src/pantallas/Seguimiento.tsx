@@ -134,9 +134,9 @@ export default function Seguimiento() {
                   className={`cursor-pointer border-t ${k > 0 && k % 5 === 0 ? 'border-texto/60' : 'border-borde/70'} ${elegida ? 'bg-acento/15 outline-2 -outline-offset-2 outline-acento' : 'hover:bg-borde/30'}`}>
                   <td className="py-2 pr-2 pl-2 text-left">
                     <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.fondo.nombre}</a>
-                    {f.myinvestor && <span className="ml-1.5 rounded-sm bg-acento/15 px-1.5 align-[1px] text-[10px] text-acento" title="Se puede comprar en MyInvestor">MI</span>}
+                    {f.myinvestor && <span className="ml-1.5 rounded-sm border border-acento/60 px-1 align-[1px] text-[11px] font-medium text-acento" title="Se puede comprar en MyInvestor">MI</span>}
                     {(f.fondo.divisa !== 'EUR' || cubierta(f.fondo.nombre)) && <span className="ml-1.5 rounded-sm bg-borde/60 px-1.5 align-[1px] text-[10px] text-suave">{f.fondo.divisa}{cubierta(f.fondo.nombre) && ' cubierta'}</span>}
-                    {senales.get(f.isin)?.map((s) => <span key={s.tipo} title={s.motivo} className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso">{s.tipo}</span>)}
+                    {senales.get(f.isin)?.map((s) => <span key={s.tipo} title={s.motivo} className="ml-1.5 inline-block rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] whitespace-nowrap text-aviso">{s.tipo}</span>)}
                     <span className="block text-[12px] text-suave">{categoria(f)}</span>
                   </td>
                   {!monetario && <CeldaNota n={notas.get(f.isin)} ultimo={ultimoLunes} />}

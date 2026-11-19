@@ -212,7 +212,7 @@ function TablaCarteras({ carteras, resumenes, senalesDe }: { carteras: Cartera[]
               <th scope="col" className={`${thn} max-[1180px]:hidden`}>Sharpe</th>
               <th scope="col" className={`${thn} max-[1180px]:hidden`}>Gastos</th>
               <th scope="col" className={`${th} text-left`}>Último año</th>
-              <th scope="col" className={`${th} hidden text-left lg:table-cell`}>Tipo de activo</th>
+              <th scope="col" className={`${th} hidden text-left min-[1500px]:table-cell`}>Tipo de activo</th>
               <th scope="col" className={`${th} text-left`}>Avisos</th>
             </tr>
           </thead>
@@ -237,7 +237,7 @@ function TablaCarteras({ carteras, resumenes, senalesDe }: { carteras: Cartera[]
                     <td className={`${td} max-[1180px]:hidden`}>{cifra(r.sharpe3)}</td>
                     <td className={`${td} max-[1180px]:hidden`}>{r.gastos == null ? '—' : `${cifra(r.gastos)} %`}</td>
                     <td className="px-2.5 py-3.5"><Mini valores={r.linea} color={tinta.get(c.id)} className="h-8.5 w-32" /></td>
-                    <td className="hidden px-2.5 py-3.5 lg:table-cell"><BarraActivos activos={r.activos} cobertura={r.cobertura} /></td>
+                    <td className="hidden px-2.5 py-3.5 min-[1500px]:table-cell"><BarraActivos activos={r.activos} cobertura={r.cobertura} /></td>
                     <td className="px-2.5 py-3.5 text-[13px]"><Avisos c={c} r={r} senales={senalesDe(c.id)} /></td>
                   </>)}
                 </tr>

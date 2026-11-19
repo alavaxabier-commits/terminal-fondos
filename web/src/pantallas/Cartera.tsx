@@ -290,7 +290,7 @@ export default function Cartera({ id }: { id: number }) {
       )}
       {!borrador && aRevisar.length > 0 && (
         <div role="status" className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xs border border-aviso/40 bg-aviso/5 px-3 py-2 text-[13px]">
-          <span className="estrecha font-bold tracking-[0.04em] text-aviso uppercase">▲ {aRevisar.length} a revisar</span>
+          <span className="estrecha font-bold tracking-[0.04em] text-aviso uppercase">▲ {new Set(aRevisar.map((x) => x.isin)).size} a revisar</span>
           {aRevisar.slice(0, 3).map((x, i) => (
             <span key={i} title={x.texto}><a href={`#/fondo/${x.isin}`} className="font-semibold hover:text-acento">{corto(x.nombre)}</a> · {x.titulo}</span>
           ))}
