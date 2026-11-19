@@ -9,7 +9,7 @@ import { evolucion, type NotaSemanal, type Senal } from '../calculo/senales'
 import type { Estado } from '../App'
 import Mini from '../componentes/Mini'
 import { exposicion, type Fila } from '../calculo/exposicion'
-import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, refCartera, seguidos, type Cartera, fondosEnCarteras, datosNovedades, seguimiento, umbrales } from '../datos/consultas'
+import { cartera as leerCartera, categoriasReferencia, nuevaCartera, carteras as leerCarteras, notasDe, referenciaSeries, refCartera, seguidos, type Cartera, fondosEnCarteras, datosNovedades, seguimiento, umbrales } from '../datos/consultas'
 import { cargarFondo, serieEur } from '../datos/series'
 import { novedades, umbralesNovedades, type Novedad } from '../calculo/novedades'
 import ListaNovedades from '../componentes/ListaNovedades'
@@ -110,7 +110,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
   const senalesDe = (id: number): Senales | undefined => revision
     ? new Map(revision.carteras.find((x) => x.cartera.id === id)?.fondos.filter((f) => f.senales.length).map((f) => [f.fondo.isin, f.senales]) ?? [])
     : undefined
-  const nueva = () => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual', banda: 5, banda_tipo: 'puntos', revision: 'diaria', referencia: null }).then((id) => (location.hash = `#/cartera/${id}`)).catch(falla)
+  const nueva = () => nuevaCartera().then((id) => (location.hash = `#/cartera/${id}`)).catch(falla)
 
   return (
     <div className="space-y-10">

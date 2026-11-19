@@ -225,6 +225,9 @@ export type CarteraEditable = Omit<Cartera, 'id'>
 export type Cambio = { fecha: string; sale: string | null; entra: string | null; motivo: string | null }
 
 /** Crea una cartera (con un número al final si el nombre ya existe) y devuelve su id. */
+/** Cartera vacía con los valores por defecto (Inicio y el menú de Carteras). */
+export const nuevaCartera = () => crearCartera({ nombre: 'Cartera nueva', objetivo: null, rebalanceo: 'anual', banda: 5, banda_tipo: 'puntos', revision: 'diaria', referencia: null })
+
 export async function crearCartera(c: CarteraEditable, fondos: { isin: string; peso: number }[] = []): Promise<number> {
   for (let n = 1; n <= 20; n++) {
     const nombre = n === 1 ? c.nombre : `${c.nombre} ${n}`

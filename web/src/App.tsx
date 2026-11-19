@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
-import { PANTALLAS } from './calculo/ordenes'
+import { grupo, SUB_FONDOS } from './calculo/ordenes'
 import { estadoDescargas, type Tarea } from './calculo/vigilancia'
 import Bandeja from './componentes/Bandeja'
 import Buscador from './componentes/Buscador'
@@ -8,7 +8,7 @@ import CambiarContrasena from './componentes/CambiarContrasena'
 import { escribiendo } from './componentes/teclas'
 import { leerTema, ponerTema, type Tema } from './componentes/tema'
 import { rutaCon, useBandeja } from './datos/bandeja'
-import { tamanoBase, vigilancia } from './datos/consultas'
+import { carteras as leerCarteras, nuevaCartera, tamanoBase, vigilancia } from './datos/consultas'
 import { revisar, type Revision as DatosRevision } from './datos/revision'
 import { supabase } from './datos/supabase'
 import Entrar from './pantallas/Entrar'
@@ -36,26 +36,26 @@ function useRuta(): string {
   return ruta
 }
 
-/** Atajos de la especificación: 1 inicio, 3 screener, 4 seguimiento, r revisión, c comparador (con el fondo abierto),
+/** Atajos de la especificación: 1 inicio, 2 carteras (la primera), 3 screener, 4 seguimiento, r revisión, c comparador (con el fondo abierto),
  *  m simulador (con la cartera abierta). No actúan mientras se escribe en un campo. */
-function useAtajos(ruta: string) {
+function useAtajos(ruta: string, primera: string) {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (escribiendo(e)) return
       const fondo = ruta.match(/^#\/fondo\/([A-Z0-9]{12})$/)?.[1]
       const cartera = ruta.match(/^#\/cartera\/(\d+)$/)?.[1]
-      const destino = ({ '1': '#/', '3': '#/screener', '4': '#/seguimiento', r: '#/revision', c: fondo ? rutaCon(fondo) : '#/comparar', m: cartera && `#/simular/${cartera}` } as Record<string, string | undefined>)[e.key]
+      const destino = ({ '1': '#/', '2': primera, '3': '#/screener', '4': '#/seguimiento', r: '#/revision', c: fondo ? rutaCon(fondo) : '#/comparar', m: cartera && `#/simular/${cartera}` } as Record<string, string | undefined>)[e.key]
       if (destino) location.hash = destino
     }
     addEventListener('keydown', tecla)
     return () => removeEventListener('keydown', tecla)
-  }, [ruta])
+  }, [ruta, primera])
 }
 
 // Lo que se ve con «?»: los atajos de toda la app.
 const ATAJOS: [string, string][] = [
   ['/', 'barra de órdenes: fondo, cartera o pantalla (↑↓ mover, Intro abrir, Esc cerrar)'],
-  ['1 · 3 · 4 · r', 'inicio · screener · seguimiento · revisión'],
+  ['1 · 2 · 3 · 4 · r', 'inicio · carteras · screener · seguimiento · revisión'],
   ['c', 'comparador (con la ficha de un fondo abierta, lo añade)'],
   ['m', 'simulador (con una cartera abierta)'],
   ['a', 'añadir fondos en el comparador (filtros y nota del screener)'],
@@ -75,7 +75,11 @@ export default function App() {
   const [tema, setTema] = useState<Tema>(leerTema)
   const ruta = useRuta()
   const bandeja = useBandeja()
-  useAtajos(ruta)
+  const [carteras, setCarteras] = useState<{ id: number; nombre: string }[]>([])
+  const g = grupo(ruta)
+  // «Carteras» lleva a la primera; sin carteras, a Revisión
+  const primera = carteras.length ? `#/cartera/${carteras[0].id}` : '#/revision'
+  useAtajos(ruta, primera)
 
   // Estado de las descargas, de la base y de las revisiones: una vez por visita, para la barra de estado y para Inicio.
   const usuario = sesion?.user.id
@@ -87,6 +91,12 @@ export default function App() {
     tamanoBase().then((base) => pon({ base })).catch(falla)
     revisar().then((revision) => pon({ revision })).catch(falla)
   }, [usuario])
+
+  // Las carteras del menú se releen al entrar en su grupo (pueden haberse creado, renombrado o archivado).
+  const enCarteras = g === 'carteras'
+  useEffect(() => {
+    if (usuario) leerCarteras().then(setCarteras).catch(() => setCarteras([]))
+  }, [usuario, enCarteras, ruta])
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
@@ -132,13 +142,10 @@ export default function App() {
             <span className="hidden sm:inline">Terminal de fondos</span><span className="sm:hidden">Fondos</span>
           </a>
           <nav aria-label="Pantallas" className="pantallas order-last flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
-            {PANTALLAS.map(([h, t]) => {
-              const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
-              return (
-                <a key={h} href={h} aria-current={actual ? 'page' : undefined}
-                  className={`flex items-center whitespace-nowrap px-3 text-[14px] ${actual ? 'font-semibold shadow-[inset_0_-3px_0_var(--color-once)]' : 'opacity-75 hover:opacity-100'}`}>{t[0].toUpperCase() + t.slice(1)}</a>
-              )
-            })}
+            {([['inicio', '#/', 'Inicio'], ['fondos', '#/screener', 'Fondos'], ['carteras', primera, 'Carteras']] as const).map(([k, h, t]) => (
+              <a key={k} href={h} aria-current={g === k ? 'page' : undefined}
+                className={`flex items-center whitespace-nowrap px-3 text-[14px] ${g === k ? 'font-semibold shadow-[inset_0_-3px_0_var(--color-once)]' : 'opacity-75 hover:opacity-100'}`}>{t}</a>
+            ))}
           </nav>
           <Buscador />
           <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
@@ -161,6 +168,23 @@ export default function App() {
             <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 sm:hidden" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" /></svg>
           </button>
         </div>
+        {g !== 'inicio' && (
+          <nav aria-label={g === 'fondos' ? 'Fondos' : 'Carteras'} className="border-t border-sobre-cabecera/15">
+            <div className={`pantallas mx-auto flex min-h-9 ${ancho} items-stretch overflow-x-auto px-4 text-[13px]`}>
+              {(g === 'fondos'
+                ? SUB_FONDOS.map(([h, t]) => [h, t[0].toUpperCase() + t.slice(1), ruta === h || (h === '#/comparar' && !!comparar)] as const)
+                : [...carteras.map((c) => [`#/cartera/${c.id}`, c.nombre, c.id === Number(cartera ?? simular?.[1])] as const), ['#/revision', 'Revisión', ruta === '#/revision'] as const]
+              ).map(([h, t, actual]) => (
+                <a key={h} href={h} aria-current={actual ? 'page' : undefined}
+                  className={`flex items-center whitespace-nowrap px-3 ${actual ? 'font-semibold shadow-[inset_0_-2px_0_var(--color-once)]' : 'opacity-65 hover:opacity-100'}`}>{t}</a>
+              ))}
+              {g === 'carteras' && (
+                <button onClick={() => nuevaCartera().then((id) => (location.hash = `#/cartera/${id}`)).catch((e: Error) => alert(`No se ha podido crear la cartera: ${e.message}`))}
+                  className="whitespace-nowrap px-3 opacity-65 hover:opacity-100">+ nueva</button>
+              )}
+            </div>
+          </nav>
+        )}
       </header>
       {inicio && <Cinta />}
       <main className={`mx-auto w-full flex-1 space-y-5 px-4 py-5 ${ancho}`}>
