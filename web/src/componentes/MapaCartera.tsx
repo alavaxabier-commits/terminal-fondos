@@ -118,12 +118,12 @@ function Detalle({ refPanel, clave, calc, fondos }: { refPanel: React.RefObject<
         <span className="absolute inset-x-0 top-[38px] h-0.5 bg-borde" />
         {deFondos.map((x) => (
           <span key={x.isin}>
-            <span className="absolute top-[18px] h-5 w-px bg-gris" style={{ left: pos(x.v) }} />
-            <span className="absolute -ml-[9px] grid h-[18px] w-[18px] place-items-center rounded-full border-[1.5px] border-gris bg-panel text-[10px] font-bold text-suave" style={{ left: pos(x.v), top: -nivel.get(x.n)! * 14 }}>{x.n}</span>
+            <span className="mueve absolute top-[18px] h-5 w-px bg-gris" style={{ left: pos(x.v) }} />
+            <span className="mueve absolute -ml-[9px] grid h-[18px] w-[18px] place-items-center rounded-full border-[1.5px] border-gris bg-panel text-[10px] font-bold text-suave" style={{ left: pos(x.v), top: -nivel.get(x.n)! * 14 }}>{x.n}</span>
           </span>
         ))}
-        {r != null && <span className="absolute top-[26px] -ml-px h-[26px] w-0.5 bg-texto" style={{ left: pos(r) }} />}
-        <span className="absolute top-[31px] -ml-2 h-4 w-4 rounded-full bg-acento shadow-[0_0_0_2px_var(--color-panel)]" style={{ left: pos(c) }} />
+        {r != null && <span className="mueve absolute top-[26px] -ml-px h-[26px] w-0.5 bg-texto" style={{ left: pos(r) }} />}
+        <span className="mueve absolute top-[31px] -ml-2 h-4 w-4 rounded-full bg-acento shadow-[0_0_0_2px_var(--color-panel)]" style={{ left: pos(c) }} />
       </div>
       <div className="flex justify-between gap-2 text-[11px] text-suave">
         <span>{neutra ? 'menos' : 'peor'}</span><span>● cartera · ┃ referencia · números: sus fondos</span><span>{neutra ? 'más' : 'mejor'}</span>
