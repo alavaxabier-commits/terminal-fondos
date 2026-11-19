@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { exposicion, type Composicion, type Fila } from '../calculo/exposicion'
 import { cifra, colorPercentil, millones, pct } from '../calculo/formato'
 import { rendimientos, riesgo, semanal } from '../calculo/metricas'
 import { BLOQUES, bloques, NOMBRE_BLOQUE, nota, grupoPesos, PESOS_TIPO_DEFECTO, tipoActivo, type Plazo } from '../calculo/nota'
 import { base100, caidas, haceAnos, inicioComun, type Punto } from '../calculo/series'
-import Buscador from '../componentes/Buscador'
+import Candidatos from '../componentes/Candidatos'
 import Dispersion from '../componentes/Dispersion'
 import { MatrizCorrelacion, Solapes } from '../componentes/EstadisticasCartera'
 import Grafico from '../componentes/Grafico'
@@ -49,6 +49,7 @@ export default function Comparar({ isins }: { isins: string[] }) {
   const [error, setError] = useState('')
   const [rango, setRango] = useState(3)
   const [pestana, setPestana] = useState<Pestana>('resumen')
+  const [anadiendo, setAnadiendo] = useState(false)
 
   useEffect(() => {
     const faltan = isins.filter((i) => !datos.has(i))
@@ -73,7 +74,9 @@ export default function Comparar({ isins }: { isins: string[] }) {
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
-      if (escribiendo(e) || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
+      if (escribiendo(e)) return
+      if (e.key === 'a' && isins.length < MAX_BANDEJA) { e.preventDefault(); setAnadiendo(true); return }
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       const p = PESTANAS[PESTANAS.indexOf(pestana) + (e.key === 'ArrowRight' ? 1 : -1)]
       if (p) setPestana(p)
     }
@@ -81,6 +84,7 @@ export default function Comparar({ isins }: { isins: string[] }) {
     return () => removeEventListener('keydown', tecla)
   })
 
+  const cerrarCandidatos = useCallback(() => setAnadiendo(false), [])
   const color = (d: Datos) => COLORES[isins.indexOf(d.fondo.isin)]
   const ventana = `${rango}a`
 
@@ -121,17 +125,26 @@ export default function Comparar({ isins }: { isins: string[] }) {
                 aria-label={`Quitar ${nombre(i)}`} className="min-h-7 min-w-7 text-suave hover:text-baja">✕</button>
             </li>
           ))}
+          <li className="flex">
+            {isins.length < MAX_BANDEJA
+              ? <button onClick={() => setAnadiendo(true)} aria-expanded={anadiendo} title="Tecla a"
+                  className="rounded-lg border border-dashed border-borde px-4 py-1.5 text-suave hover:border-acento hover:text-acento">
+                  + Añadir fondo <span className="ml-1 text-[11px]">a</span>
+                </button>
+              : <span className="self-center text-[12px] text-suave">Como mucho {MAX_BANDEJA}: quita uno para añadir otro.</span>}
+          </li>
         </ul>
-        {isins.length < MAX_BANDEJA
-          ? <Buscador texto={`añadir fondo (hasta ${MAX_BANDEJA}): nombre o ISIN`}
-              onElegir={(f) => !isins.includes(f.isin) && ir([...isins.map((x) => ({ isin: x, nombre: nombre(x) })), { isin: f.isin, nombre: f.nombre }])} />
-          : <p className="text-suave">Como mucho {MAX_BANDEJA} fondos: quita uno para añadir otro.</p>}
         {cats.size > 1 && <p className="text-[12px] text-aviso">Categorías distintas: los percentiles (pNN y la nota) son frente a la categoría de cada fondo y no se comparan entre sí.</p>}
       </header>
 
       {error && <Fallo>No se han podido leer los fondos: {error}</Fallo>}
-      {!isins.length && <p className="text-suave">Añade fondos para compararlos: aquí, o con «+ Comparar» (tecla b) en el screener, el seguimiento o la ficha.</p>}
+      {!isins.length && <p className="text-suave">Añade fondos para compararlos: con «+ Añadir fondo» (tecla a), o con «+ Comparar» (tecla b) en el screener, el seguimiento o la ficha.</p>}
       {isins.length > 0 && !listos && <Cargando alto="h-80" />}
+
+      {anadiendo && (
+        <Candidatos isins={isins} categorias={fondos.map((d) => d.fondo.categoria)} rango={rango} cerrar={cerrarCandidatos}
+          anadir={(f) => ir([...isins.map((x) => ({ isin: x, nombre: nombre(x) })), f])} />
+      )}
 
       {listos && fondos.length > 0 && (
         <>
