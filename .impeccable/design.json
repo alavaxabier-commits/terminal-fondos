@@ -1,47 +1,83 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-17T17:00:00Z",
+  "generatedAt": "2026-11-19T12:00:00Z",
   "title": "Design System: Terminal de fondos",
   "extensions": {
     "colorMeta": {
-      "azul-liga": { "role": "primary", "displayName": "Azul de liga", "canonical": "#1d4f9f", "dark": "#86aef0" },
-      "zona-baja": { "role": "secondary", "displayName": "Rojo de liga", "canonical": "#c0392b", "dark": "#d9574a" },
-      "amarillo-once": { "role": "secondary", "displayName": "Amarillo once", "canonical": "#f0c23a", "dark": "#e2b52e" },
-      "papel": { "role": "neutral", "displayName": "Papel", "canonical": "#f3f2ec", "dark": "#111214" },
-      "tinta": { "role": "neutral", "displayName": "Tinta", "canonical": "#141414", "dark": "#ecebe6" }
+      "azul-liga": { "role": "primary", "displayName": "Azul de liga", "canonical": "#1d4f9f", "dark": "#86aef0", "cssVar": "--color-acento" },
+      "amarillo-once": { "role": "secondary", "displayName": "Amarillo once", "canonical": "#f0c23a", "dark": "#e2b52e", "cssVar": "--color-once" },
+      "tinte-tuyo": { "role": "secondary", "displayName": "Tinte de lo tuyo", "canonical": "#fbefc6", "dark": "#3a3214", "cssVar": "--color-tuyo" },
+      "tinte-alta": { "role": "secondary", "displayName": "Cuartil alto (mapas)", "canonical": "#e6ecf6", "dark": "#161b24", "cssVar": "--color-tinte-alta" },
+      "tinte-baja": { "role": "secondary", "displayName": "Cuartil bajo (mapas)", "canonical": "#f6e3df", "dark": "#221816", "cssVar": "--color-tinte-baja" },
+      "papel": { "role": "neutral", "displayName": "Papel", "canonical": "#f3f2ec", "dark": "#111214", "cssVar": "--color-fondo" },
+      "papel-panel": { "role": "neutral", "displayName": "Papel de panel", "canonical": "#fbfaf6", "dark": "#1a1b1e", "cssVar": "--color-panel" },
+      "filete": { "role": "neutral", "displayName": "Filete", "canonical": "#dcdad1", "dark": "#2d2e33", "cssVar": "--color-borde" },
+      "tinta": { "role": "neutral", "displayName": "Tinta", "canonical": "#141414", "dark": "#ecebe6", "cssVar": "--color-texto" },
+      "tinta-suave": { "role": "neutral", "displayName": "Tinta suave", "canonical": "#5c5a53", "dark": "#a3a199", "cssVar": "--color-suave" },
+      "cabecera": { "role": "neutral", "displayName": "Cabecera", "canonical": "#141414", "dark": "#050506", "cssVar": "--color-cabecera" },
+      "verde-sube": { "role": "semantic", "displayName": "Sube", "canonical": "#2b6a3f", "dark": "#7cc39f", "cssVar": "--color-sube" },
+      "rojo-baja": { "role": "semantic", "displayName": "Baja", "canonical": "#b0352a", "dark": "#ee8f80", "cssVar": "--color-baja" },
+      "ambar-aviso": { "role": "semantic", "displayName": "Aviso", "canonical": "#85600f", "dark": "#e0b85c", "cssVar": "--color-aviso" },
+      "serie1": { "role": "data", "displayName": "Serie 1", "canonical": "#5e82c5", "dark": "#678ccf", "cssVar": "--color-serie1" },
+      "serie2": { "role": "data", "displayName": "Serie 2", "canonical": "#c48225", "dark": "#b47308", "cssVar": "--color-serie2" },
+      "serie3": { "role": "data", "displayName": "Serie 3", "canonical": "#bb5c84", "dark": "#ad5078", "cssVar": "--color-serie3" },
+      "serie4": { "role": "data", "displayName": "Serie 4", "canonical": "#6f6b64", "dark": "#8a91a0", "cssVar": "--color-serie4" },
+      "serie5": { "role": "data", "displayName": "Serie 5", "canonical": "#b0aca3", "dark": "#4d5463", "cssVar": "--color-serie5" }
     },
     "typographyMeta": {
       "display": { "displayName": "Título de pantalla", "purpose": "h1 de cada pantalla, en mayúsculas." },
+      "headline": { "displayName": "Sección", "purpose": "Secciones de Inicio y tipos de activo en Seguimiento, con filete de 2 px de tinta debajo." },
+      "title": { "displayName": "Título de tarjeta", "purpose": "Títulos de tarjeta y pestañas de liga." },
       "cifra": { "displayName": "Cifra de liga", "purpose": "Puestos, notas y cifras que se comparan entre filas." },
-      "label": { "displayName": "Rótulo", "purpose": "Cabeceras de tabla y de bloque." }
+      "body": { "displayName": "Texto", "purpose": "Texto y celdas, con números tabulares." },
+      "label": { "displayName": "Rótulo", "purpose": "Cabeceras de tabla y rótulos (`rotulo`)." },
+      "codigo": { "displayName": "Código", "purpose": "Solo ISIN y otros códigos." }
     },
     "shadows": [
-      { "name": "franja-zona", "value": "inset 5px 0 0 var(--color-zona-alta | --color-zona-baja)", "purpose": "Marca de zona al borde de la fila, no profundidad." },
-      { "name": "pantalla-actual", "value": "inset 0 -3px 0 var(--color-once)", "purpose": "Subrayado de la pantalla actual en la cabecera." }
+      { "name": "pantalla-actual", "value": "inset 0 -3px 0 var(--color-once)", "purpose": "Subrayado amarillo de la pantalla actual en la cabecera; la única «sombra», que es una marca y no profundidad." }
     ],
     "motion": [
-      { "name": "cambio-color", "value": "color, background-color, border-color, box-shadow .15s", "purpose": "Único movimiento: cambios de color al pasar o elegir; nada con reduced-motion." }
+      { "name": "cambio-color", "value": "color, background-color, border-color .15s", "purpose": "Cambios de color al pasar o elegir; nada con «reducir movimiento»." },
+      { "name": "cinta", "value": "desplazamiento lineal en bucle", "purpose": "Solo la cinta de índices de Inicio; se para al pasar el ratón, con el foco, con su botón o con «reducir movimiento»." }
     ],
     "breakpoints": [ { "name": "sm", "value": "640px" }, { "name": "md", "value": "768px" }, { "name": "lg", "value": "1024px" } ]
   },
   "components": [
+    { "name": "Botón principal", "kind": "button", "refersTo": "button-primary", "description": "Acción principal de un panel.",
+      "html": "<button class=\"ds-btn-pri\">Guardar cartera</button>",
+      "css": ".ds-btn-pri{height:36px;padding:0 14px;border:1px solid var(--color-acento,#1d4f9f);border-radius:2px;background:var(--color-acento,#1d4f9f);color:var(--color-sobre-acento,#fff);font:500 14px 'Barlow',sans-serif;cursor:pointer;transition:background-color .15s}.ds-btn-pri:hover{background:color-mix(in srgb,var(--color-acento,#1d4f9f) 80%,var(--color-texto,#141414))}.ds-btn-pri:focus-visible{outline:2px solid var(--color-acento,#1d4f9f);outline-offset:2px}" },
+    { "name": "Botón secundario", "kind": "button", "refersTo": "button-secondary", "description": "Comparar, ficha y el resto de acciones.",
+      "html": "<button class=\"ds-btn\">+ Comparar</button>",
+      "css": ".ds-btn{height:36px;padding:0 14px;border:1px solid var(--color-borde,#dcdad1);border-radius:2px;background:var(--color-panel,#fbfaf6);color:var(--color-texto,#141414);font:500 14px 'Barlow',sans-serif;cursor:pointer;transition:border-color .15s}.ds-btn:hover{border-color:var(--color-suave,#5c5a53)}.ds-btn:focus-visible{outline:2px solid var(--color-acento,#1d4f9f);outline-offset:2px}" },
+    { "name": "Cabecera", "kind": "nav", "refersTo": "cabecera", "description": "Banda negra a todo el ancho; la pantalla actual subrayada en amarillo.",
+      "html": "<nav class=\"ds-cab\"><b>Terminal de fondos</b><a>Inicio</a><a>Screener</a><a class=\"on\">Seguimiento</a><a>Revisión</a></nav>",
+      "css": ".ds-cab{display:flex;align-items:stretch;gap:20px;height:48px;padding:0 16px;background:var(--color-cabecera,#141414);color:var(--color-sobre-cabecera,#f3f2ec);font:14px 'Barlow',sans-serif}.ds-cab b{align-self:center;font:800 18px 'Barlow Condensed',sans-serif;text-transform:uppercase}.ds-cab a{display:flex;align-items:center;opacity:.75;cursor:pointer}.ds-cab a:hover{opacity:1}.ds-cab .on{opacity:1;font-weight:600;box-shadow:inset 0 -3px 0 var(--color-once,#f0c23a)}" },
     { "name": "Pestaña de liga", "kind": "nav", "refersTo": "tab-liga", "description": "Tipo de activo en el Screener.",
-      "html": "<div class=\"ds-tabs\"><button class=\"on\">Todos</button><button>Renta variable</button></div>",
-      "css": ".ds-tabs{display:flex;gap:2px;border-bottom:2px solid #141414}.ds-tabs button{font:700 15px 'Barlow Condensed',sans-serif;text-transform:uppercase;padding:6px 14px 4px;background:#dcdad1;color:#141414;border:0}.ds-tabs .on{background:#141414;color:#f3f2ec}" },
+      "html": "<div class=\"ds-tabs\"><button class=\"on\">Renta variable</button><button>Renta fija</button><button>Mixtos</button></div>",
+      "css": ".ds-tabs{display:flex;gap:2px;border-bottom:2px solid var(--color-texto,#141414)}.ds-tabs button{font:700 15px 'Barlow Condensed',sans-serif;text-transform:uppercase;padding:6px 14px 4px;background:var(--color-borde,#dcdad1);color:var(--color-texto,#141414);border:0;cursor:pointer}.ds-tabs .on{background:var(--color-texto,#141414);color:var(--color-fondo,#f3f2ec)}" },
+    { "name": "Tarjeta", "kind": "card", "refersTo": "tarjeta", "description": "Panel del fondo elegido y bloques de pantalla; sin sombra.",
+      "html": "<section class=\"ds-tarjeta\"><h3>Frente a su categoría</h3><p>Rentabilidad 3 años <b>+13,2 %</b></p></section>",
+      "css": ".ds-tarjeta{background:var(--color-panel,#fbfaf6);border:1px solid var(--color-borde,#dcdad1);border-radius:3px;padding:16px;color:var(--color-texto,#141414);font:13px 'Barlow',sans-serif}.ds-tarjeta h3{margin:0 0 8px;font:700 17px 'Barlow Condensed',sans-serif;letter-spacing:.02em;text-transform:uppercase}.ds-tarjeta b{color:var(--color-sube,#2b6a3f);font-weight:400;font-variant-numeric:tabular-nums}" },
+    { "name": "Fila de clasificación", "kind": "custom", "refersTo": "clasificacion", "description": "Fila del Screener: amarillo si es tuyo, contorno azul si está elegida, nota grande en estrecha.",
+      "html": "<table class=\"ds-clas\"><tr class=\"tuyo\"><td class=\"p\">3</td><td>Fondo de ejemplo A</td><td class=\"n\">78</td></tr><tr class=\"sel\"><td class=\"p\">4</td><td>Fondo de ejemplo B</td><td class=\"n\">74</td></tr></table>",
+      "css": ".ds-clas{border-collapse:collapse;width:100%;font:13px 'Barlow',sans-serif;color:var(--color-texto,#141414)}.ds-clas td{padding:8px 12px;border-top:1px solid color-mix(in srgb,var(--color-borde,#dcdad1) 70%,transparent)}.ds-clas .p{font:800 17px 'Barlow Condensed',sans-serif}.ds-clas .n{font:800 21px 'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums}.ds-clas .tuyo{background:var(--color-tuyo,#fbefc6)}.ds-clas .sel{background:color-mix(in srgb,var(--color-acento,#1d4f9f) 15%,transparent);outline:2px solid var(--color-acento,#1d4f9f);outline-offset:-2px}.ds-clas tr:hover:not(.sel):not(.tuyo){background:color-mix(in srgb,var(--color-borde,#dcdad1) 30%,transparent)}" },
     { "name": "Once", "kind": "custom", "refersTo": "once", "description": "Puesto de un fondo de cartera en su liga.",
       "html": "<span class=\"ds-once\">4.º</span> <small>de 98</small>",
-      "css": ".ds-once{font:800 16px 'Barlow Condensed',sans-serif;background:#f0c23a;color:#141414;padding:0 6px;min-width:3.25rem;display:inline-block;text-align:center}" }
+      "css": ".ds-once{font:800 16px 'Barlow Condensed',sans-serif;background:var(--color-once,#f0c23a);color:var(--color-sobre-once,#141414);padding:0 6px;min-width:3.25rem;display:inline-block;text-align:center}" },
+    { "name": "Etiqueta", "kind": "chip", "refersTo": "etiqueta", "description": "MI, divisa, «3A» y señales de Revisión junto al nombre de un fondo.",
+      "html": "<span class=\"ds-chip mi\">MI</span> <span class=\"ds-chip aviso\">Caro</span>",
+      "css": ".ds-chip{display:inline-block;padding:0 6px;border-radius:2px;font:10px 'Barlow',sans-serif}.ds-chip.mi{background:color-mix(in srgb,var(--color-acento,#1d4f9f) 15%,transparent);color:var(--color-acento,#1d4f9f)}.ds-chip.aviso{background:color-mix(in srgb,var(--color-aviso,#85600f) 15%,transparent);color:var(--color-aviso,#85600f)}" }
   ],
   "narrative": {
     "northStar": "La jornada",
-    "overview": "Cada categoría es una liga y el Screener su clasificación del lunes: puesto, zona, movimiento de la semana y tus fondos en amarillo, sobre papel claro con cabecera negra.",
-    "keyCharacteristics": ["Cabecera negra con subrayado amarillo", "Estrecha pesada para puestos y notas", "Franja y tinte de zona", "Filete cada cinco filas", "Un color fijo por cartera"],
+    "overview": "Cada categoría de fondos es una liga y el Screener es su clasificación del lunes: el puesto de cada fondo, los puestos ganados o perdidos en el último mes y por dónde andan los fondos de tus carteras. Del mundo de las clasificaciones deportivas solo se toman la letra, el color, la densidad y un gesto; la navegación, los filtros y las tablas son controles web normales. Papel claro con tinta negra y una cabecera negra a todo el ancho; el color solo aparece cuando significa algo.",
+    "keyCharacteristics": ["Cabecera negra con la pantalla actual subrayada en amarillo", "Puestos, notas y cifras en Barlow Condensed pesada, con números tabulares", "Filas limpias: solo el amarillo de lo tuyo y el contorno azul del fondo elegido", "Filete fuerte cada cinco filas", "Un color fijo por cartera en todas las pantallas"],
     "rules": [
-      { "name": "La regla del amarillo", "body": "El amarillo es solo para lo tuyo.", "section": "colors" },
-      { "name": "La regla de la zona", "body": "Azul y rojo de liga marcan cuartiles, no decoran.", "section": "colors" },
-      { "name": "La regla de la estrecha", "body": "Lo que se compara entre filas va en la estrecha pesada.", "section": "typography" }
+      { "name": "La regla del amarillo", "body": "El amarillo es solo para lo tuyo: tus fondos y la pantalla actual.", "section": "colors" },
+      { "name": "La regla de la zona", "body": "Los tintes azul y rojo marcan cuartiles (o mejor y peor que la referencia) en los mapas de métricas; la clasificación no los usa. Los puestos ganados o perdidos van en verde o rojo apagados con ▲/▼.", "section": "colors" },
+      { "name": "La regla de la estrecha", "body": "Lo que se compara entre filas va en la estrecha pesada; las frases, nunca.", "section": "typography" }
     ],
-    "dos": ["Do tachar con su fecha un dato viejo", "Do usar la tinta fija de cada cartera"],
-    "donts": ["Don't poner antetítulos", "Don't usar sombras ni degradados", "Don't decorar con los colores de liga"]
+    "dos": ["Do sacar puesto y movimiento de la nota guardada (`nota_semanal`), y decirlo en la leyenda", "Do tachar con su fecha un dato que no es de esta semana", "Do usar la tinta de la cartera (`tintas()` en `web/src/calculo/jornada.ts`) siempre que aparezca una cartera", "Do mantener los dos temas: cada color es un token con su valor oscuro"],
+    "donts": ["Don't poner rótulos o antetítulos encima de un título", "Don't usar sombras, degradados ni tarjetas con sombra", "Don't usar el amarillo, el azul o el rojo de liga como decoración", "Don't convertir la pantalla en un artefacto de periódico deportivo"]
   }
 }
