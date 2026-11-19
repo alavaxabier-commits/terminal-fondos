@@ -54,6 +54,7 @@ const ATAJOS: [string, string][] = [
   ['1 · 3 · 4 · r', 'inicio · screener · seguimiento · revisión'],
   ['c', 'comparador (con la ficha de un fondo abierta, lo añade)'],
   ['m', 'simulador (con una cartera abierta)'],
+  ['a', 'añadir fondos en el comparador (filtros y nota del screener)'],
   ['j / ↓ · k / ↑', 'mover la selección en screener y seguimiento'],
   ['Intro · s · b', 'abrir la ficha · seguir · poner o quitar del comparador'],
   ['← / →', 'pestañas de la ficha y del comparador'],
