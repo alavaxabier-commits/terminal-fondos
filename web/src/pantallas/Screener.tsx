@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, hoy, pct } from '../calculo/formato'
 import { aPesosTipo, BLOQUES, GRUPOS_PESOS, NOMBRE_BLOQUE, PESOS_TIPO_DEFECTO, PLAZOS, type Bloque, type GrupoPesos, type PesosTipo, type Plazo } from '../calculo/nota'
-import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
+import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, deModo, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
 import Franja from '../componentes/Franja'
 import { movimiento, tintas, ultimaSemana, viejo, type Puestos } from '../calculo/jornada'
 import Tarjeta from '../componentes/Tarjeta'
@@ -13,6 +13,8 @@ import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
 
 const POR_PAGINA = 100
+type Gestion = 'todas' | 'indexada' | 'activa' | 'separados'
+const GESTIONES: [Gestion, string, string][] = [['todas', 'Todas', ''], ['indexada', 'Indexadas', 'indexadas'], ['activa', 'Activas', 'activas'], ['separados', 'Separadas', 'separadas']]
 type Panel = 'perfil' | 'liga' | 'cartera' | 'coste' | 'donde' | 'pesos' | null
 /** Lo de la jornada que necesitan las filas: puestos de la nota guardada, carteras de cada fondo y la tinta de cada cartera. */
 type Jornada = { puestos: Map<string, Puestos>; ultima: string; carteras: Map<string, { id: number; nombre: string }[]>; tinta: Map<number, string> }
@@ -44,8 +46,8 @@ export default function Screener() {
   const [pesos, setPesos] = useState<PesosTipo>(() => aPesosTipo(g.pesos))
   // pesos que se editan: los del tipo del filtro, o los de indexados si se filtra por ellos
   const [tipoPesos, setTipoPesos] = useState<GrupoPesos>(g.tipoPesos ?? 'renta variable')
-  const [filtros, setFiltros] = useState<Filtros>(g.filtros ?? {})
-  const [modo, setModo] = useState<Modo>(g.modo ?? 'juntos')
+  const [filtros, setFiltros] = useState<Filtros>(() => deModo(g.modo, g.filtros ?? {}).filtros)
+  const [modo, setModo] = useState<Modo>(() => deModo(g.modo, g.filtros ?? {}).modo)
   const [carteraId, setCarteraId] = useState<number | ''>(g.carteraId ?? '')
   const [enCartera, setEnCartera] = useState<Set<string>>(new Set())
   const [excluirSuyos, setExcluirSuyos] = useState(g.excluirSuyos ?? false)
@@ -119,7 +121,7 @@ export default function Screener() {
   const pocos = (f: Puntuado) => f.nota != null && (tamano.get(f.categoria ?? '') ?? 0) < MIN_CATEGORIA ? tamano.get(f.categoria ?? '') ?? 0 : 0
   const listas: [string, Puntuado[]][] = modo === 'separados'
     ? [['Indexados', puntuados.filter(indexada)], ['Activos', puntuados.filter((f) => !indexada(f))]]
-    : [['', modo === 'juntos' ? puntuados : puntuados.filter((f) => indexada(f) === (modo === 'indexados'))]]
+    : [['', puntuados]]
   // lo que pesa de verdad cada bloque: su barra entre la suma de las barras (sin Diversificación si no hay cartera)
   const editados = pesos[tipoPesos]
   const totalPesos = BLOQUES.reduce((s, k) => s + (k === 'diversificacion' && !div ? 0 : editados[k]), 0)
@@ -148,8 +150,9 @@ export default function Screener() {
     const p = perfiles.find((x) => String(x.id) === id)
     if (!p) return
     setPesos(aPesosTipo(p.pesos))
-    setFiltros(p.filtros as Filtros)
-    setModo(p.modo as Modo)
+    const x = deModo(p.modo, p.filtros as Filtros)
+    setFiltros(x.filtros)
+    setModo(x.modo)
   }
   useEffect(() => {
     if (!panel) return
@@ -218,13 +221,16 @@ export default function Screener() {
     } catch (e) { falla(e as Error) }
   }
 
+  // gestión: un solo control para el filtro (indexadas o activas) y para verlas en dos tablas
+  const gestionVista: Gestion = modo === 'separados' ? 'separados' : filtros.gestion ?? 'todas'
+  const elegirGestion = (k: Gestion) => { setModo(k === 'separados' ? 'separados' : 'juntos'); filtrar({ gestion: k === 'indexada' || k === 'activa' ? k : undefined }) }
   // la barra: cada desplegable con lo que tiene puesto; en azul si tiene algo distinto de lo de por defecto
   const unir = (xs: unknown[]) => xs.filter(Boolean).join(' · ')
   const nombreCartera = carteras.find((c) => c.id === carteraId)?.nombre
   const mayorPeso = [...BLOQUES].sort((a, b) => pesoReal(b) - pesoReal(a))[0]
   const desplegables: { k: Exclude<Panel, null>; t: string; v: string; puesto: boolean; no?: boolean }[] = [
     { k: 'perfil', t: 'Perfil', v: perfiles.length ? `${perfiles.length} guardado${perfiles.length > 1 ? 's' : ''}` : 'ninguno', puesto: false },
-    { k: 'liga', t: 'Liga', v: `${unir([filtros.categoria, filtros.gestion]) || 'todas'} · ${modo}`,
+    { k: 'liga', t: 'Liga', v: unir([filtros.categoria, GESTIONES.find(([k]) => k === gestionVista)?.[2]]) || 'todas',
       puesto: !!(filtros.categoria || filtros.gestion) || modo !== 'juntos' },
     { k: 'cartera', t: 'Cartera', v: nombreCartera ? `${nombreCartera}${excluirSuyos ? ' · sin los suyos' : ''}` : 'ninguna', puesto: carteraId !== '' },
     { k: 'coste', t: 'Coste y riesgo', v: unir([filtros.terMax != null && `TER ≤ ${cifra(filtros.terMax)} %`, filtros.srriMax && `SRRI ≤ ${filtros.srriMax}`,
@@ -243,14 +249,14 @@ export default function Screener() {
           <div className="flex flex-wrap gap-1.5">
             {perfiles.map((p) => <button key={p.id} onClick={() => aplicarPerfil(String(p.id))} className="boton min-h-8 text-[13px]">{p.nombre}</button>)}
           </div>
-        ) : <p className="text-[13px] text-suave">Aún no hay perfiles: guarda los filtros, los pesos y el modo de ahora.</p>}
+        ) : <p className="text-[13px] text-suave">Aún no hay perfiles: guarda los filtros y los pesos de ahora.</p>}
         <form onSubmit={(e) => { e.preventDefault(); guardarPerfil() }} className="flex flex-wrap items-center gap-2 border-t border-borde pt-3">
           <label htmlFor="nombre-perfil" className="sr-only">Nombre del perfil</label>
           <input id="nombre-perfil" value={nombrePerfil} onChange={(e) => { setNombrePerfil(e.target.value); setGuardado('') }}
             placeholder="Nombre (si ya existe, se sustituye)" className={`${control} min-w-0 flex-1`} />
           <button type="submit" disabled={!nombrePerfil.trim()} className="boton-pri">Guardar</button>
         </form>
-        {guardado && <p role="status" className="text-[13px] text-sube">Guardado «{guardado}»: guarda pesos, filtros y modo.</p>}
+        {guardado && <p role="status" className="text-[13px] text-sube">Guardado «{guardado}»: guarda pesos y filtros.</p>}
       </div>
     ),
     liga: (
@@ -261,18 +267,15 @@ export default function Screener() {
             {categorias.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
           </select>
         </Campo>
-        <Campo etiqueta="Gestión">
-          <select value={filtros.gestion ?? ''} onChange={(e) => filtrar({ gestion: (e.target.value || undefined) as Filtros['gestion'] })} className={control}>
-            <option value="">indexada y activa</option>
-            <option value="indexada">indexada</option>
-            <option value="activa">activa</option>
-          </select>
-        </Campo>
-        <div role="group" aria-label="Modo de ranking" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
-          {(['juntos', 'separados', 'indexados', 'activos'] as Modo[]).map((m) => (
-            <button key={m} aria-pressed={modo === m} onClick={() => setModo(m)}
-              className={`flex-1 rounded-sm px-2 py-1 capitalize ${modo === m ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{m}</button>
-          ))}
+        <div className="space-y-1.5">
+          <span className="text-[13px]">Gestión</span>
+          <div role="group" aria-label="Gestión" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
+            {GESTIONES.map(([k, t]) => (
+              <button key={k} aria-pressed={gestionVista === k} onClick={() => elegirGestion(k)}
+                className={`flex-1 rounded-sm px-2 py-1 ${gestionVista === k ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{t}</button>
+            ))}
+          </div>
+          <p className="text-[12px] text-suave">«Separadas»: dos tablas, indexados y activos. Sin gestión conocida, un fondo cuenta como activo.</p>
         </div>
       </div>
     ),

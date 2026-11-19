@@ -42,7 +42,14 @@ export type Filtros = {
   tipo?: Tipo; grupo?: string; categoria?: string; gestion?: 'activa' | 'indexada'; terMax?: number; srriMax?: number; anosMin?: number
   patrimonioMin?: number; divisa?: string; soloMyinvestor?: boolean
 }
-export type Modo = 'juntos' | 'separados' | 'indexados' | 'activos'
+// Indexados y activos se eligen con el filtro de gestión; el modo solo dice si van en una tabla o en dos.
+export type Modo = 'juntos' | 'separados'
+
+/** Los modos antiguos «indexados» y «activos» eran el filtro de gestión: perfiles y estado guardados con ellos se leen así. */
+export function deModo(modo: string | undefined, filtros: Filtros): { modo: Modo; filtros: Filtros } {
+  if (modo === 'indexados' || modo === 'activos') return { modo: 'juntos', filtros: { ...filtros, gestion: modo === 'indexados' ? 'indexada' : 'activa' } }
+  return { modo: modo === 'separados' ? 'separados' : 'juntos', filtros }
+}
 export type Puntuado = FilaScreener & { bloques: Partial<Record<Bloque, number>>; solo3a: boolean; nota: number | null }
 
 /** Clase con la divisa cubierta, por el nombre (Morningstar no lo da aparte): «Hdg», «Hedged», «H», «(H)», «H2»…
