@@ -279,3 +279,13 @@ def test_flujos_quitan_la_rentabilidad_y_exigen_historia():
     assert ('1a', 'flujo') not in f  # sin dato de hace un año
     assert m.metricas_flujos({d(2026, 5, 3): 90.0}, valores, d(2026, 5, 10)) == {}
     assert 'flujo' in m.SIN_PERCENTIL
+
+
+def test_mensuales_con_curso_anade_el_mes_a_medias():
+    from fondos.nucleo.metricas import mensuales, mensuales_con_curso
+    serie = {dt.date(2026, 9, 30): 100.0, dt.date(2026, 10, 30): 102.0, dt.date(2026, 11, 18): 104.04}
+    assert mensuales(serie) == {(2026, 10): pytest.approx(0.02)}
+    assert mensuales_con_curso(serie) == {(2026, 10): pytest.approx(0.02), (2026, 11): pytest.approx(0.02)}
+    # si el último dato ya es un cierre, no hay mes a medias que añadir
+    cerrado = {dt.date(2026, 9, 30): 100.0, dt.date(2026, 10, 30): 102.0}
+    assert mensuales_con_curso(cerrado) == mensuales(cerrado)

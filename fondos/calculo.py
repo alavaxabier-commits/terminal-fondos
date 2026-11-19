@@ -166,8 +166,8 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
     for isin, res in resultados.items():
         for (ventana, nombre), valor in res.items():
             filas.append((isin, ventana, nombre, float(valor), pct.get(isin, {}).get((ventana, nombre))))
-    # las referencias, también de cierre a cierre de mes, para las carteras (que se calculan en la web)
-    ref_mes, _ = referencias(fondos, {i: m.mensuales(v) for i, v in en_eur.items()},
+    # las referencias, también de cierre a cierre de mes (y el mes en curso, para el año en curso), para las carteras (que se calculan en la web)
+    ref_mes, _ = referencias(fondos, {i: m.mensuales_con_curso(v) for i, v in en_eur.items()},
                              datos['indices'], datos['categorias'], m.tasa_mensual(datos['estr']))
     refs = {clave: ([m.lunes_de(k) for k in s], list(s.values()),
                     [dt.date(a, mes, 1) for a, mes in ref_mes.get(clave, {})], list(ref_mes.get(clave, {}).values()))

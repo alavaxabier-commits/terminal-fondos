@@ -75,5 +75,10 @@ describe('carteras', () => {
     const s = new Map(Array.from({ length: 14 }, (_, i) => [new Date(Date.UTC(2024, 11 + i, 1)).toISOString().slice(0, 10), 100 * 1.01 ** i]))
     expect(anosDeMeses(rendMeses(s), '2026-05-01')['2025'].rentabilidad).toBeCloseTo(1.01 ** 12 - 1)
     expect(anosDeMeses(rendMeses(s), '2026-05-01')['2024']).toBeUndefined()
+    // año en curso: de enero al último mes con dato (el actual o el anterior); si faltan más, nada
+    const t = new Map(Array.from({ length: 16 }, (_, i) => [new Date(Date.UTC(2024, 11 + i, 1)).toISOString().slice(0, 10), 100 * 1.01 ** i]))
+    expect(anosDeMeses(rendMeses(t), '2026-03-20').ytd.rentabilidad).toBeCloseTo(1.01 ** 3 - 1)
+    expect(anosDeMeses(rendMeses(t), '2026-04-02').ytd.rentabilidad).toBeCloseTo(1.01 ** 3 - 1)
+    expect(anosDeMeses(rendMeses(t), '2026-06-10').ytd).toBeUndefined()
   })
 })
