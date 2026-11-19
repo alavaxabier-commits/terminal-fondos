@@ -358,7 +358,7 @@ export default function Screener() {
   // un desplegable no bloquea: la tabla se recalcula con él abierto; se cierra con ✕, Esc o al pulsar fuera
   // función, no componente: definido aquí dentro se volvería a montar en cada cambio y los campos perderían el foco
   const desplegable = (k: Exclude<Panel, null>, clase: string) => (
-    <div data-desplegable role="dialog" aria-label={titulos[k]} className={`z-20 border border-texto bg-panel p-4 ${clase}`}>
+    <div data-desplegable role="dialog" aria-label={titulos[k]} className={`aparece z-20 border border-texto bg-panel p-4 ${clase}`}>
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="estrecha text-[17px] font-bold uppercase tracking-[0.02em]">{titulos[k]}</h2>
         <button onClick={() => setPanel(null)} aria-label="Cerrar" className="min-h-7 min-w-7 text-suave hover:text-texto">✕</button>

@@ -48,9 +48,9 @@ export function AnoAno({ calc }: { calc: CalculoCartera }) {
             <li key={a} className="flex flex-col items-center gap-0.5 border-borde/70 px-1 tabular [&:not(:first-child)]:sm:border-l"
               title={`${a === 'ytd' ? 'Este año' : a}: cartera ${pct(c(a))}${r(a) != null ? `, referencia ${pct(r(a))}` : ''}`}>
               <div aria-hidden="true" className="relative w-full" style={{ height: alto }}>
-                <span className="absolute inset-x-0 h-px bg-gris" style={{ top: cero }} />
-                <span className="absolute left-[24%] w-[22%] bg-acento" style={barra(c(a))} />
-                <span className="absolute left-[54%] w-[22%] bg-gris" style={barra(r(a))} />
+                <span className="mueve absolute inset-x-0 h-px bg-gris" style={{ top: cero }} />
+                <span className="mueve absolute left-[24%] w-[22%] bg-acento" style={barra(c(a))} />
+                <span className="mueve absolute left-[54%] w-[22%] bg-gris" style={barra(r(a))} />
               </div>
               <span className="estrecha text-[15px] font-bold">{a === 'ytd' ? 'Este año' : a}</span>
               <span className={`cifra text-[22px] leading-tight ${color(c(a))}`}>{pct(c(a))}</span>

@@ -353,7 +353,7 @@ export default function Cartera({ id }: { id: number }) {
           <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 sm:grid-cols-[8rem_minmax(0,1fr)_14rem]">
             <span className="rotulo">Suma de pesos</span>
             <span aria-hidden="true" className="relative h-3 overflow-hidden rounded-xs bg-borde/55">
-              <span className={`absolute inset-y-0 left-0 ${Math.abs(suma - 100) < 0.01 ? 'bg-sube' : 'bg-baja'}`} style={{ width: `${Math.min(suma, 100)}%` }} />
+              <span className={`mueve absolute inset-y-0 left-0 ${Math.abs(suma - 100) < 0.01 ? 'bg-sube' : 'bg-baja'}`} style={{ width: `${Math.min(suma, 100)}%` }} />
             </span>
             <span className={`font-semibold tabular ${Math.abs(suma - 100) < 0.01 ? 'text-sube' : 'text-baja'}`}>
               {Math.abs(suma - 100) < 0.01 ? 'suman 100 %' : `suman ${cifra(suma, 1)} %: ${suma > 100 ? 'sobran' : 'faltan'} ${cifra(Math.abs(100 - suma), 1)}`}
@@ -428,8 +428,8 @@ export default function Cartera({ id }: { id: number }) {
                               <span className="shrink-0 font-semibold tabular">{pct(peso / 100, 0, false)}</span>
                             </div>
                             <div className="relative mt-1 h-1.5 rounded-xs bg-borde/60" title={hoyP != null ? `Hoy ${pct(hoyP, 1, false)}` : undefined}>
-                              <span className={`absolute inset-y-0 left-0 rounded-xs ${isin ? 'bg-acento' : 'bg-suave'}`} style={{ width: `${Math.min(peso, 100)}%` }} />
-                              {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="absolute -top-0.5 h-2.5 w-0.5 rounded-sm bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
+                              <span className={`mueve absolute inset-y-0 left-0 rounded-xs ${isin ? 'bg-acento' : 'bg-suave'}`} style={{ width: `${Math.min(peso, 100)}%` }} />
+                              {hoyP != null && Math.abs(hoyP * 100 - peso) >= 0.5 && <span className="mueve absolute -top-0.5 h-2.5 w-0.5 rounded-sm bg-texto" style={{ left: `${Math.min(hoyP * 100, 100)}%` }} />}
                             </div>
                             {isin && (rg != null || r?.fondo.ter != null) && (
                               <p className="mt-0.5 text-[12px] text-suave tabular">

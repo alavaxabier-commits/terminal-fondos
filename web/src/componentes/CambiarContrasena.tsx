@@ -26,7 +26,7 @@ export default function CambiarContrasena({ cerrar }: { cerrar: () => void }) {
   const campo = 'w-full border border-borde bg-fondo px-3 py-2 text-texto outline-none focus:border-acento'
   return (
     <div role="dialog" aria-modal="true" aria-label="Contraseña" onClick={cerrar} onKeyDown={(e) => e.key === 'Escape' && cerrar()}
-      className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
+      className="velo fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
       <form onSubmit={guardar} onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-3 border border-borde bg-panel p-4">
         <h2 className="text-lg">Contraseña</h2>
         {hecho ? (

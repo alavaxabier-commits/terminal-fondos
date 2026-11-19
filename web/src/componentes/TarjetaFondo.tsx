@@ -35,7 +35,7 @@ export async function cargar(f: { isin: string; divisa: string | null }, cats: C
 /** Barra fina de percentil (100 = mejor) con su cifra. */
 export const Pct = ({ p }: { p: number | null }) => p == null ? <><span /><span /></> : (
   <>
-    <span className="relative h-1 rounded-sm bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${p}%` }} /></span>
+    <span className="relative h-1 rounded-sm bg-borde/70"><span className="mueve absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${p}%` }} /></span>
     <span className={`text-right text-[11px] tabular ${colorPercentil(p)}`}>p{Math.round(p)}</span>
   </>
 )
@@ -100,8 +100,8 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
             <div key={et} className="grid grid-cols-[4.5rem_1fr_3.5rem] items-center gap-2">
               <span className="text-suave">{et}</span>
               <span className="relative h-3.5">
-                {r != null && <span className={`absolute inset-y-[3px] left-0 rounded-sm ${et === '12 meses' ? 'bg-suave/60' : 'bg-acento'}`} style={{ width: `${Math.max(0, r / maxR) * 100}%` }} />}
-                {estr != null && <span className="absolute -inset-y-0.5 border-l-[1.5px] border-dashed border-aviso" style={{ left: `${(estr / maxR) * 100}%` }} />}
+                {r != null && <span className={`mueve absolute inset-y-[3px] left-0 rounded-sm ${et === '12 meses' ? 'bg-suave/60' : 'bg-acento'}`} style={{ width: `${Math.max(0, r / maxR) * 100}%` }} />}
+                {estr != null && <span className="mueve absolute -inset-y-0.5 border-l-[1.5px] border-dashed border-aviso" style={{ left: `${(estr / maxR) * 100}%` }} />}
               </span>
               <span className="text-right tabular">{r == null ? '—' : pct(r, 2, false)}</span>
             </div>
@@ -122,7 +122,7 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
               {BLOQUES.filter((k) => f.bloques[k] != null).map((k) => (
                 <div key={k} className={`grid grid-cols-[minmax(0,1fr)_7rem_1.75rem] items-center gap-2 ${f.bloques[k]! < 40 ? 'text-aviso' : ''}`}>
                   <span className="truncate">{NOMBRE_BLOQUE[k]}</span>
-                  <span className="relative h-1.5 overflow-hidden rounded-sm bg-borde/60"><span className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${f.bloques[k]}%`, background: colores[k] }} /></span>
+                  <span className="relative h-1.5 overflow-hidden rounded-sm bg-borde/60"><span className="mueve absolute inset-y-0 left-0 rounded-sm" style={{ width: `${f.bloques[k]}%`, background: colores[k] }} /></span>
                   <span className="text-right tabular">{Math.round(f.bloques[k]!)}</span>
                 </div>
               ))}

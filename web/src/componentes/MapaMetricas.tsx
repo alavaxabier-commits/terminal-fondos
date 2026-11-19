@@ -107,10 +107,10 @@ function Tira({ q, v, p, inv, neutra }: { q: number[]; v: number; p: number | nu
   return (
     <>
       <div aria-hidden="true" className="relative mt-4 h-6">
-        <span className="absolute top-[11px] h-0.5 bg-gris" style={tramo(q[0], q[4])} />
-        <span className="absolute top-[5px] h-3.5 bg-[color-mix(in_srgb,var(--color-gris)_38%,var(--color-panel))]" style={tramo(q[1], q[3])} />
-        <span className="absolute top-0.5 -ml-px h-5 w-0.5 bg-texto" style={{ left: `${pos(q[2])}%` }} />
-        <span className={`absolute top-[5px] -ml-[7px] h-3.5 w-3.5 rounded-full border-2 border-texto shadow-[0_0_0_2px_var(--color-panel)] ${neutra ? 'bg-panel' : p != null && p >= 75 ? 'bg-acento' : p != null && p < 25 ? 'bg-baja' : 'bg-texto'}`} style={{ left: `${pos(v)}%` }} />
+        <span className="mueve absolute top-[11px] h-0.5 bg-gris" style={tramo(q[0], q[4])} />
+        <span className="mueve absolute top-[5px] h-3.5 bg-[color-mix(in_srgb,var(--color-gris)_38%,var(--color-panel))]" style={tramo(q[1], q[3])} />
+        <span className="mueve absolute top-0.5 -ml-px h-5 w-0.5 bg-texto" style={{ left: `${pos(q[2])}%` }} />
+        <span className={`mueve absolute top-[5px] -ml-[7px] h-3.5 w-3.5 rounded-full border-2 border-texto shadow-[0_0_0_2px_var(--color-panel)] ${neutra ? 'bg-panel' : p != null && p >= 75 ? 'bg-acento' : p != null && p < 25 ? 'bg-baja' : 'bg-texto'}`} style={{ left: `${pos(v)}%` }} />
       </div>
       <div className="flex justify-between text-[11px] text-suave"><span>{neutra ? 'menos' : 'peor'}</span><span>{neutra ? 'más' : 'mejor'}</span></div>
     </>

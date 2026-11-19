@@ -169,7 +169,7 @@ export default function App() {
       <BarraEstado estado={estado} ancho={ancho} />
       {contrasena && <CambiarContrasena cerrar={() => setContrasena(false)} />}
       {ayuda && (
-        <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
+        <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="velo fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
           <section onClick={(e) => e.stopPropagation()} className="w-full max-w-lg border border-borde bg-panel p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="rotulo">Atajos</h2>

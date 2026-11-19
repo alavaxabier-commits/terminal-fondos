@@ -61,15 +61,29 @@
     }
   }
 
-  /* Movimiento: solo cambios de color; el foco, siempre visible. Lo que pinta el navegador (selección, cursor de texto,
+  /* Movimiento: cambios de color en los controles (también con menos movimiento: no desplazan nada); el foco, siempre visible. Lo que pinta el navegador (selección, cursor de texto,
      barras de desplazamiento, casillas y deslizadores) también con la paleta. */
   button, [role="tab"], a { transition: color .15s, background-color .15s, border-color .15s, box-shadow .15s; }
   :focus-visible { outline: 2px solid var(--color-acento); outline-offset: 2px; }
   :root { accent-color: var(--color-acento); caret-color: var(--color-acento); scrollbar-color: var(--color-gris) transparent; }
   a { text-underline-offset: 3px; }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; }
-  }
+}
+
+/* Movimiento con sentido, nada de adorno (Operate: rápido y sin esperas). Todo parte de lo ya visible, así que si no
+   corre no se pierde nada. Con menos movimiento: nada se desplaza; los paneles solo aparecen con opacidad.
+   - mueve: una cifra dibujada (barra, marca) va de su valor anterior al nuevo al elegir otra celda, otro fondo o al
+     cambiar un peso: se ve cuánto cambia, no solo que cambia.
+   - aparece: un desplegable o la lista del buscador se abre desde su botón.
+   - velo: el fondo de un diálogo se oscurece en lugar de saltar. */
+@utility mueve { transition: left 260ms, width 260ms, top 260ms, height 260ms; transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes aparece { from { opacity: 0.4; transform: translateY(-4px); } }
+@utility aparece { animation: aparece 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes velo { from { opacity: 0; } }
+@utility velo { animation: velo 150ms ease-out; }
+@keyframes aparece-quieto { from { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) {
+  .mueve { transition: none; }
+  .aparece { animation-name: aparece-quieto; }
 }
 
 /* Un solo par de botones en toda la web: el principal (acento) y el secundario (borde). */
