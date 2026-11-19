@@ -18,8 +18,8 @@ colors:
   amarillo-once: "#f0c23a"
   sobre-once: "#141414"
   tinte-tuyo: "#fbefc6"
-  tinte-alta: "#e6ecf6"
-  tinte-baja: "#f6e3df"
+  tinte-alta: "#d7e2f4"
+  tinte-baja: "#f5dbd5"
   serie1: "#5e82c5"
   serie2: "#c48225"
   serie3: "#bb5c84"
@@ -118,10 +118,12 @@ Radius: xs 1px, sm 2px, md 2px, lg 3px
 North Star: "La jornada"
 Don't:
 - Don't poner rótulos o antetítulos encima de un título.
-- Don't usar sombras, degradados ni tarjetas con sombra.
+- Don't usar sombras, degradados ni tarjetas con sombra. Excepciones funcionales: el anillo del color del panel que recorta los puntos de las tiras, y el desvanecido de los bordes de la cinta y de las pantallas de la cabecera en el móvil (dicen que hay más).
 - Don't usar el amarillo, el azul o el rojo de liga como decoración.
 - Don't convertir la pantalla en un artefacto de periódico deportivo: navegación, filtros y tablas siguen siendo controles web normales.
 Do:
+- Do enseñar el percentil con un solo lenguaje en toda la web: tinte y texto azules en el mejor cuarto (≥ 75), rojos en el peor (< 25), neutros en medio (`colorPercentil` y `fondoPercentil` en `calculo/formato.ts`).
+- Do poner a la vista, en una leyenda, lo que dice cada marca de una tabla; el `title` solo repite.
 - Do sacar puesto y movimiento de la nota guardada (`nota_semanal`), y decirlo en la leyenda.
 - Do tachar con su fecha un dato que no es de esta semana.
 - Do usar la tinta de la cartera (`tintas()` en `web/src/calculo/jornada.ts`) siempre que aparezca una cartera.

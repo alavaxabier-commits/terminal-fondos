@@ -31,10 +31,12 @@ export function fecha(iso: string | null | undefined): string {
   return `${d}/${m}/${a}`
 }
 
-/** Color por percentil: arriba verde, abajo rojo, en medio neutro. */
+/** Zona del percentil, la misma en toda la web (como el mapa de métricas): mejor cuarto en azul, peor cuarto en rojo, en medio neutro. */
 export function colorPercentil(p: number | null | undefined): string {
   if (p == null) return 'text-suave'
-  if (p >= 75) return 'text-sube'
-  if (p <= 25) return 'text-baja'
-  return 'text-texto'
+  if (p >= 75) return 'text-acento'
+  if (p < 25) return 'text-baja'
+  return 'text-suave'
 }
+/** Fondo de la zona del percentil (tintes de liga). */
+export const fondoPercentil = (p: number | null | undefined) => (p == null ? 'bg-panel' : p >= 75 ? 'bg-tinte-alta' : p < 25 ? 'bg-tinte-baja' : 'bg-borde/45')

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { cifra, colorPercentil, fecha, pct } from '../calculo/formato'
+import { cifra, colorPercentil, fecha, fondoPercentil, pct } from '../calculo/formato'
 import type { Composicion } from '../calculo/exposicion'
 import { bloques, grupoPesos, PESOS_TIPO_DEFECTO, tipoActivo } from '../calculo/nota'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
@@ -18,6 +18,7 @@ import Cargando from '../componentes/Cargando'
 import ListaNovedades from '../componentes/ListaNovedades'
 import MapaMetricas from '../componentes/MapaMetricas'
 import { novedades, umbralesNovedades } from '../calculo/novedades'
+import Fallo from '../componentes/Fallo'
 
 type Datos = {
   fondo: q.Fondo
@@ -90,20 +91,17 @@ export const FILAS: [string, string, (v: number) => string][] = [
 
 /** Cuartil en la categoría a partir del percentil (100 = mejor): 1 es el mejor cuarto. */
 export const cuartil = (p: number) => (p >= 75 ? 1 : p >= 50 ? 2 : p >= 25 ? 3 : 4)
-// Escala ordenada de un solo tono (dataviz): el primer cuartil, acento pleno; el cuarto, casi el fondo. El número va siempre escrito.
-const FONDO_CUARTIL = ['var(--color-acento)', 'color-mix(in srgb, var(--color-acento) 45%, var(--color-panel))',
-  'color-mix(in srgb, var(--color-acento) 20%, var(--color-panel))', 'color-mix(in srgb, var(--color-borde) 70%, var(--color-panel))']
+// Mismo lenguaje que el mapa de métricas: tinte azul el mejor cuarto, rojo el peor, neutro en medio. El número va siempre escrito.
 function Cuartil({ p }: { p: number | null | undefined }) {
   if (p == null) return <span className="text-suave">—</span>
-  const k = cuartil(p)
-  return <span title={`Percentil ${Math.round(p)} en su categoría`} className="inline-grid h-5 w-full max-w-9 place-items-center rounded-sm text-[11px] font-medium"
-    style={{ background: FONDO_CUARTIL[k - 1], color: k === 1 ? 'var(--color-sobre-acento)' : 'var(--color-texto)' }}>{k}</span>
+  return <span title={`Percentil ${Math.round(p)} en su categoría`} className={`inline-grid h-5 w-full max-w-9 place-items-center rounded-sm text-[11px] font-medium ${fondoPercentil(p)} ${colorPercentil(p)}`}>
+    {cuartil(p)}<span className="sr-only">.º cuartil, percentil {Math.round(p)}</span></span>
 }
-/** Percentil como barra fina (100 = mejor dentro de la categoría). */
+/** Percentil como barra fina (100 = mejor dentro de la categoría), del color de su zona. */
 const BarraPercentil = ({ p }: { p: number }) => (
-  <span className="flex items-center gap-2" title={`Percentil ${Math.round(p)} en su categoría (100 = mejor)`}>
-    <span className="relative h-1 flex-1 rounded-sm bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${p}%` }} /></span>
-    <span className={`text-[11px] tabular ${colorPercentil(p)}`}>p{Math.round(p)}</span>
+  <span className="flex items-center gap-2">
+    <span className="relative h-1 flex-1 rounded-sm bg-borde/70"><span className={`absolute inset-y-0 left-0 rounded-sm ${p >= 75 ? 'bg-acento' : p < 25 ? 'bg-baja' : 'bg-suave'}`} style={{ width: `${p}%` }} /></span>
+    <span className={`text-[11px] tabular ${colorPercentil(p)}`}><span className="sr-only">percentil </span>p{Math.round(p)}</span>
   </span>
 )
 export const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
@@ -188,7 +186,7 @@ export default function Ficha({ isin }: { isin: string }) {
     return out
   }, [datos, rango])
 
-  if (error) return <p className="text-baja">No se ha podido cargar el fondo: {error}</p>
+  if (error) return <Fallo>No se ha podido cargar el fondo: {error}</Fallo>
   if (datos === undefined) return <Cargando pagina texto={`Cargando ${isin}…`} />
   if (datos === null) return <p className="text-suave">No hay ningún fondo con ISIN {isin}.</p>
 
@@ -224,7 +222,7 @@ export default function Ficha({ isin }: { isin: string }) {
             <Pastilla className="font-mono">{f.isin}</Pastilla>
             <Pastilla>{f.divisa}{cubierta(f.nombre) && ' cubierta'}</Pastilla>
             {f.gestion && <Pastilla>{f.gestion === 'indexada' ? 'Indexado' : 'Gestión activa'}</Pastilla>}
-            {datos.myinvestor.has(f.isin) && <Pastilla className="bg-acento/15! text-acento">En MyInvestor</Pastilla>}
+            {datos.myinvestor.has(f.isin) && <Pastilla className="bg-transparent! border border-acento/60 text-acento">En MyInvestor</Pastilla>}
             {seguido && <Pastilla className="text-acento">★ en seguimiento</Pastilla>}
             {!f.en_universo && <Pastilla className="text-aviso">fuera del universo</Pastilla>}
           </div>

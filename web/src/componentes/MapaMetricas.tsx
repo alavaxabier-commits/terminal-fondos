@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { colorPercentil, fondoPercentil } from '../calculo/formato'
 import type { Distribucion, Metrica } from '../datos/consultas'
 import { FILAS, GRUPOS } from '../pantallas/Ficha'
 
@@ -6,8 +7,8 @@ const PLAZOS = [['1a', '1 año'], ['3a', '3 años'], ['5a', '5 años'], ['10a', 
 // Como en nucleo/metricas.py: dónde menos es mejor (la escala se da la vuelta) y qué no tiene mejor ni peor.
 const MENOS = new Set(['volatilidad', 'volatilidad_mensual', 'tracking_error', 'captura_bajista'])
 const NEUTRAS = new Set(['beta', 'acumulada', 'r2'])
-const fondoCelda = (p: number | null) => (p == null ? 'bg-panel ring-1 ring-inset ring-borde' : p >= 75 ? 'bg-tinte-alta' : p < 25 ? 'bg-tinte-baja' : 'bg-borde/45')
-const tonoP = (p: number | null) => (p == null ? 'text-suave' : p >= 75 ? 'text-acento' : p < 25 ? 'text-baja' : 'text-suave')
+const fondoCelda = (p: number | null) => (p == null ? 'bg-panel ring-1 ring-inset ring-borde' : fondoPercentil(p))
+const tonoP = colorPercentil
 const etiqueta = (nombre: string) => FILAS.find(([k]) => k === nombre)!
 
 /** Pestaña Métricas de la ficha: un mapa métrica × plazo con la cifra y el percentil en la categoría (el color dice el
@@ -19,7 +20,7 @@ export default function MapaMetricas({ m, dist }: { m: Map<string, Metrica>; dis
   const panel = useRef<HTMLElement>(null)
   const elegir = (k: string) => {
     setSel(k)
-    if (matchMedia('(max-width: 1023px)').matches) panel.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (matchMedia('(max-width: 1023px)').matches) panel.current?.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }
   if (!filas.length) return <p className="text-suave">Aún no hay métricas de este fondo: hacen falta al menos 1 año de valores.</p>
   const totales = PLAZOS.map(([v]) => {

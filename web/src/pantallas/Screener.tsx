@@ -11,6 +11,7 @@ import { revisar } from '../datos/revision'
 import { useTeclasLista } from '../componentes/teclas'
 import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
+import Fallo from '../componentes/Fallo'
 
 const POR_PAGINA = 100
 type Gestion = 'todas' | 'indexada' | 'activa' | 'separados'
@@ -242,6 +243,7 @@ export default function Screener() {
   ]
   const abrir = (k: Panel) => setPanel(panel === k ? null : k)
 
+  const existe = perfiles.find((p) => p.nombre === nombrePerfil.trim())
   const contenido: Record<Exclude<Panel, null>, React.ReactNode> = {
     perfil: (
       <div className="space-y-3">
@@ -253,9 +255,10 @@ export default function Screener() {
         <form onSubmit={(e) => { e.preventDefault(); guardarPerfil() }} className="flex flex-wrap items-center gap-2 border-t border-borde pt-3">
           <label htmlFor="nombre-perfil" className="sr-only">Nombre del perfil</label>
           <input id="nombre-perfil" value={nombrePerfil} onChange={(e) => { setNombrePerfil(e.target.value); setGuardado('') }}
-            placeholder="Nombre (si ya existe, se sustituye)" className={`${control} min-w-0 flex-1`} />
-          <button type="submit" disabled={!nombrePerfil.trim()} className="boton-pri">Guardar</button>
+            placeholder="Nombre del perfil" className={`${control} min-w-0 flex-1`} />
+          <button type="submit" disabled={!nombrePerfil.trim()} className="boton-pri">{existe ? 'Sustituir' : 'Guardar'}</button>
         </form>
+        {existe && !guardado && <p role="status" className="text-[13px] text-aviso">Ya hay un perfil «{existe.nombre}»: se sustituirán sus pesos y filtros.</p>}
         {guardado && <p role="status" className="text-[13px] text-sube">Guardado «{guardado}»: guarda pesos y filtros.</p>}
       </div>
     ),
@@ -411,13 +414,14 @@ export default function Screener() {
         {activos.length > 0 && <button onClick={quitarTodos} className="px-2 text-[12px] text-suave hover:text-texto">Quitar filtros ({activos.length})</button>}
       </div>
       {avisoDiv && <p role="status" className="text-[13px] text-aviso">{avisoDiv}</p>}
-      {error && <p className="text-baja">{error}</p>}
+      {error && <Fallo>No se ha podido leer: {error}</Fallo>}
       {errorJornada && <p role="status" className="text-[13px] text-baja">No se han podido leer los puestos de la semana ({errorJornada}): la tabla sale sin puestos ni movimiento.</p>}
 
       <div className="relative grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
         {/* Pesos: encima de la ficha, para ver la tabla moverse mientras se afinan; en pantallas estrechas, encima de todo. */}
         {panel === 'pesos' && desplegable('pesos', 'lg:absolute lg:right-0 lg:top-0 lg:w-[23rem] lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto')}
         <div className="min-w-0 space-y-4">
+          <Leyenda monetarios={monetarios} />
           {listas.map(([titulo, filas]) => (
             <Tarjeta key={titulo} titulo={titulo ? `${titulo} · ${filas.length}` : undefined}>
               {monetarios
@@ -430,9 +434,9 @@ export default function Screener() {
           ))}
           <p className="text-[12px] text-suave">
             {monetarios
-              ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. En clases de distribución el cupón no entra y la cifra sale baja. Pasa el cursor por una cifra para ver su percentil.'
-              : '3A: métricas a 3 años · «de N»: categoría con pocos fondos · ★ ya en seguimiento. Al final, los fondos con menos de 3 años, sin nota. Sin gestión conocida, un fondo cuenta como activo. El desglose de la nota por bloques, en la ficha de la derecha.'}
-            {' '}«1 mes»: puestos ganados ▲ o perdidos ▼ en su categoría desde hace 4 semanas, con la nota guardada cada lunes con los pesos por defecto (no los de esta pantalla). Un puesto tachado es de una semana anterior. En amarillo, los fondos de tus carteras, con el cuadro del color de cada una.
+              ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. En clases de distribución el cupón no entra y la cifra sale baja. Debajo de cada cifra, su percentil en la categoría.'
+              : 'Al final, los fondos con menos de 3 años, sin nota. Sin gestión conocida, un fondo cuenta como activo. El desglose de la nota por bloques, en la ficha de la derecha.'}
+            {' '}El puesto sale de la nota guardada cada lunes con los pesos por defecto, no de los de esta pantalla: por eso puede no seguir el orden de la lista.
           </p>
         </div>
         {elegido && (
@@ -444,6 +448,20 @@ export default function Screener() {
         )}
       </div>
     </div>
+  )
+}
+
+/** Qué quiere decir cada marca de la tabla, a la vista y no solo al pasar el cursor. */
+function Leyenda({ monetarios }: { monetarios: boolean }) {
+  const marca = 'rounded-sm px-1 text-[11px]'
+  return (
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-suave">
+      <span><i aria-hidden="true" className="mr-1.5 inline-block h-2.5 w-4 bg-tuyo align-[-1px] outline outline-borde" />En tus carteras (■ color de cada una)</span>
+      {!monetarios && <span><b className="estrecha text-texto">7.º</b>/22 puesto en su categoría · <b className="text-sube">▲</b><b className="text-baja">▼</b> en un mes · <s>tachado</s>: de otra semana</span>}
+      <span><span className={`${marca} border border-acento/60 font-medium text-acento`}>MI</span> en MyInvestor</span>
+      {!monetarios && <span><span className={`${marca} bg-aviso/15 text-aviso`}>3A</span> métricas a 3 años · <span className={`${marca} bg-aviso/15 text-aviso`}>de N</span> categoría con pocos fondos</span>}
+      <span>pNN: percentil en la categoría (100 = mejor) · <span className="text-aviso">★</span> en seguimiento</span>
+    </p>
   )
 }
 
@@ -497,8 +515,8 @@ function CeldaFondo({ f, conCategoria, extra, jornada }: { f: Puntuado; conCateg
           className="mr-1.5 inline-block h-2.5 w-2.5 align-[0px]" style={{ background: jornada.tinta.get(c.id) }} />
       ))}
       <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.nombre}</a>
-      {f.myinvestor && <span className="ml-1.5 rounded-sm bg-acento/15 px-1.5 align-[1px] text-[10px] text-acento" title="Se puede comprar en MyInvestor">MI</span>}
-      {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-sm bg-borde/60 px-1.5 align-[1px] text-[10px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
+      {f.myinvestor && <span className="ml-1.5 rounded-sm border border-acento/60 px-1 align-[1px] text-[11px] font-medium text-acento" title="Se puede comprar en MyInvestor">MI</span>}
+      {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-sm bg-borde/60 px-1.5 align-[1px] text-[11px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
       {extra}
       {conCategoria && <span className="block text-[12px] text-suave">{f.categoria}</span>}
     </td>
@@ -524,21 +542,39 @@ function Fila({ f, i, k, sel, setSel, seguidos, seguir, jornada, children }: { f
   )
 }
 
-/** Cifra con su percentil en la categoría al pasar el cursor. */
+/** Cifra con su percentil en la categoría debajo (100 = mejor). */
 const ConPct = ({ v, p, texto, clase = '' }: { v: number | null; p: number | null; texto: string; clase?: string }) =>
-  <td className={`pl-3 ${v == null ? 'text-suave' : clase}`} title={p == null ? undefined : `Percentil ${Math.round(p)} en su categoría (100 = mejor)`}>{v == null ? '—' : texto}</td>
+  <td className={`pl-3 leading-tight ${v == null ? 'text-suave' : clase}`}>
+    {v == null ? '—' : texto}
+    {v != null && p != null && <span className="block text-[11px] font-normal text-suave"><span className="sr-only">percentil </span>p{Math.round(p)}</span>}
+  </td>
 
-/** Puestos ganados o perdidos en un mes; tachado con su fecha si el último puesto no es de esta semana. */
+/** Puesto en su categoría («7.º/22») y, debajo, los ganados o perdidos en un mes; tachado con su fecha si no es de esta semana. */
 function CeldaSemana({ p, ultima }: { p: Puestos | undefined; ultima: string }) {
-  if (!p) return <td className="pl-3 text-suave">—</td>
+  if (!p) return <td className="pl-3 text-left text-suave">—</td>
   const v = viejo(p, ultima), m = movimiento(p)
-  if (v) return <td className="pl-3 text-left text-suave" title={`Sin nota esta semana: su último puesto es del ${fechaCorta(v)}`}><s>{p.puestos.at(-1)}.º</s> <span className="text-[11px] text-baja">{fechaCorta(v)}</span></td>
-  return (
-    <td className={`estrecha pl-3 text-left text-[15px] font-bold ${m == null || m === 0 ? 'text-suave' : m > 0 ? 'text-sube' : 'text-baja'}`}
-      title={`Puesto ${p.puestos.at(-1)} de ${p.de} en su categoría${m == null ? '; sin nota hace 4 semanas' : m ? (m > 0 ? `; sube ${m} en un mes` : `; baja ${-m} en un mes`) : ''}`}>
-      {m == null ? '—' : m > 0 ? `▲ ${m}` : m < 0 ? `▼ ${-m}` : '='}
+  const puesto = <><span className="text-[15px] font-bold">{p.puestos.at(-1)}.º</span><span className="text-[12px] text-suave">/{p.de}</span></>
+  if (v) return (
+    <td className="estrecha pl-3 text-left leading-tight text-suave">
+      <s>{puesto}</s><span className="block text-[12px] text-baja">del {fechaCorta(v)}</span>
     </td>
   )
+  return (
+    <td className="estrecha pl-3 text-left leading-tight">
+      {puesto}
+      <span className={`block text-[12px] font-bold ${m == null || m === 0 ? 'text-suave' : m > 0 ? 'text-sube' : 'text-baja'}`}>
+        {m == null ? 'sin mes' : m > 0 ? `▲ ${m}` : m < 0 ? `▼ ${-m}` : '= igual'}
+        <span className="sr-only">{m == null ? '' : m > 0 ? ' puestos ganados en un mes' : m < 0 ? ' puestos perdidos en un mes' : ' en un mes'}</span>
+      </span>
+    </td>
+  )
+}
+
+/** En el móvil la columna del puesto queda fuera de la vista: el movimiento va junto a la nota. */
+function MovilMovimiento({ p }: { p: Puestos | undefined }) {
+  const m = p ? movimiento(p) : null
+  if (!m) return null
+  return <span className={`estrecha ml-1.5 text-[13px] font-bold sm:hidden ${m > 0 ? 'text-sube' : 'text-baja'}`}>{m > 0 ? `▲${m}` : `▼${-m}`}</span>
 }
 
 function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, jornada, cargandoJornada }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; cargandoJornada: boolean }) {
@@ -548,9 +584,9 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
       <table className="w-full min-w-[46rem] whitespace-nowrap text-right text-[13px] tabular">
         <thead className="rotulo">
           <tr>
-            <th className="w-10 pb-1.5 pl-3 text-left font-normal">#</th>
+            <th className="w-12 pb-1.5 pl-3 text-left font-normal" title="Lugar en esta lista, con el orden y los filtros de la pantalla (no es el puesto en la categoría)">Orden</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
-            <th className="pb-1.5 pl-3 text-left font-normal" title="Puestos ganados o perdidos en su categoría desde hace 4 semanas (nota guardada cada lunes)">{cargandoJornada ? '1 mes …' : '1 mes'}</th>
+            <th className="pb-1.5 pl-3 text-left font-normal" title="Puesto en su categoría con la nota guardada el lunes (pesos por defecto) y puestos ganados o perdidos desde hace 4 semanas">{cargandoJornada ? 'Puesto …' : 'Puesto'}</th>
             <Cabecera o="nota" texto="Nota" clase="text-left" {...cab} />
             <Cabecera o="ter" texto="TER" {...cab} />
             <Cabecera o="r3" texto="3 años" titulo="Rentabilidad anualizada a 3 años" {...cab} />
@@ -566,8 +602,9 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
               <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
                 <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} extra={<>
                   {f.nota != null && <span className="estrecha ml-1.5 text-[15px] font-extrabold sm:hidden">· {Math.round(f.nota)}</span>}
-                  {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
-                  {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
+                  <MovilMovimiento p={jornada.puestos.get(f.isin)} />
+                  {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
+                  {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
                 </>} />
                 <CeldaSemana p={jornada.puestos.get(f.isin)} ultima={jornada.ultima} />
                 <td className="pl-3 text-left">
@@ -601,7 +638,7 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
             <th colSpan={5} />
           </tr>
           <tr>
-            <th className="w-10 pb-1.5 pl-3 text-left font-normal">#</th>
+            <th className="w-12 pb-1.5 pl-3 text-left font-normal" title="Lugar en esta lista, con el orden y los filtros de la pantalla (no es el puesto en la categoría)">Orden</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
             <Cabecera o="m1" texto="Último mes" titulo="Lo que ha ganado el último mes, pasado a un año (% anual)" {...cab} />
             <Cabecera o="m2" texto="2 meses" titulo="Lo que ha ganado en los últimos 2 meses, pasado a un año (% anual)" {...cab} />

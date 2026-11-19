@@ -9,6 +9,7 @@ import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
 import { cargarFondo, type DatosFondo } from './Cartera'
 import Cargando from '../componentes/Cargando'
+import Fallo from '../componentes/Fallo'
 
 type Pesos = Map<string, number> // ISIN → %
 
@@ -91,7 +92,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
   const a = useMemo(() => (listos ? simular(actual) : null), [listos, clave(actual), rf, bandas, refFija]) // eslint-disable-line react-hooks/exhaustive-deps
   const b = useMemo(() => (listos ? simular(propuesta) : null), [listos, clave(propuesta), rf, bandas, refFija]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <p className="text-baja">No se ha podido simular: {error}</p>
+  if (error) return <Fallo>No se ha podido simular: {error}</Fallo>
   if (guardada === undefined) return <Cargando pagina />
   if (!guardada || !c) return <p className="text-suave">No existe esa cartera.</p>
 

@@ -81,13 +81,13 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
   return (
     <section aria-label="Detalle del fondo" className="flex flex-col gap-3 rounded-lg border border-borde bg-panel p-4 text-[13px]">
       <div className="space-y-1.5">
-        <a href={`#/fondo/${f.isin}`} className="block text-xl font-semibold leading-tight tracking-tight hover:text-acento">{f.nombre}</a>
+        <h2 className="text-xl font-semibold leading-tight tracking-tight"><a href={`#/fondo/${f.isin}`} className="block hover:text-acento">{f.nombre}</a></h2>
         <div className="flex flex-wrap gap-1 text-[11px] text-suave">
           {f.categoria && <span className="rounded-sm bg-borde/50 px-2">{f.categoria}</span>}
           <span className="rounded-sm bg-borde/50 px-2 font-mono">{f.isin}</span>
           <span className="rounded-sm bg-borde/50 px-2">{f.gestion === 'indexada' ? 'Indexado' : f.gestion === 'activa' ? 'Gestión activa' : 'Gestión sin dato'}</span>
           <span className="rounded-sm bg-borde/50 px-2">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>
-          {f.myinvestor && <span className="rounded-sm bg-acento/15 px-2 text-acento">En MyInvestor</span>}
+          {f.myinvestor && <span className="rounded-sm border border-acento/60 px-2 text-acento">En MyInvestor</span>}
         </div>
       </div>
 

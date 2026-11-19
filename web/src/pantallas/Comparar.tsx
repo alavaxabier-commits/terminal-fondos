@@ -15,6 +15,7 @@ import * as q from '../datos/consultas'
 import { serieEur } from '../datos/series'
 import { FILAS, GRUPOS } from './Ficha'
 import Cargando from '../componentes/Cargando'
+import Fallo from '../componentes/Fallo'
 
 type Datos = { fondo: q.Fondo; serie: Punto[]; metricas: Map<string, q.Metrica>; comp: Composicion | null }
 
@@ -128,7 +129,7 @@ export default function Comparar({ isins }: { isins: string[] }) {
         {cats.size > 1 && <p className="text-[12px] text-aviso">Categorías distintas: los percentiles (pNN y la nota) son frente a la categoría de cada fondo y no se comparan entre sí.</p>}
       </header>
 
-      {error && <p className="text-baja">No se han podido leer los fondos: {error}</p>}
+      {error && <Fallo>No se han podido leer los fondos: {error}</Fallo>}
       {!isins.length && <p className="text-suave">Añade fondos para compararlos: aquí, o con «+ Comparar» (tecla b) en el screener, el seguimiento o la ficha.</p>}
       {isins.length > 0 && !listos && <Cargando alto="h-80" />}
 

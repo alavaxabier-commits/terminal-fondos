@@ -30,8 +30,8 @@
   --color-once: #f0c23a;
   --color-sobre-once: #141414;
   --color-tuyo: #fbefc6;
-  --color-tinte-alta: #e6ecf6;
-  --color-tinte-baja: #f6e3df;
+  --color-tinte-alta: #d7e2f4;
+  --color-tinte-baja: #f5dbd5;
   --color-serie1: #5e82c5;
   --color-serie2: #c48225;
   --color-serie3: #bb5c84;
@@ -45,8 +45,8 @@
   :root[data-tema="oscuro"] {
     --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
     --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
-    --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
-    --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
+    --color-cabecera: #26282e; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #41340a;
+    --color-tinte-alta: #1d2a43; --color-tinte-baja: #3b231d;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
     color-scheme: dark;
   }
@@ -54,8 +54,8 @@
     :root:not([data-tema]) {
       --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
     --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
-    --color-cabecera: #050506; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #3a3214;
-    --color-tinte-alta: #161b24; --color-tinte-baja: #221816;
+    --color-cabecera: #26282e; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #41340a;
+    --color-tinte-alta: #1d2a43; --color-tinte-baja: #3b231d;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
       color-scheme: dark;
     }
@@ -102,6 +102,7 @@ body {
 }
 ::selection { background: var(--color-once); color: var(--color-sobre-once); }
 input, select, textarea { font: inherit; }
+::placeholder { color: var(--color-suave); opacity: 1; }
 .tabular { font-variant-numeric: tabular-nums; }
 /* Fuera de capa a propósito: manda sobre text-lg/font-bold de los h1 de cada pantalla. */
 h1 { font-family: var(--font-estrecha); font-weight: 800; font-size: 2rem; line-height: 1.05; letter-spacing: 0; text-transform: uppercase; text-wrap: balance; }
@@ -117,6 +118,9 @@ h1 { font-family: var(--font-estrecha); font-weight: 800; font-size: 2rem; line-
   .cinta-pista { animation: none; }
   .cinta-copia { display: none; }
 }
+
+/* Pantallas de la cabecera en el móvil: si no caben, se desvanecen a la derecha para decir que hay más (se desplazan). */
+@media (max-width: 767px) { .pantallas { mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); } }
 
 /* Celda sin cifra en el mapa de métricas de la ficha (sin historia o sin calcular): rayado suave. */
 .rayado { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--color-borde) 55%, transparent) 6px 7px); }

@@ -22,6 +22,7 @@ import { serieEur } from '../datos/series'
 import { Pastilla } from './Ficha'
 import Cargando from '../componentes/Cargando'
 import { ultimaSemana, type Puestos } from '../calculo/jornada'
+import Fallo from '../componentes/Fallo'
 
 /** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
 export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; percentiles: Map<string, number>; ref: RefSerie | null }
@@ -154,7 +155,7 @@ export default function Cartera({ id }: { id: number }) {
     return () => removeEventListener('keydown', tecla)
   })
 
-  if (error) return <p className="text-baja">No se ha podido leer o guardar la cartera: {error}</p>
+  if (error) return <Fallo>No se ha podido leer o guardar la cartera: {error}</Fallo>
   if (guardada === undefined) return <Cargando pagina />
   if (!guardada || !cartera) return <p className="text-suave">No existe esa cartera.</p>
 

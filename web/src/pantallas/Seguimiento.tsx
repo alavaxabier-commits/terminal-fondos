@@ -11,6 +11,7 @@ import * as q from '../datos/consultas'
 import { serieEur } from '../datos/series'
 import { senalesSeguidos } from '../datos/revision'
 import Cargando from '../componentes/Cargando'
+import Fallo from '../componentes/Fallo'
 
 type Fila = Awaited<ReturnType<typeof q.seguidos>>[number]
 type Nota = NonNullable<ReturnType<typeof evolucion>>
@@ -105,7 +106,7 @@ export default function Seguimiento() {
     x: setQuitando,
   })
 
-  if (!filas) return error ? <p className="text-baja">{error}</p> : <Cargando pagina />
+  if (!filas) return error ? <Fallo>No se ha podido leer: {error}</Fallo> : <Cargando pagina />
   const m = (isin: string, clave: string) => met.get(`${isin}|${clave}`)
   const elegido = visibles.find((f) => f.isin === sel)
   const monetarioElegido = elegido && tipoActivo(elegido.fondo.categoria) === 'monetario'
@@ -157,7 +158,7 @@ export default function Seguimiento() {
   return (
     <div className="space-y-5">
       <h1 className="text-3xl! sm:text-4xl!">Seguimiento <span className="text-suave">· {filas.length} {filas.length === 1 ? 'fondo' : 'fondos'}</span></h1>
-      {error && <p className="text-baja">{error}</p>}
+      {error && <Fallo>No se ha podido leer o guardar: {error}</Fallo>}
       {visibles.length === 0 ? (
         <p className="text-suave">No sigues ningún fondo. Se añaden desde el screener o desde una ficha («s»).</p>
       ) : (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { cifra, fecha } from '../calculo/formato'
 import * as q from '../datos/consultas'
 import { revisar, type Revision as Datos } from '../datos/revision'
+import Fallo from '../componentes/Fallo'
 
 const REGLA: Record<string, string> = {
   nota_baja_percentil: 'Nota baja: percentil de su nota en la categoría por debajo de',
@@ -43,7 +44,7 @@ export default function Revision() {
           {(datos.umbrales.find((u) => u.clave === 'misma_divisa')?.valor ?? 1) ? ' · en la misma divisa' : ''}
         </p>
       </div>
-      {error && <p className="text-baja">{error}</p>}
+      {error && <Fallo>No se ha podido leer o guardar: {error}</Fallo>}
 
       {marcados.map((m) => (
         <section key={`${m.cartera.id}-${m.fondo.isin}`} className="border border-borde">

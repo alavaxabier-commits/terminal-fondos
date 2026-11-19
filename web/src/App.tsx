@@ -127,7 +127,7 @@ export default function App() {
           <a href="#/" className="estrecha shrink-0 text-[19px] font-extrabold uppercase leading-none tracking-[0.01em]">
             <span className="hidden sm:inline">Terminal de fondos</span><span className="sm:hidden">Fondos</span>
           </a>
-          <nav aria-label="Pantallas" className="order-last flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
+          <nav aria-label="Pantallas" className="pantallas order-last flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
             {PANTALLAS.map(([h, t]) => {
               const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
               return (
@@ -147,11 +147,14 @@ export default function App() {
                 : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
             </svg>
           </button>
-          <button onClick={() => setContrasena(true)} className="shrink-0 text-[13px] opacity-75 hover:opacity-100" title="Poner o cambiar la contraseña">
-            Contraseña
+          <button onClick={() => setContrasena(true)} aria-label="Contraseña" className="grid min-h-8 min-w-8 shrink-0 place-items-center text-[13px] opacity-75 hover:opacity-100" title="Poner o cambiar la contraseña">
+            {/* en el móvil, iconos: el buscador necesita el sitio */}
+            <span className="hidden sm:inline">Contraseña</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 sm:hidden" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 9.2-9.2M17 6l3 3M14 9l2 2" /></svg>
           </button>
-          <button onClick={() => supabase.auth.signOut()} className="shrink-0 text-[13px] opacity-75 hover:opacity-100" title="Cerrar sesión">
-            Salir
+          <button onClick={() => supabase.auth.signOut()} aria-label="Salir" className="grid min-h-8 min-w-8 shrink-0 place-items-center text-[13px] opacity-75 hover:opacity-100" title="Cerrar sesión">
+            <span className="hidden sm:inline">Salir</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 sm:hidden" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" /></svg>
           </button>
         </div>
       </header>

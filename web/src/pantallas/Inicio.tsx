@@ -14,6 +14,7 @@ import { serieEur } from '../datos/series'
 import { novedades, umbralesNovedades, type Novedad } from '../calculo/novedades'
 import ListaNovedades from '../componentes/ListaNovedades'
 import { cargarFondo } from './Cartera'
+import Fallo from '../componentes/Fallo'
 
 type ResumenCartera = {
   año: number | null; linea: number[]
@@ -63,13 +64,13 @@ const seMueve = (f: Seguido) => Math.abs(Math.round(f.semana ?? 0)) >= 2 // redo
 const tono = (v?: number | null) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 const Seccion = ({ titulo, extra, children, className = '' }: { titulo: string; extra?: React.ReactNode; children: React.ReactNode; className?: string }) => (
   <section className={className}>
-    <div className="mb-1 flex items-baseline justify-between gap-3 border-b-2 border-texto pb-1">
+    <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b-2 border-texto pb-1">
       <h2 className="estrecha text-[22px] font-extrabold uppercase leading-tight">{titulo}</h2>{extra}
     </div>
     {children}
   </section>
 )
-const Fallo = ({ e }: { e: Error }) => <p className="text-baja">No se ha podido leer: {e.message}</p>
+const LeerFallo = ({ e }: { e: Error }) => <Fallo>No se ha podido leer: {e.message}</Fallo>
 
 /** Inicio: el tablero de las carteras modelo (una fila por cartera) y el seguimiento; los índices van en la cinta de arriba
  *  (componentes/Cinta, que pone App). Descargas y revisión llegan de App, que las lee una vez para la barra de estado. */
@@ -121,7 +122,7 @@ export default function Inicio({ estado: { descargas, revision, error: errorEsta
 
       <Seccion titulo={Array.isArray(carteras) && carteras.length === 1 ? 'Cartera modelo' : 'Carteras modelo'} extra={<button onClick={nueva} className="-my-1 py-1 text-suave hover:text-acento">+ nueva cartera</button>}>
         {!carteras ? <p className="py-3 text-suave">Cargando…</p>
-          : carteras instanceof Error ? <Fallo e={carteras} />
+          : carteras instanceof Error ? <LeerFallo e={carteras} />
           : !carteras.length ? <p className="py-3 text-suave">Aún no hay ninguna cartera modelo: «+ nueva cartera» crea una.</p>
           : <TablaCarteras carteras={carteras} resumenes={resumenes} senalesDe={senalesDe} />}
       </Seccion>
@@ -191,7 +192,7 @@ function TablaCarteras({ carteras, resumenes, senalesDe }: { carteras: Cartera[]
   const tinta = tintas(carteras.map((c) => c.id))
   const estado = (c: Cartera) => {
     const r = resumenes.get(c.id)
-    return !resumenes.has(c.id) ? 'calculando…' : r instanceof Error ? <Fallo e={r} /> : !r ? <>Sin fondos o sin datos suficientes. <a href={`#/cartera/${c.id}`} className="text-acento hover:underline">Añadir fondos ›</a></> : null
+    return !resumenes.has(c.id) ? 'calculando…' : r instanceof Error ? <LeerFallo e={r} /> : !r ? <>Sin fondos o sin datos suficientes. <a href={`#/cartera/${c.id}`} className="text-acento hover:underline">Añadir fondos ›</a></> : null
   }
   const th = 'rotulo px-2.5 pt-2 pb-1.5 align-bottom whitespace-nowrap', thn = `${th} text-right`
   return (
@@ -286,7 +287,7 @@ function ListaSeguimiento({ seg: dato }: { seg: Seguido[] | Error | null }) {
   const nMueven = (seg ?? []).filter(seMueve).length
   return (
     <Seccion titulo="Seguimiento" extra={<a href="#/seguimiento" className="-my-1 py-1 text-suave hover:text-acento">{seg?.length ? `ver los ${seg.length}` : 'ver lista'}</a>}>
-      {dato instanceof Error ? <Fallo e={dato} /> : !seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
+      {dato instanceof Error ? <LeerFallo e={dato} /> : !seg ? <p className="text-suave">Cargando…</p> : !seg.length ? <p className="text-suave">No sigues ningún fondo. Desde el screener o una ficha, «s» lo añade.</p>
         : (<>
         <p className="mb-1 text-[12px] text-suave">{nMueven ? `${nMueven === 1 ? 'Uno se mueve' : `${nMueven} se mueven`} esta semana (±2 puntos de nota); después, los nuevos y los de mejor nota.` : 'Ninguno se mueve esta semana (±2 puntos de nota): primero los nuevos, después los de mejor nota.'} La línea es su valor en el último año.</p>
         <ul className="grid gap-x-10 lg:grid-cols-2">
@@ -350,7 +351,7 @@ function Novedades({ nov, carteras }: { nov: { lista: Novedad[]; enCarteras: Map
         ))}
       </div>
     }>
-      {!nov ? <p className="py-2 text-suave">Cargando…</p> : nov instanceof Error ? <Fallo e={nov} /> : (<>
+      {!nov ? <p className="py-2 text-suave">Cargando…</p> : nov instanceof Error ? <LeerFallo e={nov} /> : (<>
         <p className="mb-1 text-[12px] text-suave">De los fondos de tus carteras y de seguimiento: cambios de gestor de los últimos {nov.dias} días y flujos o patrimonio fuera de los umbrales (se ajustan en Revisión). El cuadro de color dice en qué cartera está.</p>
         {lista.length
           ? <ListaNovedades lista={lista} conFondo tintas={new Map([...nov.enCarteras].map(([i, cs]) => [i, cs.map((c) => tinta.get(c.id)).filter((t): t is string => !!t)]))}
