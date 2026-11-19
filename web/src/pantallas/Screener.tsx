@@ -368,7 +368,7 @@ export default function Screener() {
     <div className="space-y-4">
       <header className="space-y-1">
         <h1 className="text-3xl! sm:text-4xl!">Screener</h1>
-        <p className="text-[13px] text-suave">{monetarios ? 'Vista monetarios: rendimiento reciente.' : 'Cada categoría es una liga: nota de 0 a 100 dentro de su categoría.'}</p>
+        <p className="text-[13px] text-suave">{monetarios ? 'Vista monetarios: rendimiento reciente.' : 'Nota de 0 a 100 de cada fondo frente a los de su categoría.'}</p>
       </header>
 
       {/* Pestañas de liga: el tipo de activo (solo aquí). */}
@@ -412,7 +412,7 @@ export default function Screener() {
       </div>
       {avisoDiv && <p role="status" className="text-[13px] text-aviso">{avisoDiv}</p>}
       {error && <p className="text-baja">{error}</p>}
-      {errorJornada && <p role="status" className="text-[13px] text-baja">No se han podido leer los puestos de la jornada ({errorJornada}): la tabla sale sin puestos ni movimiento.</p>}
+      {errorJornada && <p role="status" className="text-[13px] text-baja">No se han podido leer los puestos de la semana ({errorJornada}): la tabla sale sin puestos ni movimiento.</p>}
 
       <div className="relative grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
         {/* Pesos: encima de la ficha, para ver la tabla moverse mientras se afinan; en pantallas estrechas, encima de todo. */}
