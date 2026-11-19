@@ -501,7 +501,7 @@ function Cabecera({ o, texto, titulo, orden, setOrden, clase = '' }: { o: Orden;
   const sube = o !== 'nota' && COLUMNAS[o][1]
   return (
     <th className={`pb-1.5 pl-3 font-normal whitespace-nowrap ${clase}`} title={titulo} aria-sort={orden === o ? (sube ? 'ascending' : 'descending') : 'none'}>
-      <button onClick={() => setOrden(o)} className={orden === o ? 'text-acento' : 'hover:text-texto'}>{texto}{orden === o ? (sube ? ' ↑' : ' ↓') : ''}</button>
+      <button onClick={() => setOrden(o)} className={`min-h-6 uppercase ${orden === o ? 'text-acento' : 'hover:text-texto'}`}>{texto}{orden === o ? (sube ? ' ↑' : ' ↓') : ''}</button>
     </th>
   )
 }
@@ -530,7 +530,7 @@ function Fila({ f, i, k, sel, setSel, seguidos, seguir, jornada, children }: { f
   // lo tuyo sigue en amarillo aunque esté elegido; la selección se marca con el contorno azul
   const fondo = tuyo ? 'bg-tuyo' : elegida ? 'bg-acento/15' : 'hover:bg-borde/30'
   return (
-    <tr data-isin={f.isin} aria-selected={elegida} onClick={() => setSel(f.isin)}
+    <tr data-isin={f.isin} aria-current={elegida || undefined} onClick={() => setSel(f.isin)} onFocus={() => setSel(f.isin)}
       className={`cursor-pointer border-t ${k > 0 && k % 5 === 0 ? 'border-texto/60' : 'border-borde/70'} ${fondo} ${elegida ? 'outline-2 -outline-offset-2 outline-acento' : ''}`}>
       <td className={`estrecha py-2 pl-3 text-left text-[17px] font-extrabold leading-none ${elegida ? 'text-acento' : ''}`}>{i ?? ''}</td>
       {children}

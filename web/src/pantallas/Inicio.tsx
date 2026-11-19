@@ -10,10 +10,9 @@ import type { Estado } from '../App'
 import Mini from '../componentes/Mini'
 import { exposicion, type Fila } from '../calculo/exposicion'
 import { cartera as leerCartera, categoriasReferencia, crearCartera, carteras as leerCarteras, notasDe, referenciaSeries, refCartera, seguidos, type Cartera, fondosEnCarteras, datosNovedades, seguimiento, umbrales } from '../datos/consultas'
-import { serieEur } from '../datos/series'
+import { cargarFondo, serieEur } from '../datos/series'
 import { novedades, umbralesNovedades, type Novedad } from '../calculo/novedades'
 import ListaNovedades from '../componentes/ListaNovedades'
-import { cargarFondo } from './Cartera'
 import Fallo from '../componentes/Fallo'
 
 type ResumenCartera = {

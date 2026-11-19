@@ -109,7 +109,7 @@ export default function Comparar({ isins }: { isins: string[] }) {
           <div role="group" aria-label="Plazo" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
             {RANGOS.map((n) => (
               <button key={n} onClick={() => setRango(n)} aria-pressed={rango === n}
-                className={`rounded-sm px-3 py-0.5 ${rango === n ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{n}A</button>
+                className={`min-h-6 rounded-sm px-3 py-0.5 ${rango === n ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{n}A</button>
             ))}
           </div>
         </div>

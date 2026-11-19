@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { calcularCartera, cambiosCartera, lecturaRiesgo, type RefSerie } from '../calculo/cartera'
-import type { Composicion } from '../calculo/exposicion'
 import { cifra, fecha, hoy, pct } from '../calculo/formato'
 import { rendimientos, simularCartera, type Bandas } from '../calculo/metricas'
 import { exposicion } from '../calculo/exposicion'
-import { base100, haceAnos, lineasCartera, type Punto } from '../calculo/series'
+import { base100, haceAnos, lineasCartera } from '../calculo/series'
 import Buscador from '../componentes/Buscador'
 import Reparto from '../componentes/Reparto'
 import { AnoAno, corto, costeCartera, Crisis, Juntos } from '../componentes/EstadisticasCartera'
@@ -18,14 +17,12 @@ import Tarjeta from '../componentes/Tarjeta'
 import { escribiendo } from '../componentes/teclas'
 import * as q from '../datos/consultas'
 import { revisar, type FondoRevisado } from '../datos/revision'
-import { serieEur } from '../datos/series'
+import { cargarFondo, type DatosFondo } from '../datos/series'
 import { Pastilla } from './Ficha'
 import Cargando from '../componentes/Cargando'
 import { ultimaSemana, type Puestos } from '../calculo/jornada'
 import Fallo from '../componentes/Fallo'
 
-/** Lo que hace falta de cada fondo: precios en EUR, composición, métricas y serie de referencia. */
-export type DatosFondo = { serie: Punto[]; comp: Composicion | null; fechaCartera: string | null; metricas: Map<string, number>; percentiles: Map<string, number>; ref: RefSerie | null }
 type Linea = { fondo: q.Fondo; peso: number }
 type Borrador = q.CarteraEditable & { fondos: Linea[]; motivo: string }
 
@@ -38,24 +35,6 @@ const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 
 const REVISION = { diaria: 'cada día', mensual: 'cada mes', trimestral: 'cada trimestre', semestral: 'cada semestre', anual: 'cada año' }
 const textoBandas = (b: Bandas) =>
   `por bandas de ±${cifra(b.banda, 1)} ${b.tipo === 'relativa' ? '% del peso de cada fondo' : 'puntos'}, revisadas ${REVISION[b.revision]}`
-
-export async function cargarFondo(f: q.Fondo, cats: Awaited<ReturnType<typeof q.categoriasReferencia>>): Promise<DatosFondo> {
-  const clave = q.claveReferencia(f, cats)
-  const [serie, ms, comps, refs] = await Promise.all([
-    serieEur(f.isin, f.divisa),
-    q.metricasDe([f.isin]),
-    q.composiciones([f.isin]),
-    q.referenciaSeries(clave ? [clave] : []),
-  ])
-  return {
-    serie,
-    comp: comps[0]?.datos ?? null,
-    fechaCartera: comps[0]?.fecha_cartera ?? null,
-    metricas: new Map(ms.map((m) => [`${m.ventana}|${m.nombre}`, Number(m.valor)])),
-    percentiles: new Map(ms.filter((m) => m.percentil != null).map((m) => [`${m.ventana}|${m.nombre}`, Number(m.percentil)])),
-    ref: (clave && refs.get(clave)) || null,
-  }
-}
 
 /** Una cartera modelo: fondos y pesos, valor simulado, estadísticas y X-Ray. Se edita aquí y todo se recalcula al momento. */
 export default function Cartera({ id }: { id: number }) {

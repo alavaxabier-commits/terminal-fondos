@@ -404,12 +404,12 @@ function Aportes({ fondos, elegido, elegir, rv }: { fondos: Fondo[]; elegido: st
                   </th>
                   {r.valores ? r.valores.map((x, i) => (
                     <td key={a.cols[i]} title={`${r.nombre} · ${a.cols[i]}: ${cifra(x, 1)} puntos`}
-                      className={`cifra flex items-center justify-center rounded-xs text-[15px] ${x < 0 ? 'border border-dashed border-baja text-baja' : Math.abs(x) < 0.05 ? 'text-gris' : ''}`}
+                      className={`cifra flex items-center justify-center rounded-xs text-[15px] ${x < 0 ? 'border border-dashed border-baja text-baja' : Math.abs(x) < 0.05 ? 'text-suave' : ''}`}
                       style={x > 0 ? { background: tono(Math.min(x / max, 1) * 50) } : undefined}>
                       {Math.abs(x) < 0.05 ? '·' : cifra(x, 1)}
                     </td>
                   )) : (
-                    <td className="flex items-center rounded-xs border border-dashed border-borde px-3 text-gris" style={{ gridColumn: `2 / span ${a.cols.length}` }}>{r.sin}</td>
+                    <td className="flex items-center rounded-xs border border-dashed border-borde px-3 text-suave" style={{ gridColumn: `2 / span ${a.cols.length}` }}>{r.sin}</td>
                   )}
                 </tr>
               )
@@ -454,7 +454,7 @@ function MatrizSolapes({ fondos }: { fondos: { nombre: string; c: FondoX['c'] }[
                     const x = de(fila, col)
                     const v = x?.pct ?? 0
                     return (
-                      <td key={col} className={`cifra rounded-xs px-2 py-3 text-center text-[15px] ${v >= 0.05 ? '' : 'text-gris'}`}
+                      <td key={col} className={`cifra rounded-xs px-2 py-3 text-center text-[15px] ${v >= 0.05 ? '' : 'text-suave'}`}
                         style={{ background: v >= 0.05 ? tono(Math.min(15 + v * 1.5, 60)) : 'color-mix(in srgb, var(--color-borde) 40%, transparent)' }}
                         title={x?.comunes.length ? `En común: ${x.comunes.join(', ')}` : undefined}>
                         {x && !x.completo ? '≥ ' : ''}{v >= 0.05 ? p1(v) : '0'}

@@ -42,6 +42,7 @@
 @utility cifra { font-family: var(--font-estrecha); font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 
 @layer base {
+  /* Un solo juego oscuro: data-tema lo pone index.html antes de pintar (lo guardado o, si no, el del sistema). */
   :root[data-tema="oscuro"] {
     --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
     --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
@@ -49,16 +50,6 @@
     --color-tinte-alta: #1d2a43; --color-tinte-baja: #3b231d;
     --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
     color-scheme: dark;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-tema]) {
-      --color-fondo: #111214; --color-panel: #1a1b1e; --color-borde: #2d2e33; --color-texto: #ecebe6; --color-suave: #a3a199;
-    --color-acento: #86aef0; --color-sobre-acento: #111214; --color-sube: #7cc39f; --color-baja: #ee8f80; --color-aviso: #e0b85c; --color-gris: #6a6962;
-    --color-cabecera: #26282e; --color-sobre-cabecera: #ecebe6; --color-once: #e2b52e; --color-sobre-once: #141414; --color-tuyo: #41340a;
-    --color-tinte-alta: #1d2a43; --color-tinte-baja: #3b231d;
-    --color-serie1: #678ccf; --color-serie2: #b47308; --color-serie3: #ad5078; --color-serie4: #8a91a0; --color-serie5: #4d5463;
-      color-scheme: dark;
-    }
   }
 
   /* Movimiento: cambios de color en los controles (también con menos movimiento: no desplazan nada); el foco, siempre visible. Lo que pinta el navegador (selección, cursor de texto,

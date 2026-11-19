@@ -1,4 +1,4 @@
-import * as echarts from 'echarts'
+import { echarts } from './echarts'
 import { useEffect, useRef, useState } from 'react'
 import { cifra, fecha } from '../calculo/formato'
 import type { Punto } from '../calculo/series'

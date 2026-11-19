@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import { PANTALLAS } from './calculo/ordenes'
 import { estadoDescargas, type Tarea } from './calculo/vigilancia'
 import Bandeja from './componentes/Bandeja'
@@ -11,16 +11,19 @@ import { rutaCon, useBandeja } from './datos/bandeja'
 import { tamanoBase, vigilancia } from './datos/consultas'
 import { revisar, type Revision as DatosRevision } from './datos/revision'
 import { supabase } from './datos/supabase'
-import Cartera from './pantallas/Cartera'
-import Comparar from './pantallas/Comparar'
 import Entrar from './pantallas/Entrar'
-import Ficha from './pantallas/Ficha'
 import Inicio from './pantallas/Inicio'
+import Cargando from './componentes/Cargando'
+import { Barrera } from './componentes/Fallo'
+// Cada pantalla (y ECharts, que solo usan algunas) se descarga al abrirla: Inicio y la entrada van en el paquete principal.
+const Cartera = lazy(() => import('./pantallas/Cartera'))
+const Comparar = lazy(() => import('./pantallas/Comparar'))
+const Ficha = lazy(() => import('./pantallas/Ficha'))
+const Revision = lazy(() => import('./pantallas/Revision'))
+const Screener = lazy(() => import('./pantallas/Screener'))
+const Seguimiento = lazy(() => import('./pantallas/Seguimiento'))
+const Simular = lazy(() => import('./pantallas/Simular'))
 import Cinta from './componentes/Cinta'
-import Revision from './pantallas/Revision'
-import Screener from './pantallas/Screener'
-import Seguimiento from './pantallas/Seguimiento'
-import Simular from './pantallas/Simular'
 
 /** Ruta mínima por el hash: #/fondo/ISIN, #/cartera/N, #/simular/N[/SALE/ENTRA], #/comparar/ISIN,… y las fijas. Sin librería de rutas. */
 function useRuta(): string {
@@ -162,11 +165,13 @@ export default function App() {
       {inicio && <Cinta />}
       <main className={`mx-auto w-full flex-1 space-y-5 px-4 py-5 ${ancho}`}>
         {!comparar && <Bandeja />}
+        <Barrera key={ruta}><Suspense fallback={<Cargando pagina />}>
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
           : simular ? <Simular key={simular[0]} id={+simular[1]} sale={simular[2]} entra={simular[3]} />
           : comparar ? <Comparar isins={comparar[1] ? [...new Set(comparar[1].split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5) : bandeja.map((x) => x.isin)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
+        </Suspense></Barrera>
       </main>
-      <BarraEstado estado={estado} ancho={ancho} />
+      <Barrera sin={null}><BarraEstado estado={estado} ancho={ancho} /></Barrera>
       {contrasena && <CambiarContrasena cerrar={() => setContrasena(false)} />}
       {ayuda && (
         <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="velo fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">

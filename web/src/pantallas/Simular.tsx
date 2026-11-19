@@ -7,7 +7,7 @@ import Buscador from '../componentes/Buscador'
 import { Titulo } from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
-import { cargarFondo, type DatosFondo } from './Cartera'
+import { cargarFondo, type DatosFondo } from '../datos/series'
 import Cargando from '../componentes/Cargando'
 import Fallo from '../componentes/Fallo'
 

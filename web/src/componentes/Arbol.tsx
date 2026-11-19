@@ -1,4 +1,4 @@
-import * as echarts from 'echarts'
+import { echarts } from './echarts'
 import { useEffect, useRef } from 'react'
 import { pct } from '../calculo/formato'
 import { token, useCambioTema } from './tema'

@@ -130,7 +130,7 @@ export default function Seguimiento() {
               const elegida = sel === f.isin
               const alta = desdeAlta.get(f.isin)
               return (
-                <tr key={f.isin} data-isin={f.isin} aria-selected={elegida} onClick={() => setSel(f.isin)}
+                <tr key={f.isin} data-isin={f.isin} aria-current={elegida || undefined} onClick={() => setSel(f.isin)} onFocus={() => setSel(f.isin)}
                   className={`cursor-pointer border-t ${k > 0 && k % 5 === 0 ? 'border-texto/60' : 'border-borde/70'} ${elegida ? 'bg-acento/15 outline-2 -outline-offset-2 outline-acento' : 'hover:bg-borde/30'}`}>
                   <td className="py-2 pr-2 pl-2 text-left">
                     <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.fondo.nombre}</a>
