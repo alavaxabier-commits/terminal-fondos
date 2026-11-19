@@ -74,3 +74,13 @@ export function senales(f: { isin: string; ter: number | null; fund_id: string |
     out.push({ tipo: 'Redundante', motivo: `Correlación de ${juntos.map((x) => `${n2(x.c!)} con ${x.nombre}`).join(' y ')} (umbral ${n2(u.redundante_correlacion)}).` })
   return out
 }
+
+/** Señales que se pueden comparar con la semana anterior: solo dependen de las notas del propio fondo. «Algo mejor»
+ *  depende de la nota de los demás y «Caro» y «Redundante» del TER y las correlaciones de hoy, que no se guardan por semana. */
+export const COMPARABLES: Senal['tipo'][] = ['Nota baja', 'Empeora']
+
+/** Las señales comparables que tenía el fondo la semana anterior (con sus notas sin la última semana). */
+export function senalesAntes(f: { isin: string; ter: number | null; fund_id: string | null }, notas: NotaSemanal[], pares: Par[], u: Umbrales): Senal['tipo'][] {
+  const ultima = notas.reduce((m, x) => (x.fecha > m ? x.fecha : m), '')
+  return senales(f, notas.filter((x) => x.fecha < ultima), pares, u, []).map((s) => s.tipo).filter((t) => COMPARABLES.includes(t))
+}

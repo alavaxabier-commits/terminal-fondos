@@ -220,6 +220,9 @@ Lista con el tipo en estrecha ámbar (cambio de gestor, salidas o entradas fuert
 ### Cartera
 Resumen: gráfico grande con los fondos y sus pesos al lado (y el riesgo que pone cada uno, en pequeño), al pie lo que quita diversificar, quién pone más riesgo y la pareja más parecida; debajo, el año natural en una fila (dos barras por año, cartera y referencia, la cifra y la diferencia), tipo de activo (peso y riesgo) y crisis. «A revisar» es una sola línea ámbar bajo las cifras (señales y novedades), no una tarjeta. Fondos: la franja «la cartera en conjunto» (al editar, con la diferencia frente a la guardada), «Qué pone cada fondo en la cartera» (su papel: peso, hoy, riesgo, aporta, coste, parecido; ahí se editan los pesos) y «Cada fondo en su categoría» (el fondo por sí solo, con selector de plazo). Al editar, un recuadro con borde azul de 2 px sobre las pestañas. Métricas: el mapa de la ficha, pero el color dice mejor o peor que la referencia y el detalle pone en la tira la cartera, la referencia y cada fondo.
 
+### Revisión
+Repaso de la semana. Arriba, una frase con las cifras en estrecha: fondos con señal, señales nuevas (ámbar) y fondos ya sin señal (verde). Debajo, un fondo una sola vez aunque esté en varias carteras (cuadro de la tinta de cada una y su peso), primero los de señales nuevas, luego los de más señales y más peso: la nota grande con su percentil y la flecha de la semana; cada señal una vez, con el tipo en estrecha ámbar y el marco «Nueva» si la semana anterior no la tenía (solo Nota baja y Empeora se comparan); a la derecha, la mejor alternativa y las demás al desplegar. Los fondos sin señal, en una tabla corta. Los umbrales, plegados en «Ajustar umbrales».
+
 ### Once
 El puesto de un fondo de cartera: bloque amarillo con el puesto en estrecha 800, «de N» y el movimiento del último mes.
 

@@ -1,13 +1,15 @@
 // Revisión de las carteras: señales de cada fondo y sus mejores alternativas. Junta consultas y cálculo
 // (calculo/senales.ts); lo usan las pantallas Revisión, Cartera e Inicio.
 import { riesgo, rendimientos, semanal } from '../calculo/metricas'
-import { alternativas, evolucion, senales, type NotaSemanal, type Par, type Senal, type Umbrales } from '../calculo/senales'
+import { alternativas, evolucion, senales, senalesAntes, type NotaSemanal, type Par, type Senal, type Umbrales } from '../calculo/senales'
 import { serieEur } from './series'
 import * as q from './consultas'
 
 export type Alternativa = Par & { myinvestor: boolean; c: number | null }
 export type FondoRevisado = {
   fondo: q.Fondo; peso: number; nota: ReturnType<typeof evolucion>; senales: Senal[]; alternativas: Alternativa[]
+  /** Señales comparables (`COMPARABLES`) que tenía la semana anterior. */
+  antes: Senal['tipo'][]
 }
 export type Revision = { carteras: { cartera: q.Cartera; fondos: FondoRevisado[] }[]; umbrales: Awaited<ReturnType<typeof q.umbrales>> }
 
@@ -43,9 +45,11 @@ export async function revisar(ids?: number[]): Promise<Revision> {
         const candidatos = candidatosDe(fondo, pares, u, mi)
         const suyas = notas.filter((n) => n.isin === fondo.isin)
         const corr = fs.map((x, j) => ({ nombre: x.fondo.nombre, c: j === i ? null : r?.matriz[i][j] ?? null }))
-        const s = senales({ isin: fondo.isin, ter: fondo.ter == null ? null : Number(fondo.ter), fund_id: fondo.fund_id ?? null }, suyas, pares, u, corr, candidatos)
+        const f = { isin: fondo.isin, ter: fondo.ter == null ? null : Number(fondo.ter), fund_id: fondo.fund_id ?? null }
+        const s = senales(f, suyas, pares, u, corr, candidatos)
         const alts = s.length ? alternativas({ isin: fondo.isin, fund_id: fondo.fund_id ?? null }, candidatos) : []
-        return { fondo, peso, nota: evolucion(suyas, u.empeora_meses), senales: s, alternativas: alts.map((a) => ({ ...a, myinvestor: mi.has(a.isin), c: null })) }
+        return { fondo, peso, nota: evolucion(suyas, u.empeora_meses), senales: s, alternativas: alts.map((a) => ({ ...a, myinvestor: mi.has(a.isin), c: null })),
+          antes: senalesAntes(f, suyas, pares, u) }
       }),
     }
   })
