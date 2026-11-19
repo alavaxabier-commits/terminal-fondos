@@ -1,4 +1,4 @@
-import * as echarts from 'echarts'
+import { echarts } from './echarts'
 import { useEffect, useRef, useState } from 'react'
 import { cifra, fecha } from '../calculo/formato'
 import type { Punto } from '../calculo/series'
@@ -17,6 +17,7 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
   const tema = useCambioTema()
   const [tabla, setTabla] = useState(false)
   const [ocultas, setOcultas] = useState<Set<string>>(new Set())
+  const dibujado = useRef(false)
 
   useEffect(() => {
     if (!caja.current || tabla) return
@@ -35,9 +36,14 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
     // En el móvil, menos sitio para el nombre de las líneas grises: si no, el gráfico se queda en la mitad.
     const estrecho = caja.current.clientWidth < 520, largo = estrecho ? 9 : 16
     const grises = lineas.some((l) => GRISES.has(l.color))
+    const dibujar = !dibujado.current && !matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (lineas.some((l) => l.serie.length)) dibujado.current = true
     g.setOption(
       {
         backgroundColor: 'transparent',
+        // Las líneas se dibujan una vez, al llegar los datos; ocultar una, cambiar de tema o de tamaño ya no repite el
+        // dibujo entero (con notMerge, ECharts lo repetía cada vez). Sin animación si el sistema pide menos movimiento.
+        animation: dibujar, animationDuration: 450, animationEasing: 'cubicOut',
         textStyle: { fontFamily: fuente, color: suave },
         aria: { enabled: true },
         grid: { left: 44, right: grises ? (estrecho ? 104 : 132) : 52, top: 12, bottom: 48 },
@@ -51,7 +57,7 @@ export default function Grafico({ lineas, alto = 'h-72 sm:h-96' }: { lineas: Lin
           textStyle: { color: texto, fontFamily: fuente },
           valueFormatter: (v: unknown) => (typeof v === 'number' ? v.toFixed(1) : String(v)),
         },
-        xAxis: { type: 'time', axisLine: { lineStyle: { color: borde } }, splitLine: { show: false } },
+        xAxis: { type: 'time', axisLine: { lineStyle: { color: borde } }, axisLabel: { hideOverlap: true }, splitLine: { show: false } },
         yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: borde, type: 'solid' } } },
         dataZoom: [{ type: 'inside' }, {
           type: 'slider', height: 18, bottom: 8, borderColor: borde, textStyle: { color: suave },

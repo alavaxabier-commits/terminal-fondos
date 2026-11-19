@@ -1,4 +1,4 @@
-import * as echarts from 'echarts'
+import { echarts } from './echarts'
 import { useEffect, useRef } from 'react'
 import { cifra } from '../calculo/formato'
 import { token, useCambioTema } from './tema'
@@ -9,6 +9,7 @@ type Punto = { nombre: string; x: number; y: number; color: string }
 export default function Dispersion({ puntos }: { puntos: Punto[] }) {
   const caja = useRef<HTMLDivElement>(null)
   const tema = useCambioTema()
+  const dibujado = useRef(false)
 
   useEffect(() => {
     if (!caja.current) return
@@ -25,8 +26,12 @@ export default function Dispersion({ puntos }: { puntos: Punto[] }) {
     const fuente = getComputedStyle(document.body).fontFamily
     const eje = (nombre: string, hueco: number) => ({ type: 'value', name: nombre, nameLocation: 'middle', nameGap: hueco, scale: true, boundaryGap: ['8%', '8%'],
       axisLabel: { formatter: (v: number) => `${cifra(v, Number.isInteger(v) ? 0 : 1)} %` }, axisLine: { lineStyle: { color: borde } }, splitLine: { lineStyle: { color: borde, type: 'solid' } } })
+    // Los puntos entran una vez; al cambiar de tema no se repite. Sin animación si el sistema pide menos movimiento.
+    const dibujar = !dibujado.current && !matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (puntos.length) dibujado.current = true
     g.setOption({
       backgroundColor: 'transparent',
+      animation: dibujar, animationDuration: 350, animationEasing: 'cubicOut',
       textStyle: { fontFamily: fuente, color: suave },
       grid: { left: 64, right: 24, top: 28, bottom: 44 },
       tooltip: { backgroundColor: panel, borderColor: borde, textStyle: { color: texto, fontFamily: fuente },

@@ -7,8 +7,9 @@ import Buscador from '../componentes/Buscador'
 import { Titulo } from '../componentes/Exposicion'
 import Grafico from '../componentes/Grafico'
 import * as q from '../datos/consultas'
-import { cargarFondo, type DatosFondo } from './Cartera'
+import { cargarFondo, type DatosFondo } from '../datos/series'
 import Cargando from '../componentes/Cargando'
+import Fallo from '../componentes/Fallo'
 
 type Pesos = Map<string, number> // ISIN → %
 
@@ -91,7 +92,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
   const a = useMemo(() => (listos ? simular(actual) : null), [listos, clave(actual), rf, bandas, refFija]) // eslint-disable-line react-hooks/exhaustive-deps
   const b = useMemo(() => (listos ? simular(propuesta) : null), [listos, clave(propuesta), rf, bandas, refFija]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <p className="text-baja">No se ha podido simular: {error}</p>
+  if (error) return <Fallo>No se ha podido simular: {error}</Fallo>
   if (guardada === undefined) return <Cargando pagina />
   if (!guardada || !c) return <p className="text-suave">No existe esa cartera.</p>
 
@@ -134,7 +135,7 @@ export default function Simular({ id, sale, entra }: { id: number; sale?: string
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-lg font-bold text-acento">Simulador · <a href={`#/cartera/${id}`} className="hover:underline">{c.nombre}</a></h1>
+        <h1 className="text-3xl! sm:text-4xl!">Simulador · <a href={`#/cartera/${id}`} className="hover:underline">{c.nombre}</a></h1>
         <p className="text-suave">La cartera guardada frente a la propuesta, las dos con rebalanceo {reb === 'bandas' ? 'por bandas' : reb}. Nada se guarda hasta pulsar «aplicar».</p>
       </header>
 

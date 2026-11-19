@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cifra, hoy, pct } from '../calculo/formato'
-import { aPesosTipo, BLOQUES, grupoPesos, GRUPOS_PESOS, NOMBRE_BLOQUE, PESOS_TIPO_DEFECTO, PLAZOS, pesosEfectivos, type Bloque, type GrupoPesos, type PesosTipo, type Plazo } from '../calculo/nota'
-import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
+import { aPesosTipo, BLOQUES, GRUPOS_PESOS, NOMBRE_BLOQUE, PESOS_TIPO_DEFECTO, PLAZOS, type Bloque, type GrupoPesos, type PesosTipo, type Plazo } from '../calculo/nota'
+import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, deModo, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
 import Franja from '../componentes/Franja'
+import { movimiento, tintas, ultimaSemana, viejo, type Puestos } from '../calculo/jornada'
 import Tarjeta from '../componentes/Tarjeta'
 import TarjetaFondo from '../componentes/TarjetaFondo'
 import type { Senal } from '../calculo/senales'
@@ -10,8 +11,15 @@ import { revisar } from '../datos/revision'
 import { useTeclasLista } from '../componentes/teclas'
 import { alternar } from '../datos/bandeja'
 import * as q from '../datos/consultas'
+import Fallo from '../componentes/Fallo'
 
 const POR_PAGINA = 100
+type Gestion = 'todas' | 'indexada' | 'activa' | 'separados'
+const GESTIONES: [Gestion, string, string][] = [['todas', 'Todas', ''], ['indexada', 'Indexadas', 'indexadas'], ['activa', 'Activas', 'activas'], ['separados', 'Separadas', 'separadas']]
+type Panel = 'perfil' | 'liga' | 'cartera' | 'coste' | 'donde' | 'pesos' | null
+/** Lo de la jornada que necesitan las filas: puestos de la nota guardada, carteras de cada fondo y la tinta de cada cartera. */
+type Jornada = { puestos: Map<string, Puestos>; ultima: string; carteras: Map<string, { id: number; nombre: string }[]>; tinta: Map<number, string> }
+const fechaCorta = (f: string) => new Date(f + 'T12:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 const control = 'rounded-md border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento'
 const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 0 ? 'text-sube' : 'text-baja')
 /** Color de cada bloque de la nota: el mismo en los pesos, en la barra de cada fondo y en la leyenda. Seis bloques no caben en
@@ -39,8 +47,8 @@ export default function Screener() {
   const [pesos, setPesos] = useState<PesosTipo>(() => aPesosTipo(g.pesos))
   // pesos que se editan: los del tipo del filtro, o los de indexados si se filtra por ellos
   const [tipoPesos, setTipoPesos] = useState<GrupoPesos>(g.tipoPesos ?? 'renta variable')
-  const [filtros, setFiltros] = useState<Filtros>(g.filtros ?? {})
-  const [modo, setModo] = useState<Modo>(g.modo ?? 'juntos')
+  const [filtros, setFiltros] = useState<Filtros>(() => deModo(g.modo, g.filtros ?? {}).filtros)
+  const [modo, setModo] = useState<Modo>(() => deModo(g.modo, g.filtros ?? {}).modo)
   const [carteraId, setCarteraId] = useState<number | ''>(g.carteraId ?? '')
   const [enCartera, setEnCartera] = useState<Set<string>>(new Set())
   const [excluirSuyos, setExcluirSuyos] = useState(g.excluirSuyos ?? false)
@@ -50,9 +58,12 @@ export default function Screener() {
   const [mostrar, setMostrar] = useState(g.mostrar ?? POR_PAGINA)
   const [orden, setOrden] = useState<Orden>(g.orden ?? 'nota')
   const [plazo, setPlazo] = useState<Plazo | ''>(g.plazo ?? '')
-  const [panel, setPanel] = useState<'filtros' | 'pesos' | null>(null)
+  const [panel, setPanel] = useState<Panel>(null)
   const [cats, setCats] = useState<Awaited<ReturnType<typeof q.categoriasReferencia>> | null>(null)
   const [senales, setSenales] = useState<Map<string, Senal[]>>(new Map())
+  const [puestos, setPuestos] = useState<Map<string, Puestos> | null>(null)
+  const [errorJornada, setErrorJornada] = useState('')
+  const [deCarteras, setDeCarteras] = useState<Map<string, { id: number; nombre: string }[]>>(new Map())
   const [nombrePerfil, setNombrePerfil] = useState('')
   const [guardado, setGuardado] = useState('')
   // con el tipo monetario, el ranking cambia a la vista Monetarios (por defecto, por 3M); al salir, vuelve a la nota
@@ -66,6 +77,9 @@ export default function Screener() {
     q.carteras().then(setCarteras).catch(falla)
     q.seguimiento().then((s) => setSeguidos(new Set(s.map((x) => x.isin)))).catch(falla)
     q.categoriasReferencia().then(setCats).catch(falla)
+    // la jornada: si falla, la tabla sale sin puestos ni movimientos y se avisa encima de la tabla
+    q.puestos().then(setPuestos).catch((e: Error) => { setPuestos(new Map()); setErrorJornada(e.message) })
+    q.fondosEnCarteras().then(setDeCarteras).catch(falla)
     // señales de revisión de los fondos de las carteras, para la tarjeta (si fallan, la tarjeta sale sin ellas)
     revisar().then((r) => {
       const m = new Map<string, Senal[]>()
@@ -108,12 +122,15 @@ export default function Screener() {
   const pocos = (f: Puntuado) => f.nota != null && (tamano.get(f.categoria ?? '') ?? 0) < MIN_CATEGORIA ? tamano.get(f.categoria ?? '') ?? 0 : 0
   const listas: [string, Puntuado[]][] = modo === 'separados'
     ? [['Indexados', puntuados.filter(indexada)], ['Activos', puntuados.filter((f) => !indexada(f))]]
-    : [['', modo === 'juntos' ? puntuados : puntuados.filter((f) => indexada(f) === (modo === 'indexados'))]]
+    : [['', puntuados]]
   // lo que pesa de verdad cada bloque: su barra entre la suma de las barras (sin Diversificación si no hay cartera)
   const editados = pesos[tipoPesos]
   const totalPesos = BLOQUES.reduce((s, k) => s + (k === 'diversificacion' && !div ? 0 : editados[k]), 0)
   const pesoReal = (k: Bloque) => (k === 'diversificacion' && !div ? 0 : editados[k] / (totalPesos || 1))
   const elegido = puntuados.find((f) => f.isin === sel) ?? null
+  const jornada = useMemo<Jornada>(() => ({
+    puestos: puestos ?? new Map(), ultima: ultimaSemana((puestos ?? new Map()).values()), carteras: deCarteras, tinta: tintas(carteras.map((c) => c.id)),
+  }), [puestos, deCarteras, carteras])
   const categorias = useMemo(() => {
     const n = new Map<string, number>()
     for (const f of datos ?? [])
@@ -134,9 +151,17 @@ export default function Screener() {
     const p = perfiles.find((x) => String(x.id) === id)
     if (!p) return
     setPesos(aPesosTipo(p.pesos))
-    setFiltros(p.filtros as Filtros)
-    setModo(p.modo as Modo)
+    const x = deModo(p.modo, p.filtros as Filtros)
+    setFiltros(x.filtros)
+    setModo(x.modo)
   }
+  useEffect(() => {
+    if (!panel) return
+    const fuera = (e: MouseEvent) => { if (!(e.target as Element).closest('[data-desplegable]')) setPanel(null) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPanel(null) }
+    addEventListener('mousedown', fuera); addEventListener('keydown', esc)
+    return () => { removeEventListener('mousedown', fuera); removeEventListener('keydown', esc) }
+  }, [panel])
   const seguirFondo = (isin: string) => q.seguir(isin).then(() => setSeguidos((s) => new Set(s).add(isin))).catch(falla)
 
   // lo que se ve, en orden: la lista del teclado; sin selección (o si los filtros la quitan), la primera fila
@@ -197,186 +222,211 @@ export default function Screener() {
     } catch (e) { falla(e as Error) }
   }
 
-  return (
-    <div className="space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
-        <div className="space-y-2">
-          <p className="rotulo text-acento!">{monetarios ? 'Universo · vista monetarios: rendimiento reciente' : 'Universo · nota 0–100 dentro de su categoría'}</p>
-          <h1 className="text-3xl! sm:text-4xl!">Screener</h1>
+  // gestión: un solo control para el filtro (indexadas o activas) y para verlas en dos tablas
+  const gestionVista: Gestion = modo === 'separados' ? 'separados' : filtros.gestion ?? 'todas'
+  const elegirGestion = (k: Gestion) => { setModo(k === 'separados' ? 'separados' : 'juntos'); filtrar({ gestion: k === 'indexada' || k === 'activa' ? k : undefined }) }
+  // la barra: cada desplegable con lo que tiene puesto; en azul si tiene algo distinto de lo de por defecto
+  const unir = (xs: unknown[]) => xs.filter(Boolean).join(' · ')
+  const nombreCartera = carteras.find((c) => c.id === carteraId)?.nombre
+  const mayorPeso = [...BLOQUES].sort((a, b) => pesoReal(b) - pesoReal(a))[0]
+  const desplegables: { k: Exclude<Panel, null>; t: string; v: string; puesto: boolean; no?: boolean }[] = [
+    { k: 'perfil', t: 'Perfil', v: perfiles.length ? `${perfiles.length} guardado${perfiles.length > 1 ? 's' : ''}` : 'ninguno', puesto: false },
+    { k: 'liga', t: 'Categoría', v: unir([filtros.categoria, GESTIONES.find(([k]) => k === gestionVista)?.[2]]) || 'todas',
+      puesto: !!(filtros.categoria || filtros.gestion) || modo !== 'juntos' },
+    { k: 'cartera', t: 'Cartera', v: nombreCartera ? `${nombreCartera}${excluirSuyos ? ' · sin los suyos' : ''}` : 'ninguna', puesto: carteraId !== '' },
+    { k: 'coste', t: 'Coste y riesgo', v: unir([filtros.terMax != null && `TER ≤ ${cifra(filtros.terMax)} %`, filtros.srriMax && `SRRI ≤ ${filtros.srriMax}`,
+      filtros.anosMin != null && `≥ ${cifra(filtros.anosMin, 0)} años`, filtros.patrimonioMin != null && `≥ ${cifra(filtros.patrimonioMin, 0)} M€`]) || 'sin límites',
+      puesto: filtros.terMax != null || !!filtros.srriMax || filtros.anosMin != null || filtros.patrimonioMin != null },
+    { k: 'donde', t: 'Dónde', v: unir([filtros.soloMyinvestor && 'solo MyInvestor', filtros.divisa]) || 'todos', puesto: !!(filtros.soloMyinvestor || filtros.divisa) },
+    { k: 'pesos', t: 'Pesos', v: monetarios ? 'no se usan en monetarios' : `${plazo ? plazo.toUpperCase() : 'auto'} · ${NOMBRE_BLOQUE[mayorPeso].toLowerCase()} ${Math.round(pesoReal(mayorPeso) * 100)} %`,
+      puesto: !!plazo, no: monetarios },
+  ]
+  const abrir = (k: Panel) => setPanel(panel === k ? null : k)
+
+  const existe = perfiles.find((p) => p.nombre === nombrePerfil.trim())
+  const contenido: Record<Exclude<Panel, null>, React.ReactNode> = {
+    perfil: (
+      <div className="space-y-3">
+        {perfiles.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {perfiles.map((p) => <button key={p.id} onClick={() => aplicarPerfil(String(p.id))} className="boton min-h-8 text-[13px]">{p.nombre}</button>)}
+          </div>
+        ) : <p className="text-[13px] text-suave">Aún no hay perfiles: guarda los filtros y los pesos de ahora.</p>}
+        <form onSubmit={(e) => { e.preventDefault(); guardarPerfil() }} className="flex flex-wrap items-center gap-2 border-t border-borde pt-3">
+          <label htmlFor="nombre-perfil" className="sr-only">Nombre del perfil</label>
+          <input id="nombre-perfil" value={nombrePerfil} onChange={(e) => { setNombrePerfil(e.target.value); setGuardado('') }}
+            placeholder="Nombre del perfil" className={`${control} min-w-0 flex-1`} />
+          <button type="submit" disabled={!nombrePerfil.trim()} className="boton-pri">{existe ? 'Sustituir' : 'Guardar'}</button>
+        </form>
+        {existe && !guardado && <p role="status" className="text-[13px] text-aviso">Ya hay un perfil «{existe.nombre}»: se sustituirán sus pesos y filtros.</p>}
+        {guardado && <p role="status" className="text-[13px] text-sube">Guardado «{guardado}»: guarda pesos y filtros.</p>}
+      </div>
+    ),
+    liga: (
+      <div className="space-y-2.5">
+        <Campo etiqueta={`Categoría (${categorias.length})`}>
+          <select value={filtros.categoria ?? ''} onChange={(e) => filtrar({ categoria: e.target.value || undefined })} className={`${control} max-w-52`}>
+            <option value="">todas</option>
+            {categorias.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
+          </select>
+        </Campo>
+        <div className="space-y-1.5">
+          <span className="text-[13px]">Gestión</span>
+          <div role="group" aria-label="Gestión" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
+            {GESTIONES.map(([k, t]) => (
+              <button key={k} aria-pressed={gestionVista === k} onClick={() => elegirGestion(k)}
+                className={`flex-1 rounded-sm px-2 py-1 ${gestionVista === k ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{t}</button>
+            ))}
+          </div>
+          <p className="text-[12px] text-suave">«Separadas»: dos tablas, indexados y activos. Sin gestión conocida, un fondo cuenta como activo.</p>
         </div>
-        <div role="group" aria-label="Modo de ranking" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
-          {(['juntos', 'separados', 'indexados', 'activos'] as Modo[]).map((m) => (
-            <button key={m} aria-pressed={modo === m} onClick={() => setModo(m)}
-              className={`rounded-sm px-3 py-1 capitalize ${modo === m ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{m}</button>
+      </div>
+    ),
+    cartera: (
+      <div className="space-y-2.5">
+        <Campo etiqueta="Diversificar con">
+          <select value={carteraId} onChange={(e) => setCarteraId(e.target.value ? +e.target.value : '')} className={`${control} max-w-44`}>
+            <option value="">ninguna</option>
+            {carteras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+        </Campo>
+        <Campo etiqueta="Excluir los que ya tiene">
+          <Opcion on={excluirSuyos} disabled={carteraId === ''} onClick={() => setExcluirSuyos(!excluirSuyos)}>{excluirSuyos ? 'sí' : 'no'}</Opcion>
+        </Campo>
+        <p className="text-[12px] text-suave">Con una cartera, la nota suma el bloque Diversificación.</p>
+      </div>
+    ),
+    coste: (
+      <div className="space-y-2.5">
+        <Campo etiqueta="TER máximo (%)"><CampoNumero valor={filtros.terMax} cambiar={(v) => filtrar({ terMax: v })} /></Campo>
+        <Campo etiqueta="SRRI máximo">
+          <span className="flex gap-0.5" role="group" aria-label="SRRI máximo">
+            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <button key={i} onClick={() => filtrar({ srriMax: filtros.srriMax === i ? undefined : i })} aria-pressed={filtros.srriMax === i}
+                className={`grid h-5 w-5 place-items-center rounded-sm text-[11px] ${filtros.srriMax === i ? 'bg-acento text-sobre-acento' : filtros.srriMax != null && i < filtros.srriMax ? 'bg-acento/25 text-texto' : 'bg-borde/60 text-suave hover:text-texto'}`}>{i}</button>
+            ))}
+          </span>
+        </Campo>
+        <Campo etiqueta="Antigüedad mínima (años)"><CampoNumero valor={filtros.anosMin} cambiar={(v) => filtrar({ anosMin: v })} /></Campo>
+        <Campo etiqueta="Patrimonio mínimo (M€)"><CampoNumero valor={filtros.patrimonioMin} cambiar={(v) => filtrar({ patrimonioMin: v })} /></Campo>
+      </div>
+    ),
+    donde: (
+      <div className="space-y-2.5">
+        <Campo etiqueta="Solo MyInvestor">
+          <Opcion on={!!filtros.soloMyinvestor} onClick={() => filtrar({ soloMyinvestor: filtros.soloMyinvestor ? undefined : true })}>{filtros.soloMyinvestor ? 'sí' : 'no'}</Opcion>
+        </Campo>
+        <Campo etiqueta="Divisa">
+          <select value={filtros.divisa ?? ''} onChange={(e) => filtrar({ divisa: e.target.value || undefined })} className={control}>
+            <option value="">todas</option>
+            {divisas.map((d) => <option key={d}>{d}</option>)}
+          </select>
+        </Campo>
+      </div>
+    ),
+    pesos: (
+      <div className="space-y-3">
+        <Campo etiqueta="Pesos de">
+          <select value={tipoPesos} onChange={(e) => setTipoPesos(e.target.value as GrupoPesos)} aria-label="Pesos que se editan" className={control}>
+            {GRUPOS_PESOS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Campo>
+        <div role="group" aria-label="Plazo de las métricas de la nota" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
+          {(['', ...PLAZOS] as const).map((p) => (
+            <button key={p} aria-pressed={plazo === p} onClick={() => setPlazo(p)}
+              className={`flex-1 rounded-sm px-2 py-0.5 ${plazo === p ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{p ? p.toUpperCase() : 'Auto'}</button>
           ))}
         </div>
+        {BLOQUES.map((k) => (
+          <label key={k} className={`grid grid-cols-[10px_1fr_auto] items-center gap-x-2 gap-y-1 text-[13px] ${k === 'diversificacion' && !div ? 'text-suave' : ''}`}>
+            <i aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: COLOR_BLOQUE[k] }} />
+            <span>{NOMBRE_BLOQUE[k]}</span><span className="text-right tabular">{k === 'diversificacion' && !div ? '—' : `${Math.round(pesoReal(k) * 100)} %`}</span>
+            <input type="range" min={0} max={50} value={editados[k]} disabled={k === 'diversificacion' && !div} aria-label={`Peso de ${NOMBRE_BLOQUE[k]}`}
+              onChange={(e) => setPesos((p) => ({ ...p, [tipoPesos]: { ...p[tipoPesos], [k]: +e.target.value } }))} className="col-start-2 col-end-4 accent-acento" />
+          </label>
+        ))}
+        <p className="text-[12px] text-suave">
+          Cada fondo usa los pesos de su grupo (los indexados, los suyos); estos son los de {tipoPesos}.{' '}
+          {plazo ? `Métricas a ${anos(plazo)}; los fondos sin ese historial no tienen nota.` : 'Plazo auto: el más largo de cada fondo (5 años, o 3), como la nota guardada.'}{' '}
+          {div ? 'Diversificación: 1 − correlación media con la cartera elegida (3 años), en percentil de su categoría.' : 'Diversificación necesita una cartera (en «Cartera»).'}
+        </p>
+        <button type="button" onClick={() => setPesos(PESOS_TIPO_DEFECTO)} className="boton w-full text-[13px]">Pesos por defecto (todos los tipos)</button>
+      </div>
+    ),
+  }
+  const titulos: Record<Exclude<Panel, null>, string> = { perfil: 'Perfil', liga: 'Categoría', cartera: 'Frente a una cartera', coste: 'Coste y riesgo', donde: 'Dónde', pesos: 'Pesos de la nota' }
+  // un desplegable no bloquea: la tabla se recalcula con él abierto; se cierra con ✕, Esc o al pulsar fuera
+  // función, no componente: definido aquí dentro se volvería a montar en cada cambio y los campos perderían el foco
+  const desplegable = (k: Exclude<Panel, null>, clase: string) => (
+    <div data-desplegable role="dialog" aria-label={titulos[k]} className={`aparece z-20 border border-texto bg-panel p-4 ${clase}`}>
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="estrecha text-[17px] font-bold uppercase tracking-[0.02em]">{titulos[k]}</h2>
+        <button onClick={() => setPanel(null)} aria-label="Cerrar" className="min-h-7 min-w-7 text-suave hover:text-texto">✕</button>
+      </div>
+      {contenido[k]}
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-1">
+        <h1 className="text-3xl! sm:text-4xl!">Screener</h1>
+        <p className="text-[13px] text-suave">{monetarios ? 'Vista monetarios: rendimiento reciente.' : 'Nota de 0 a 100 de cada fondo frente a los de su categoría.'}</p>
       </header>
+
+      {/* Pestañas de liga: el tipo de activo (solo aquí). */}
+      <div role="group" aria-label="Tipo de activo" className="flex gap-0.5 overflow-x-auto border-b-2 border-texto">
+        {([undefined, ...TIPOS] as (Filtros['tipo'] | undefined)[]).map((t) => (
+          <button key={t ?? 'todos'} aria-pressed={filtros.tipo === t} onClick={() => filtrar({ tipo: t, grupo: undefined, categoria: undefined })}
+            className={`estrecha whitespace-nowrap px-3.5 pb-1 pt-1.5 text-[15px] font-bold uppercase ${filtros.tipo === t ? 'bg-texto text-fondo' : 'bg-borde/60 text-texto hover:bg-borde'}`}>
+            {t ?? 'Todos'}
+          </button>
+        ))}
+      </div>
+
+      {/* Segundo nivel de la liga: el grupo del tipo elegido (región o estilo, tipo de bono, perfil), siempre a la vista. */}
+      {filtros.tipo && grupos(filtros.tipo).length > 0 && (
+        <div role="group" aria-label={NOMBRE_GRUPO[filtros.tipo]} className="-mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="rotulo mr-1">{NOMBRE_GRUPO[filtros.tipo]}</span>
+          <Opcion on={!filtros.grupo} onClick={() => filtrar({ grupo: undefined, categoria: undefined })}>todos</Opcion>
+          {grupos(filtros.tipo).filter((g) => porGrupo.get(g)).map((g) => (
+            <Opcion key={g} on={filtros.grupo === g} onClick={() => filtrar({ grupo: filtros.grupo === g ? undefined : g, categoria: undefined })}>
+              {g === 'otros' ? 'resto' : g} <span className="opacity-60">{porGrupo.get(g)}</span>
+            </Opcion>
+          ))}
+        </div>
+      )}
 
       {datos ? <Franja cifras={franja} /> : <p className="text-suave">Cargando el universo…</p>}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {perfiles.length > 0 && <span className="text-[12px] text-suave">Perfiles</span>}
-        {perfiles.map((p) => (
-          <button key={p.id} onClick={() => aplicarPerfil(String(p.id))}
-            className="rounded-sm bg-borde/50 px-3 py-0.5 text-[12px] text-texto hover:bg-borde">{p.nombre}</button>
+      {/* Filtros y pesos: un botón por grupo con lo que tiene puesto; cada uno abre su desplegable. */}
+      <div role="toolbar" aria-label="Filtros y pesos" className="flex flex-wrap items-center gap-1.5">
+        {desplegables.map((d) => (
+          <div key={d.k} data-desplegable className="relative">
+            <button onClick={() => abrir(d.k)} aria-expanded={panel === d.k} disabled={d.no}
+              className={`flex min-h-8 max-w-[26rem] items-center gap-1.5 rounded-sm border px-2.5 text-[13px] disabled:opacity-60 ${panel === d.k ? 'border-texto bg-texto text-fondo'
+                : d.puesto ? 'border-acento/30 bg-acento/10 text-acento hover:border-acento' : 'border-borde bg-panel text-texto hover:border-suave'}`}>
+              <span className="opacity-80">{d.t}</span><span className="truncate font-semibold">{d.v}</span><span aria-hidden="true" className="text-[10px]">▾</span>
+            </button>
+            {panel === d.k && d.k !== 'pesos' && desplegable(d.k, 'absolute left-0 top-full mt-1 w-[22rem] max-w-[calc(100vw-2rem)]')}
+          </div>
         ))}
-        <span className="flex-1" />
-        <button onClick={() => setPanel(panel === 'filtros' ? null : 'filtros')} aria-expanded={panel === 'filtros'}
-          className={`flex min-h-8 items-center gap-1.5 rounded-sm px-4 ${panel === 'filtros' ? 'bg-acento text-sobre-acento' : 'bg-borde/50 text-texto hover:bg-borde'}`}>
-          Filtros{activos.length > 0 && <span className={`grid h-[18px] min-w-[18px] place-items-center rounded-sm px-1 text-[11px] ${panel === 'filtros' ? 'bg-panel text-acento' : 'bg-acento text-sobre-acento'}`}>{activos.length}</span>}
-        </button>
-        <button onClick={() => setPanel(panel === 'pesos' ? null : 'pesos')} aria-expanded={panel === 'pesos'}
-          className={`min-h-8 rounded-sm px-4 ${panel === 'pesos' ? 'bg-acento text-sobre-acento' : 'bg-borde/50 text-texto hover:bg-borde'}`}>
-          Pesos · plazo {plazo ? plazo.toUpperCase() : 'auto'}
-        </button>
+        {activos.length > 0 && <button onClick={quitarTodos} className="px-2 text-[12px] text-suave hover:text-texto">Quitar filtros ({activos.length})</button>}
       </div>
-
-      {activos.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {activos.map(([, t, quitar]) => (
-            <span key={t} className="flex items-center gap-1.5 rounded-sm bg-acento/12 px-2.5 py-0.5 text-[12px] text-acento">
-              <span className="first-letter:uppercase">{t}</span>
-              <button onClick={quitar} aria-label={`Quitar el filtro ${t}`} className="opacity-70 hover:text-baja hover:opacity-100">✕</button>
-            </span>
-          ))}
-          <button onClick={quitarTodos} className="rounded-sm px-2 text-[12px] text-suave hover:text-texto">Quitar todos</button>
-        </div>
-      )}
-
-      {panel === 'filtros' && (
-        <Tarjeta>
-          <div aria-label="Filtros" className="space-y-4">
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-3 lg:grid-cols-[minmax(0,1fr)_19rem]">
-              <div className="space-y-2.5">
-                <h3 className="text-[12px] font-medium text-suave">Qué fondo</h3>
-                <div className="grid grid-cols-[minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5 sm:grid-cols-[8rem_minmax(0,1fr)]">
-                  <span className="text-[13px]">Tipo de activo</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {TIPOS.map((x) => <Opcion key={x} on={filtros.tipo === x} onClick={() => filtrar({ tipo: filtros.tipo === x ? undefined : x, grupo: undefined, categoria: undefined })}>{x}</Opcion>)}
-                  </div>
-                  {filtros.tipo && grupos(filtros.tipo).length > 0 && (
-                    <>
-                      <span className="text-[13px]">{NOMBRE_GRUPO[filtros.tipo]}</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {grupos(filtros.tipo).filter((g) => porGrupo.get(g)).map((g) => (
-                          <Opcion key={g} on={filtros.grupo === g} onClick={() => filtrar({ grupo: filtros.grupo === g ? undefined : g, categoria: undefined })}>
-                            {g === 'otros' ? 'resto' : g} <span className="opacity-60">{porGrupo.get(g)}</span>
-                          </Opcion>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 lg:pt-6">
-                <Campo etiqueta={`Categoría (${categorias.length})`}>
-                  <select value={filtros.categoria ?? ''} onChange={(e) => filtrar({ categoria: e.target.value || undefined })} className={`${control} max-w-44`}>
-                    <option value="">todas</option>
-                    {categorias.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
-                  </select>
-                </Campo>
-                <Campo etiqueta="Gestión">
-                  <select value={filtros.gestion ?? ''} onChange={(e) => filtrar({ gestion: (e.target.value || undefined) as Filtros['gestion'] })} className={control}>
-                    <option value="">indexada y activa</option>
-                    <option value="indexada">indexada</option>
-                    <option value="activa">activa</option>
-                  </select>
-                </Campo>
-              </div>
-            </div>
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 border-t border-borde pt-4 sm:grid-cols-3">
-            <Grupo titulo="Coste y riesgo">
-              <Campo etiqueta="TER máximo (%)"><CampoNumero valor={filtros.terMax} cambiar={(v) => filtrar({ terMax: v })} /></Campo>
-              <Campo etiqueta="SRRI máximo">
-                <span className="flex gap-0.5" role="group" aria-label="SRRI máximo">
-                  {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                    <button key={i} onClick={() => filtrar({ srriMax: filtros.srriMax === i ? undefined : i })} aria-pressed={filtros.srriMax === i}
-                      className={`grid h-5 w-5 place-items-center rounded-sm text-[11px] ${filtros.srriMax === i ? 'bg-acento text-sobre-acento' : filtros.srriMax != null && i < filtros.srriMax ? 'bg-acento/25 text-texto' : 'bg-borde/60 text-suave hover:text-texto'}`}>{i}</button>
-                  ))}
-                </span>
-              </Campo>
-              <Campo etiqueta="Antigüedad mínima (años)"><CampoNumero valor={filtros.anosMin} cambiar={(v) => filtrar({ anosMin: v })} /></Campo>
-              <Campo etiqueta="Patrimonio mínimo (M€)"><CampoNumero valor={filtros.patrimonioMin} cambiar={(v) => filtrar({ patrimonioMin: v })} /></Campo>
-            </Grupo>
-            <Grupo titulo="Dónde y en qué divisa">
-              <Campo etiqueta="Solo MyInvestor">
-                <Opcion on={!!filtros.soloMyinvestor} onClick={() => filtrar({ soloMyinvestor: filtros.soloMyinvestor ? undefined : true })}>{filtros.soloMyinvestor ? 'sí' : 'no'}</Opcion>
-              </Campo>
-              <Campo etiqueta="Divisa">
-                <select value={filtros.divisa ?? ''} onChange={(e) => filtrar({ divisa: e.target.value || undefined })} className={control}>
-                  <option value="">todas</option>
-                  {divisas.map((d) => <option key={d}>{d}</option>)}
-                </select>
-              </Campo>
-            </Grupo>
-            <Grupo titulo="Frente a una cartera">
-              <Campo etiqueta="Diversificar con">
-                <select value={carteraId} onChange={(e) => setCarteraId(e.target.value ? +e.target.value : '')} className={`${control} max-w-40`}>
-                  <option value="">ninguna</option>
-                  {carteras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
-              </Campo>
-              <Campo etiqueta="Excluir los que ya tiene">
-                <Opcion on={excluirSuyos} disabled={carteraId === ''} onClick={() => setExcluirSuyos(!excluirSuyos)}>{excluirSuyos ? 'sí' : 'no'}</Opcion>
-              </Campo>
-              <p className="text-[12px] text-suave">Con una cartera, la nota suma el bloque Diversificación.</p>
-            </Grupo>
-            </div>
-          </div>
-        </Tarjeta>
-      )}
       {avisoDiv && <p role="status" className="text-[13px] text-aviso">{avisoDiv}</p>}
+      {error && <Fallo>No se ha podido leer: {error}</Fallo>}
+      {errorJornada && <p role="status" className="text-[13px] text-baja">No se han podido leer los puestos de la semana ({errorJornada}): la tabla sale sin puestos ni movimiento.</p>}
 
-      {panel === 'pesos' && (
-        <Tarjeta titulo="Pesos de la nota" extra={<div className="flex flex-wrap items-center gap-2">
-          <label className="text-[12px] text-suave">Pesos de{' '}
-            <select value={tipoPesos} onChange={(e) => setTipoPesos(e.target.value as GrupoPesos)} aria-label="Pesos que se editan" className={`${control} text-[12px]`}>
-              {GRUPOS_PESOS.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
-          <div role="group" aria-label="Plazo de las métricas de la nota" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[12px]">
-            {(['', ...PLAZOS] as const).map((p) => (
-              <button key={p} aria-pressed={plazo === p} onClick={() => setPlazo(p)}
-                className={`rounded-sm px-3 py-0.5 ${plazo === p ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{p ? p.toUpperCase() : 'Auto'}</button>
-            ))}
-          </div></div>}>
-          <div className="mb-3 flex h-2.5 gap-0.5 overflow-hidden rounded-sm bg-borde/60" aria-hidden="true">
-            {BLOQUES.map((k) => <span key={k} style={{ width: `${pesoReal(k) * 100}%`, background: COLOR_BLOQUE[k] }} />)}
-          </div>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-            {BLOQUES.map((k) => (
-              <label key={k} className={`grid grid-cols-[10px_1fr_auto] items-center gap-x-2 gap-y-1 text-[13px] ${k === 'diversificacion' && !div ? 'text-suave' : ''}`}>
-                <i aria-hidden="true" className="h-2.5 w-2.5 rounded-sm" style={{ background: COLOR_BLOQUE[k] }} />
-                <span>{NOMBRE_BLOQUE[k]}</span><span className="text-right tabular">{k === 'diversificacion' && !div ? '—' : `${Math.round(pesoReal(k) * 100)} %`}</span>
-                <input type="range" min={0} max={50} value={editados[k]} disabled={k === 'diversificacion' && !div} aria-label={`Peso de ${NOMBRE_BLOQUE[k]}`}
-                  onChange={(e) => setPesos((p) => ({ ...p, [tipoPesos]: { ...p[tipoPesos], [k]: +e.target.value } }))} className="col-start-2 col-end-4 accent-acento" />
-              </label>
-            ))}
-          </div>
-          <p className="mt-3 text-[12px] text-suave">
-            Cada tipo de activo tiene sus pesos, y los indexados (de cualquier tipo) los suyos: estos son los de {tipoPesos}. Cada fondo usa los de su grupo.{' '}
-            {plazo ? `Métricas a ${anos(plazo)}; los fondos sin ese historial no tienen nota.` : 'Plazo auto: el más largo de cada fondo (5 años, o 3), como la nota guardada y las señales.'}{' '}
-            {div ? 'Diversificación: 1 − correlación media con los fondos de la cartera elegida (3 años), en percentil de su categoría.' : 'Sin cartera elegida, el peso de Diversificación se reparte entre los demás.'}
-          </p>
-          <form onSubmit={(e) => { e.preventDefault(); guardarPerfil() }} className="mt-3 flex flex-wrap items-center gap-2 border-t border-borde pt-3">
-            <label htmlFor="nombre-perfil" className="text-[13px] text-suave">Guardar como perfil</label>
-            <input id="nombre-perfil" value={nombrePerfil} onChange={(e) => { setNombrePerfil(e.target.value); setGuardado('') }}
-              placeholder="Nombre (si ya existe, se sustituye)" className={`${control} min-w-0 flex-1 sm:max-w-72`} />
-            <button type="submit" disabled={!nombrePerfil.trim()} className="boton-pri">Guardar</button>
-            <button type="button" onClick={() => setPesos(PESOS_TIPO_DEFECTO)} className="boton">Pesos por defecto (todos los tipos)</button>
-            {guardado && <span role="status" className="text-[13px] text-sube">Guardado «{guardado}»: guarda pesos, filtros y modo.</span>}
-          </form>
-        </Tarjeta>
-      )}
-      {error && <p className="text-baja">{error}</p>}
-
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
+      <div className="relative grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
+        {/* Pesos: encima de la ficha, para ver la tabla moverse mientras se afinan; en pantallas estrechas, encima de todo. */}
+        {panel === 'pesos' && desplegable('pesos', 'lg:absolute lg:right-0 lg:top-0 lg:w-[23rem] lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto')}
         <div className="min-w-0 space-y-4">
+          <Leyenda monetarios={monetarios} />
           {listas.map(([titulo, filas]) => (
             <Tarjeta key={titulo} titulo={titulo ? `${titulo} · ${filas.length}` : undefined}>
               {monetarios
-                ? <TablaMonetarios filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} />
-                : <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} pocos={pocos} plazo={plazo} pesos={pesos} />}
+                ? <TablaMonetarios filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} jornada={jornada} />
+                : <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} pocos={pocos} plazo={plazo} jornada={jornada} cargandoJornada={puestos == null} />}
               {filas.length > mostrar && (
                 <button onClick={() => setMostrar((n) => n + POR_PAGINA)} className="boton mt-3 text-[13px]">Ver {Math.min(POR_PAGINA, filas.length - mostrar)} más</button>
               )}
@@ -384,8 +434,9 @@ export default function Screener() {
           ))}
           <p className="text-[12px] text-suave">
             {monetarios
-              ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. En clases de distribución el cupón no entra y la cifra sale baja. Pasa el cursor por una cifra para ver su percentil.'
-              : 'La barra de la nota se reparte por bloques, con los colores de los pesos. 3A: métricas a 3 años · «de N»: categoría con pocos fondos · ★ ya en seguimiento. Al final, los fondos con menos de 3 años, sin nota. Sin gestión conocida, un fondo cuenta como activo.'}
+              ? 'Monetarios. Último mes, 2 y 3 meses: lo que ha ganado el fondo en ese tiempo, pasado a un año, para ver lo que rinde ahora (neto de gastos). «3 meses vs €STR»: puntos por encima del tipo del BCE. «12 meses»: lo que ha ganado de verdad en el último año. En clases de distribución el cupón no entra y la cifra sale baja. Debajo de cada cifra, su percentil en la categoría.'
+              : 'Al final, los fondos con menos de 3 años, sin nota. Sin gestión conocida, un fondo cuenta como activo. El desglose de la nota por bloques, en la ficha de la derecha.'}
+            {' '}El puesto sale de la nota guardada cada lunes con los pesos por defecto, no de los de esta pantalla: por eso puede no seguir el orden de la lista.
           </p>
         </div>
         {elegido && (
@@ -400,14 +451,21 @@ export default function Screener() {
   )
 }
 
-/** Grupo del panel de filtros. */
-const Grupo = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-2">
-    <h3 className="text-[12px] font-medium text-suave">{titulo}</h3>
-    {children}
-  </div>
-)
-/** Línea de filtro: etiqueta a la izquierda, control a la derecha. */
+/** Qué quiere decir cada marca de la tabla, a la vista y no solo al pasar el cursor. */
+function Leyenda({ monetarios }: { monetarios: boolean }) {
+  const marca = 'rounded-sm px-1 text-[11px]'
+  return (
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-suave">
+      <span><i aria-hidden="true" className="mr-1.5 inline-block h-2.5 w-4 bg-tuyo align-[-1px] outline outline-borde" />En tus carteras (■ color de cada una)</span>
+      {!monetarios && <span><b className="estrecha text-texto">7.º</b>/22 puesto en su categoría · <b className="text-sube">▲</b><b className="text-baja">▼</b> en un mes · <s>tachado</s>: de otra semana</span>}
+      <span><span className={`${marca} border border-acento/60 font-medium text-acento`}>MI</span> en MyInvestor</span>
+      {!monetarios && <span><span className={`${marca} bg-aviso/15 text-aviso`}>3A</span> métricas a 3 años · <span className={`${marca} bg-aviso/15 text-aviso`}>de N</span> categoría con pocos fondos</span>}
+      <span>pNN: percentil en la categoría (100 = mejor) · <span className="text-aviso">★</span> en seguimiento</span>
+    </p>
+  )
+}
+
+/** Línea de un desplegable: etiqueta a la izquierda, control a la derecha. */
 const Campo = ({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) => (
   <label className="flex items-center justify-between gap-3 border-b border-borde/70 pb-1.5 text-[13px]">
     <span>{etiqueta}</span>{children}
@@ -435,7 +493,7 @@ function CampoNumero({ valor, cambiar }: { valor: number | undefined; cambiar: (
 
 type PropsTabla = {
   filas: Puntuado[]; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; conCategoria: boolean
-  orden: Orden; setOrden: (o: Orden) => void
+  orden: Orden; setOrden: (o: Orden) => void; jornada: Jornada
 }
 
 /** Cabecera ordenable: la flecha dice hacia dónde (↑ de menor a mayor, para las cifras donde menos es mejor). */
@@ -443,30 +501,38 @@ function Cabecera({ o, texto, titulo, orden, setOrden, clase = '' }: { o: Orden;
   const sube = o !== 'nota' && COLUMNAS[o][1]
   return (
     <th className={`pb-1.5 pl-3 font-normal whitespace-nowrap ${clase}`} title={titulo} aria-sort={orden === o ? (sube ? 'ascending' : 'descending') : 'none'}>
-      <button onClick={() => setOrden(o)} className={orden === o ? 'text-acento' : 'hover:text-texto'}>{texto}{orden === o ? (sube ? ' ↑' : ' ↓') : ''}</button>
+      <button onClick={() => setOrden(o)} className={`min-h-6 uppercase ${orden === o ? 'text-acento' : 'hover:text-texto'}`}>{texto}{orden === o ? (sube ? ' ↑' : ' ↓') : ''}</button>
     </th>
   )
 }
 
 /** Nombre, etiquetas y categoría de un fondo en la lista. */
-function CeldaFondo({ f, conCategoria, extra }: { f: Puntuado; conCategoria: boolean; extra?: React.ReactNode }) {
+function CeldaFondo({ f, conCategoria, extra, jornada }: { f: Puntuado; conCategoria: boolean; extra?: React.ReactNode; jornada: Jornada }) {
   return (
     <td className="whitespace-normal py-2 pl-3 text-left">
+      {jornada.carteras.get(f.isin)?.map((c) => (
+        <i key={c.id} title={`En la cartera ${c.nombre}`} aria-label={`En la cartera ${c.nombre}`} role="img"
+          className="mr-1.5 inline-block h-2.5 w-2.5 align-[0px]" style={{ background: jornada.tinta.get(c.id) }} />
+      ))}
       <a href={`#/fondo/${f.isin}`} onClick={(e) => e.stopPropagation()} className="hover:text-acento">{f.nombre}</a>
-      {f.myinvestor && <span className="ml-1.5 rounded-sm bg-acento/15 px-1.5 align-[1px] text-[10px] text-acento" title="Se puede comprar en MyInvestor">MI</span>}
-      {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-sm bg-borde/60 px-1.5 align-[1px] text-[10px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
+      {f.myinvestor && <span className="ml-1.5 rounded-sm border border-acento/60 px-1 align-[1px] text-[11px] font-medium text-acento" title="Se puede comprar en MyInvestor">MI</span>}
+      {(f.divisa !== 'EUR' || cubierta(f.nombre)) && <span className="ml-1.5 rounded-sm bg-borde/60 px-1.5 align-[1px] text-[11px] text-suave">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>}
       {extra}
       {conCategoria && <span className="block text-[12px] text-suave">{f.categoria}</span>}
     </td>
   )
 }
 
-function Fila({ f, i, sel, setSel, seguidos, seguir, children }: { f: Puntuado; i: number | null; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; children: React.ReactNode }) {
+/** Fila de la clasificación: amarillo si es tuyo, contorno azul si está elegida, filete fuerte cada cinco filas. */
+function Fila({ f, i, k, sel, setSel, seguidos, seguir, jornada, children }: { f: Puntuado; i: number | null; k: number; sel: string | null; setSel: (i: string) => void; seguidos: Set<string>; seguir: (i: string) => void; jornada: Jornada; children: React.ReactNode }) {
   const elegida = sel === f.isin
+  const tuyo = jornada.carteras.has(f.isin)
+  // lo tuyo sigue en amarillo aunque esté elegido; la selección se marca con el contorno azul
+  const fondo = tuyo ? 'bg-tuyo' : elegida ? 'bg-acento/15' : 'hover:bg-borde/30'
   return (
-    <tr data-isin={f.isin} aria-selected={elegida} onClick={() => setSel(f.isin)}
-      className={`cursor-pointer border-t border-borde/60 ${elegida ? 'bg-acento/8' : 'hover:bg-borde/25'}`}>
-      <td className={`py-2 pl-1 text-left text-suave ${elegida ? 'shadow-[inset_2px_0_0_var(--color-acento)]' : ''}`}>{i ?? ''}</td>
+    <tr data-isin={f.isin} aria-current={elegida || undefined} onClick={() => setSel(f.isin)} onFocus={() => setSel(f.isin)}
+      className={`cursor-pointer border-t ${k > 0 && k % 5 === 0 ? 'border-texto/60' : 'border-borde/70'} ${fondo} ${elegida ? 'outline-2 -outline-offset-2 outline-acento' : ''}`}>
+      <td className={`estrecha py-2 pl-3 text-left text-[17px] font-extrabold leading-none ${elegida ? 'text-acento' : ''}`}>{i ?? ''}</td>
       {children}
       <td className="pl-2">
         <button onClick={(e) => { e.stopPropagation(); if (!seguidos.has(f.isin)) seguir(f.isin) }} aria-label={seguidos.has(f.isin) ? 'En seguimiento' : 'Añadir a seguimiento'}
@@ -476,19 +542,51 @@ function Fila({ f, i, sel, setSel, seguidos, seguir, children }: { f: Puntuado; 
   )
 }
 
-/** Cifra con su percentil en la categoría al pasar el cursor. */
+/** Cifra con su percentil en la categoría debajo (100 = mejor). */
 const ConPct = ({ v, p, texto, clase = '' }: { v: number | null; p: number | null; texto: string; clase?: string }) =>
-  <td className={`pl-3 ${v == null ? 'text-suave' : clase}`} title={p == null ? undefined : `Percentil ${Math.round(p)} en su categoría (100 = mejor)`}>{v == null ? '—' : texto}</td>
+  <td className={`pl-3 leading-tight ${v == null ? 'text-suave' : clase}`}>
+    {v == null ? '—' : texto}
+    {v != null && p != null && <span className="block text-[11px] font-normal text-suave"><span className="sr-only">percentil </span>p{Math.round(p)}</span>}
+  </td>
 
-function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, pesos }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; pesos: PesosTipo }) {
+/** Puesto en su categoría («7.º/22») y, debajo, los ganados o perdidos en un mes; tachado con su fecha si no es de esta semana. */
+function CeldaSemana({ p, ultima }: { p: Puestos | undefined; ultima: string }) {
+  if (!p) return <td className="pl-3 text-left text-suave">—</td>
+  const v = viejo(p, ultima), m = movimiento(p)
+  const puesto = <><span className="text-[15px] font-bold">{p.puestos.at(-1)}.º</span><span className="text-[12px] text-suave">/{p.de}</span></>
+  if (v) return (
+    <td className="estrecha pl-3 text-left leading-tight text-suave">
+      <s>{puesto}</s><span className="block text-[12px] text-baja">del {fechaCorta(v)}</span>
+    </td>
+  )
+  return (
+    <td className="estrecha pl-3 text-left leading-tight">
+      {puesto}
+      <span className={`block text-[12px] font-bold ${m == null || m === 0 ? 'text-suave' : m > 0 ? 'text-sube' : 'text-baja'}`}>
+        {m == null ? 'sin mes' : m > 0 ? `▲ ${m}` : m < 0 ? `▼ ${-m}` : '= igual'}
+        <span className="sr-only">{m == null ? '' : m > 0 ? ' puestos ganados en un mes' : m < 0 ? ' puestos perdidos en un mes' : ' en un mes'}</span>
+      </span>
+    </td>
+  )
+}
+
+/** En el móvil la columna del puesto queda fuera de la vista: el movimiento va junto a la nota. */
+function MovilMovimiento({ p }: { p: Puestos | undefined }) {
+  const m = p ? movimiento(p) : null
+  if (!m) return null
+  return <span className={`estrecha ml-1.5 text-[13px] font-bold sm:hidden ${m > 0 ? 'text-sube' : 'text-baja'}`}>{m > 0 ? `▲${m}` : `▼${-m}`}</span>
+}
+
+function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, jornada, cargandoJornada }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; cargandoJornada: boolean }) {
   const cab = { orden, setOrden }
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[46rem] whitespace-nowrap text-right text-[13px] tabular">
-        <thead className="text-[12px] text-suave">
+        <thead className="rotulo">
           <tr>
-            <th className="w-8 pb-1.5 pl-1 text-left font-normal">#</th>
+            <th className="w-12 pb-1.5 pl-3 text-left font-normal" title="Lugar en esta lista, con el orden y los filtros de la pantalla (no es el puesto en la categoría)">Orden</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
+            <th className="pb-1.5 pl-3 text-left font-normal" title="Puesto en su categoría con la nota guardada el lunes (pesos por defecto) y puestos ganados o perdidos desde hace 4 semanas">{cargandoJornada ? 'Puesto …' : 'Puesto'}</th>
             <Cabecera o="nota" texto="Nota" clase="text-left" {...cab} />
             <Cabecera o="ter" texto="TER" {...cab} />
             <Cabecera o="r3" texto="3 años" titulo="Rentabilidad anualizada a 3 años" {...cab} />
@@ -500,22 +598,18 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
         </thead>
         <tbody>
           {filas.map((f, i) => {
-            const w = pesosEfectivos(f.bloques, pesos[grupoPesos(f.categoria, f.gestion === 'indexada')])
             return (
-              <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
-                <CeldaFondo f={f} conCategoria={conCategoria} extra={<>
-                  {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
-                  {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[10px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
+              <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
+                <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} extra={<>
+                  {f.nota != null && <span className="estrecha ml-1.5 text-[15px] font-extrabold sm:hidden">· {Math.round(f.nota)}</span>}
+                  <MovilMovimiento p={jornada.puestos.get(f.isin)} />
+                  {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
+                  {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
                 </>} />
+                <CeldaSemana p={jornada.puestos.get(f.isin)} ultima={jornada.ultima} />
                 <td className="pl-3 text-left">
-                  {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span> : (
-                    <span className="inline-flex items-center gap-2">
-                      <span className="cifra w-[3ch] shrink-0 text-right text-xl leading-none">{Math.round(f.nota)}</span>
-                      <span aria-hidden className="flex h-1.5 w-20 gap-px overflow-hidden rounded-sm bg-borde/60">
-                        {BLOQUES.filter((k) => w[k]).map((k) => <span key={k} style={{ width: `${w[k]! * f.bloques[k]!}%`, background: COLOR_BLOQUE[k] }} />)}
-                      </span>
-                    </span>
-                  )}
+                  {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span>
+                    : <span className="cifra text-[21px] font-extrabold leading-none">{Math.round(f.nota)}</span>}
                 </td>
                 <td className="pl-3">{f.ter == null ? <span className="text-suave">—</span> : `${cifra(f.ter)} %`}</td>
                 {[f.r3, f.r5].map((r, j) => <td key={j} className={`pl-3 ${tono(r)}`}>{r == null ? '—' : pct(r)}</td>)}
@@ -531,20 +625,20 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
 }
 
 /** Vista Monetarios: rendimiento reciente en lugar de la nota (especificación, «Vista Monetarios»). */
-function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden }: PropsTabla) {
+function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, jornada }: PropsTabla) {
   const cab = { orden, setOrden }
   const c = (f: Puntuado, k: string) => [cifraDe(f, k), percentilDe(f, k)] as const
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[50rem] whitespace-nowrap text-right text-[13px] tabular">
-        <thead className="text-[12px] text-suave">
+        <thead className="rotulo">
           <tr className="text-[11px]">
             <th colSpan={2} />
             <th colSpan={3} className="border-b border-borde pb-1 pl-3 text-center font-normal">Lo que rinde ahora, en % anual</th>
             <th colSpan={5} />
           </tr>
           <tr>
-            <th className="w-8 pb-1.5 pl-1 text-left font-normal">#</th>
+            <th className="w-12 pb-1.5 pl-3 text-left font-normal" title="Lugar en esta lista, con el orden y los filtros de la pantalla (no es el puesto en la categoría)">Orden</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
             <Cabecera o="m1" texto="Último mes" titulo="Lo que ha ganado el último mes, pasado a un año (% anual)" {...cab} />
             <Cabecera o="m2" texto="2 meses" titulo="Lo que ha ganado en los últimos 2 meses, pasado a un año (% anual)" {...cab} />
@@ -561,8 +655,8 @@ function TablaMonetarios({ filas, sel, setSel, seguidos, seguir, conCategoria, o
             const [dif, pDif] = c(f, '3m|diferencial_estr')
             const [neg, pNeg] = c(f, '12m|meses_negativos')
             return (
-              <Fila key={f.isin} f={f} i={i + 1} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir}>
-                <CeldaFondo f={f} conCategoria={conCategoria} />
+              <Fila key={f.isin} f={f} i={i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
+                <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} />
                 {(['1m|rentabilidad', '2m|rentabilidad', '3m|rentabilidad'] as const).map((k) => {
                   const [v, p] = c(f, k)
                   return <ConPct key={k} v={v} p={p} texto={pct(v, 2, false)} clase={k === '3m|rentabilidad' ? 'font-medium' : ''} />

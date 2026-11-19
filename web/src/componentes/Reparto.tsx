@@ -1,7 +1,7 @@
 import type { Fila } from '../calculo/exposicion'
 import { pct } from '../calculo/formato'
 
-/** Color de cada tipo de activo (el resto, gris), en Inicio, la ficha y la cartera. */
+/** Color de cada tipo de activo (el resto, gris), en la ficha y la cartera (Inicio usa tonos neutros). */
 export const COLOR_ACTIVO: Record<string, string> = { Acciones: 'var(--color-serie1)', Bonos: 'var(--color-serie2)', Liquidez: 'var(--color-gris)' }
 const color = (n: string) => COLOR_ACTIVO[n] ?? 'var(--color-serie3)'
 

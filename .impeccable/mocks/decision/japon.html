@@ -1,0 +1,200 @@
+<title>Alta densidad en cuatro grados</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;900&display=swap">
+<style>
+/* Marco neutro; cada versión es un boceto del Screener con su propia densidad y no sigue el tema. */
+:root{--bg:#f5f5f5;--fg:#1a1a1a;--suave:#616161;--linea:#dadada;--chip:#fff;--acento:#c81f27;--f:"Noto Sans",ui-sans-serif,system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161616;--fg:#ededed;--suave:#a3a3a3;--linea:#303030;--chip:#222;--acento:#f2777c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161616;--fg:#ededed;--suave:#a3a3a3;--linea:#303030;--chip:#222;--acento:#f2777c;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.5}
+.pag{max-width:1240px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-weight:900;font-size:30px;margin:0 0 8px;letter-spacing:-.01em;text-wrap:balance}
+.intro{color:var(--suave);max-width:70ch;margin:0}
+.escala{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:22px 0 0;padding:0;list-style:none}
+.escala a{display:block;padding:8px 10px;color:var(--fg);text-decoration:none;font-size:14px;border-top:4px solid #f1c3c5;background:var(--chip)}
+.escala li:nth-child(2) a{border-top-color:#e58a8e}.escala li:nth-child(3) a{border-top-color:#d94a50}.escala li:nth-child(4) a{border-top-color:#c81f27}
+.escala b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}
+.ver{margin-top:56px;padding-top:24px;border-top:1px solid var(--linea)}
+.kick{font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--acento)}
+.ver h2{font-weight:900;font-size:26px;margin:2px 0 6px}
+.tesis{margin:0 0 18px;max-width:74ch}
+.marco{overflow-x:auto;border:1px solid var(--linea)}.marco>div{min-width:1100px}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px 32px;margin-top:18px}
+.datos h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);margin:0 0 4px}
+.datos p{margin:0;font-size:14px}
+table{border-collapse:collapse;width:100%}td,th{text-align:left}.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* Común */
+.s{font-family:"Noto Sans",sans-serif;height:660px;overflow:hidden;background:#fff;color:#111;--roj:#d7262e;--gri:#e4e4e4;--sua:#6b6b6b;--azu:#1f4e9c}
+.s a{color:inherit;text-decoration:none}
+.s .roj{color:var(--roj);font-weight:700}.s .sube{color:var(--azu)}.s .baja{color:var(--roj)}
+.s .tag{display:inline-block;border:1px solid var(--roj);color:var(--roj);font-size:10px;line-height:14px;padding:0 3px;margin-left:4px;vertical-align:1px}
+.s .tag.lleno{background:var(--roj);color:#fff}
+.s .tag.azul{border-color:var(--azu);color:var(--azu)}
+.s .mod{border:1px solid #cfcfcf;min-width:0}
+.s .in{padding:6px 8px}
+.s td,.s th{padding:2px 5px;border-bottom:1px solid #eee}
+.s th{background:#f5f5f5;font-weight:700;color:#333}
+
+/* 1 · Prudente: módulos tranquilos */
+.v1{font-size:12.5px;line-height:1.45;display:grid;grid-template-rows:auto 1fr}
+.v1 header{display:flex;align-items:center;gap:24px;padding:10px 20px;border-bottom:1px solid var(--gri)}
+.v1 .marca{font-weight:700;font-size:15px}.v1 .marca b{color:var(--roj)}
+.v1 nav{display:flex;gap:18px}.v1 nav a{color:var(--sua)}.v1 nav a.on{color:#111;font-weight:700;box-shadow:inset 0 -2px var(--roj)}
+.v1 .mos{display:grid;grid-template-columns:220px 1fr 240px;gap:14px;padding:14px 20px}
+.v1 .col{display:flex;flex-direction:column;gap:14px}
+.v1 .mod{border-color:var(--gri)}.v1 .mod>h5{margin:0;padding:6px 8px;font-size:12px;border-bottom:1px solid var(--gri);border-left:3px solid var(--roj)}
+.v1 td,.v1 th{padding:4px 8px}
+
+/* 2 · Moderada: portal */
+.v2{font-size:11.5px;line-height:1.35;display:grid;grid-template-rows:auto auto 1fr}
+.v2 header{display:flex;gap:16px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--gri)}
+.v2 .marca{font-weight:700;font-size:14px}.v2 .marca b{color:var(--roj)}
+.v2 .bus{flex:1;max-width:420px;border:2px solid var(--roj);padding:3px 8px;color:var(--sua)}
+.v2 nav{display:flex;background:#f4f4f4;border-bottom:1px solid var(--gri)}
+.v2 nav a{padding:5px 14px;border-right:1px solid var(--gri)}.v2 nav a.on{background:var(--roj);color:#fff;font-weight:700}
+.v2 .mos{display:grid;grid-template-columns:1fr 1.9fr 1fr;gap:8px;padding:8px}
+.v2 .col{display:flex;flex-direction:column;gap:8px}
+.v2 .mod>b{display:inline-block;background:var(--roj);color:#fff;padding:2px 8px;font-size:11px}
+
+/* 3 · Decidida: escaparate */
+.v3{font-size:11px;line-height:1.32;display:grid;grid-template-columns:150px 1fr;grid-template-rows:auto auto 1fr}
+.v3 header{grid-column:1/-1;display:flex;gap:14px;align-items:center;padding:6px 10px;background:var(--roj);color:#fff}
+.v3 .marca{font-weight:900;font-size:15px;letter-spacing:.02em}
+.v3 .bus{flex:1;max-width:460px;background:#fff;color:var(--sua);padding:3px 8px}
+.v3 .avisos{margin-left:auto;display:flex;gap:10px;font-weight:700}
+.v3 nav{grid-column:1/-1;display:flex;border-bottom:2px solid var(--roj)}
+.v3 nav a{padding:4px 12px;border-right:1px solid var(--gri)}.v3 nav a.on{color:var(--roj);font-weight:900}
+.v3 .rail{border-right:1px solid var(--gri);padding:6px 0}
+.v3 .rail h6{margin:0;padding:3px 8px;background:#333;color:#fff;font-size:11px}
+.v3 .rail a{display:flex;justify-content:space-between;padding:3px 8px;border-bottom:1px dotted #ddd}.v3 .rail a.on{background:#fde9ea;color:var(--roj);font-weight:700}
+.v3 .mos{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:min-content;gap:6px;padding:6px}
+.v3 .mod>h5{margin:0;padding:3px 7px;background:var(--roj);color:#fff;font-size:11px;display:flex;justify-content:space-between}
+.v3 .ancho{grid-column:span 3;grid-row:span 3}
+.v3 .rk{display:inline-block;width:20px;text-align:center;background:#111;color:#fff;font-weight:900}
+.v3 tr:nth-child(-n+3) .rk{background:var(--roj)}
+.v3 .barra{display:inline-block;height:6px;background:var(--roj);vertical-align:1px}
+
+/* 4 · Atrevida: todo en una pantalla */
+.v4{font-size:10.5px;line-height:1.28;display:grid;grid-template-columns:140px 1fr 230px;grid-template-rows:auto auto auto 1fr}
+.v4 header{grid-column:1/-1;display:flex;gap:12px;align-items:center;padding:4px 8px;border-bottom:3px solid var(--roj)}
+.v4 .marca{font-weight:900;font-size:16px}.v4 .marca b{background:var(--roj);color:#fff;padding:0 4px;margin-left:2px}
+.v4 .bus{flex:1;max-width:380px;border:2px solid #111;padding:2px 6px;color:var(--sua)}
+.v4 .avisos{margin-left:auto;display:flex;gap:8px}
+.v4 nav{grid-column:1/-1;display:grid;grid-template-columns:repeat(9,1fr);background:#111}
+.v4 nav a{color:#fff;padding:4px 6px;text-align:center;border-right:1px solid #333}.v4 nav a.on{background:var(--roj);font-weight:900}
+.v4 .cinta{grid-column:1/-1;display:flex;gap:18px;padding:3px 8px;background:#fff4f4;border-bottom:1px solid #f0caca;white-space:nowrap;overflow:hidden}
+.v4 .rail{border-right:1px solid var(--gri)}
+.v4 .rail h6{margin:0;padding:2px 6px;background:var(--roj);color:#fff;font-size:10.5px}
+.v4 .rail a{display:flex;justify-content:space-between;padding:2px 6px;border-bottom:1px dotted #ddd}.v4 .rail a.on{background:#111;color:#fff}
+.v4 .centro{padding:4px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.v4 .fila{display:flex;gap:4px}.v4 .fila .mod{flex:1}
+.v4 .mod>h5{margin:0;padding:2px 6px;background:#111;color:#fff;font-size:10.5px;display:flex;justify-content:space-between}
+.v4 .mod>h5 span{color:#ff9da1}
+.v4 .pc{width:30px;text-align:center}
+.v4 .derecha{border-left:1px solid var(--gri);padding:4px;display:flex;flex-direction:column;gap:4px}
+.v4 .kpi{display:grid;grid-template-columns:1fr 1fr;gap:2px}.v4 .kpi div{background:#f5f5f5;padding:3px 5px}.v4 .kpi b{display:block;font-size:15px;font-weight:900}
+</style>
+
+<div class="pag">
+  <h1>Alta densidad en cuatro grados</h1>
+  <p class="intro">El mismo mundo, las webs japonesas de alta densidad, en cuatro intensidades sobre el Screener. De una a otra cambian la cantidad de módulos, el tamaño de la letra y el peso del rojo. Los fondos, sus ISIN, la nota y el TER son reales; los percentiles por bloque, los movimientos, las carteras y los avisos son de ejemplo.</p>
+  <ul class="escala">
+    <li><a href="#v1"><b>1 · Prudente</b>Módulos tranquilos</a></li>
+    <li><a href="#v2"><b>2 · Moderada</b>Portal</a></li>
+    <li><a href="#v3"><b>3 · Decidida</b>Escaparate</a></li>
+    <li><a href="#v4"><b>4 · Atrevida</b>Todo en una pantalla</a></li>
+  </ul>
+
+  <section class="ver" id="v1">
+    <div class="kick">1 · Prudente</div><h2>Módulos tranquilos</h2>
+    <p class="tesis">Tres columnas de módulos con filete gris y una marca roja solo en el borde de cada título. La letra es pequeña pero con aire, y hay pocos módulos.</p>
+    <div class="marco"><div class="s v1" id="j1"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Es la más compatible con «calma y claridad», y aun así tiene todo a mano.</p></div><div><h3>Riesgo</h3><p>Diluida, se parece a cualquier panel con tarjetas.</p></div></div>
+  </section>
+
+  <section class="ver" id="v2">
+    <div class="kick">2 · Moderada</div><h2>Portal</h2>
+    <p class="tesis">Es la propuesta de la primera página. Buscador con borde rojo, menú en barra con la pestaña activa en rojo y un mosaico de módulos con pestaña roja alrededor del screener.</p>
+    <div class="marco"><div class="s v2" id="j2"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Se reconoce el mundo y la densidad se mantiene legible.</p></div><div><h3>Riesgo</h3><p>Los módulos laterales compiten con la tabla por la atención.</p></div></div>
+  </section>
+
+  <section class="ver" id="v3">
+    <div class="kick">3 · Decidida</div><h2>Escaparate</h2>
+    <p class="tesis">La cabecera es roja y hay una barra lateral de categorías con su recuento. El screener ocupa un gran módulo con insignias de puesto y etiquetas de «nuevo» o «baja el TER», y alrededor van módulos pequeños con señales y carteras.</p>
+    <div class="marco"><div class="s v3" id="j3"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Muestra mucha información con orden, y las etiquetas avisan de los cambios sin buscarlos.</p></div><div><h3>Riesgo</h3><p>Hay mucho rojo, y las etiquetas pueden recordar a un bróker si se usan para todo.</p></div></div>
+  </section>
+
+  <section class="ver" id="v4">
+    <div class="kick">4 · Atrevida</div><h2>Todo en una pantalla</h2>
+    <p class="tesis">Menú en dos franjas, una cinta de avisos y tres raíles. El screener enseña los percentiles de cada bloque en columnas diminutas, junto a carteras, señales, comparador y cifras. No queda un píxel libre.</p>
+    <div class="marco"><div class="s v4" id="j4"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Lo ves todo sin cambiar de pantalla.</p></div><div><h3>Riesgo</h3><p>Va directamente contra «calma y claridad», y la letra de 10,5 px cansa en una sesión larga.</p></div></div>
+  </section>
+</div>
+
+<script>
+// Reales: nombre, ISIN, nota, percentil y TER. De ejemplo: bloques, movimiento, cartera.
+const JFON=[
+ ['Vanguard Glb Stk Idx € H Acc','IE00B03HD316',85.5,100,0.18,2,'Base',[92,88,97,58,81]],
+ ['State Street World Unvsl Index Eq I EURH','LU2168639685',85.5,100,0.29,0,'',[90,91,86,60,80]],
+ ['Fidelity MSCI World Index EUR P Acc H','IE00BYX5P602',85.1,98.9,0.17,-1,'',[89,84,98,55,79]],
+ ['iShares Dev Wld Idx (IE) D Acc EUR H','IE000M0KK797',85.0,98.9,0.14,1,'Renta',[88,86,99,52,78]],
+ ['MFS Meridian Contrarian Value WSH1 EUR','LU2495342268',83.8,98.9,0.65,3,'',[94,62,71,90,95]],
+ ['Algebris Financial Equity I GBP Acc','IE00BWY57036',83.6,97.8,0.91,-2,'Base',[96,58,44,72,99]],
+ ['T. Rowe Price US Lg Cap Val Eq In EUR 1','LU2594029642',82.2,96.6,0.56,0,'',[83,77,74,81,76]],
+ ['BNPP Rspnb US Value Mlt-Fac Eq IH € R','LU1458428833',81.7,95.5,0.61,1,'',[80,80,70,83,74]],
+ ['M&G (Lux) Japan Smlr Comps C H USD Acc','LU1797817605',80.3,94.4,0.99,-3,'',[86,70,38,88,84]],
+ ['GS Japan Equity RS Acc EURH Snap','LU2365097539',80.0,93.3,0.72,0,'',[78,74,62,79,80]]];
+const nf=(x,d=1)=>x.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});
+const mov=m=>m>0?`<span class="sube">▲${m}</span>`:m<0?`<span class="baja">▼${-m}</span>`:'<span style="color:#999">—</span>';
+const etiq=f=>f[6]?`<span class="tag">${f[6]}</span>`:'';
+const SECC=['Inicio','Screener','Seguimiento','Revisión','Carteras','Comparar','Simular'];
+const menu=(extra=[])=>[...SECC,...extra].map(t=>`<a class="${t=='Screener'?'on':''}">${t}</a>`).join('');
+const CATS=[['R. variable otros',98],['R. variable global',100],['R. variable EE. UU.',100],['R. variable Europa',87],['Mixtos moderados',100],['Mixtos agresivos',76],['Renta fija euro',100],['Renta fija global',94],['Monetarios',41]];
+const PESOS='Coste 40 · Riesgo 20 · Protección 20 · Consistencia 10 · Rentabilidad 10';
+const CART='<div>Base · 4 fondos · 3 años +6,2 %</div><div>Renta · 5 fondos · 3 años +2,1 %</div>';
+
+// 1
+document.getElementById('j1').innerHTML=`<header><span class="marca">Terminal <b>de fondos</b></span><nav>${menu()}</nav></header>
+<div class="mos"><div class="col"><div class="mod"><h5>Pesos de la nota</h5><div class="in">${PESOS.split(' · ').join('<br>')}</div></div><div class="mod"><h5>Filtros</h5><div class="in">Renta variable<br>En MyInvestor<br>≥ 50 M€ · ≥ 3 años</div></div></div>
+<div class="mod"><h5>Screener · 98 fondos</h5><table><thead><tr><th>#</th><th>Fondo</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">Sem.</th><th class="num">TER %</th></tr></thead><tbody>
+${JFON.map((f,i)=>`<tr><td>${i+1}</td><td>${f[0]}${etiq(f)}</td><td class="num"><b>${nf(f[2])}</b></td><td class="num">${nf(f[3])}</td><td class="num">${mov(f[5])}</td><td class="num">${nf(f[4],2)}</td></tr>`).join('')}</tbody></table></div>
+<div class="col"><div class="mod"><h5>Señales</h5><div class="in">3 fondos a revisar</div></div><div class="mod"><h5>Carteras</h5><div class="in">${CART}</div></div></div></div>`;
+
+// 2
+document.getElementById('j2').innerHTML=`<header><span class="marca">Terminal <b>de fondos</b></span><span class="bus">Buscar fondo, ISIN u orden…</span><span style="margin-left:auto;color:var(--sua)">16/11/2026</span></header>
+<nav>${menu()}</nav>
+<div class="mos"><div class="col"><div class="mod"><b>Pesos</b><div class="in">${PESOS}</div></div>
+<div class="mod"><b>Filtros</b><div class="in">Renta variable · MyInvestor · ≥ 50 M€ · ≥ 3 años<span class="tag">98 fondos</span></div></div>
+<div class="mod"><b>Alarmas</b><div class="in">Descargas al día. 0 errores.</div></div></div>
+<div class="mod"><b>Screener</b><table><thead><tr><th>#</th><th>Fondo</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">TER</th></tr></thead><tbody>
+${JFON.map((f,i)=>`<tr><td>${i+1}</td><td>${f[0]}${etiq(f)}</td><td class="num roj">${nf(f[2])}</td><td class="num">${nf(f[3])}</td><td class="num">${nf(f[4],2)}</td></tr>`).join('')}</tbody></table></div>
+<div class="col"><div class="mod"><b>Señales</b><div class="in"><span class="roj">3</span> a revisar · Algebris baja 2 puestos · M&amp;G Japan baja 3</div></div>
+<div class="mod"><b>Carteras</b><div class="in">${CART}</div></div><div class="mod"><b>Comparando</b><div class="in">Vanguard Glb Stk · iShares Dev Wld</div></div></div></div>`;
+
+// 3
+document.getElementById('j3').innerHTML=`<header><span class="marca">TERMINAL DE FONDOS</span><span class="bus">Buscar fondo, ISIN u orden…</span><span class="avisos"><span>3 a revisar</span><span>0 alarmas</span></span></header>
+<nav>${menu()}</nav>
+<div class="rail"><h6>Categorías</h6>${CATS.map(([n,k],i)=>`<a class="${i?'':'on'}"><span>${n}</span><span>${k}</span></a>`).join('')}<h6 style="margin-top:6px">Filtros</h6><a>En MyInvestor</a><a>≥ 50 M€</a><a>≥ 3 años</a></div>
+<div class="mos"><div class="mod ancho"><h5><span>Screener · renta variable otros</span><span>98 fondos · nota del 16/11</span></h5><table><thead><tr><th>Pos.</th><th>Fondo</th><th class="num">Nota</th><th>Coste</th><th class="num">Sem.</th><th class="num">TER</th></tr></thead><tbody>
+${JFON.map((f,i)=>`<tr><td><span class="rk">${i+1}</span></td><td>${f[0]}${etiq(f)}${i==4?'<span class="tag lleno">Nuevo en top 5</span>':''}${i==8?'<span class="tag">Sube el TER</span>':''}</td><td class="num roj">${nf(f[2])}</td><td><span class="barra" style="width:${f[7][2]*.5}px"></span></td><td class="num">${mov(f[5])}</td><td class="num">${nf(f[4],2)}</td></tr>`).join('')}</tbody></table></div>
+<div class="mod"><h5>Señales<span>3</span></h5><div class="in">Algebris <span class="baja">▼2</span><br>M&amp;G Japan <span class="baja">▼3</span><br>MFS Contrarian <span class="sube">▲3</span></div></div>
+<div class="mod"><h5>Carteras</h5><div class="in">${CART}</div></div>
+<div class="mod"><h5>Pesos</h5><div class="in">${PESOS}</div></div></div>`;
+
+// 4
+document.getElementById('j4').innerHTML=`<header><span class="marca">Terminal<b>fondos</b></span><span class="bus">Fondo, ISIN u orden (r, c, m…)</span><span class="avisos"><span class="tag lleno">3 a revisar</span><span class="tag azul">0 alarmas</span><span class="tag">Datos al 13/11</span></span></header>
+<nav>${menu(['Ajustes','Ayuda'])}</nav>
+<div class="cinta"><span><b class="roj">Aviso</b> T. Rowe Price US Value: TER del 06/11, sin actualizar</span><span>€STR 1,93 %</span><span>MSCI World (EUR) semana <span class="sube">▲1,2 %</span></span><span>Nueva nota semanal: lunes 16/11</span><span>Universo: 4.210 fondos</span></div>
+<div class="rail"><h6>Categorías</h6>${CATS.map(([n,k],i)=>`<a class="${i?'':'on'}"><span>${n}</span><span>${k}</span></a>`).join('')}<h6>Grupos de pesos</h6><a>Renta variable</a><a>Indexados</a><a>Renta fija</a><h6>Filtros</h6><a>MyInvestor ✓</a><a>≥ 50 M€ ✓</a><a>≥ 3 años ✓</a></div>
+<div class="centro"><div class="mod"><h5><span>Screener · R. variable otros · 98</span><span>Pesos: ${PESOS}</span></h5><table><thead><tr><th>#</th><th>Fondo</th><th>ISIN</th><th class="num">Nota</th><th class="pc">Rsg</th><th class="pc">Cns</th><th class="pc">Cst</th><th class="pc">Prt</th><th class="pc">Rnt</th><th class="num">Sem</th><th class="num">TER</th></tr></thead><tbody>
+${JFON.map((f,i)=>`<tr><td>${i+1}</td><td>${f[0]}${etiq(f)}</td><td style="color:#888">${f[1]}</td><td class="num roj">${nf(f[2])}</td>${f[7].map(p=>`<td class="pc" style="${p>=90?'color:#d7262e;font-weight:700':p<50?'color:#999':''}">${p}</td>`).join('')}<td class="num">${mov(f[5])}</td><td class="num">${nf(f[4],2)}</td></tr>`).join('')}</tbody></table></div>
+<div class="fila"><div class="mod"><h5>Señales <span>3</span></h5><div class="in">Algebris ▼2 · M&amp;G Japan ▼3 · MFS ▲3</div></div><div class="mod"><h5>Comparando</h5><div class="in">Vanguard Glb Stk · iShares Dev Wld · <span class="roj">+ añadir</span></div></div><div class="mod"><h5>Últimos cambios</h5><div class="in">Base: Algebris 15 % (02/11)</div></div></div></div>
+<div class="derecha"><div class="mod"><h5>Cifras</h5><div class="kpi"><div>Nota media<b>61,4</b></div><div>TER mediano<b>0,72</b></div><div>Indexados<b>23</b></div><div>En cartera<b>2</b></div></div></div>
+<div class="mod"><h5>Carteras</h5><div class="in">${CART}</div></div>
+<div class="mod"><h5>Base · composición</h5><table><tbody><tr><td>Vanguard Glb Stk</td><td class="num">40 %</td></tr><tr><td>Amundi Prime Euro Govies</td><td class="num">30 %</td></tr><tr><td>Algebris Financial</td><td class="num">15 %</td></tr><tr><td>MyInvestor Monetario</td><td class="num">15 %</td></tr></tbody></table></div>
+<div class="mod"><h5>Atajos</h5><div class="in">1 Inicio · 3 Screener · 4 Seguimiento · r Revisión · c Comparar · m Simular</div></div></div>`;
+</script>

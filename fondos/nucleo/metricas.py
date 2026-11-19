@@ -5,6 +5,7 @@ con dato el viernes caen en la misma semana. Todas las rentabilidades son semana
 """
 from __future__ import annotations
 
+import bisect
 import calendar
 import datetime as dt
 import math
@@ -414,11 +415,37 @@ def metricas_monetario(diaria: dict[dt.date, float], estr: dict[dt.date, float])
     return out
 
 
+# ------------------------------------------------------------------ flujos de patrimonio
+def metricas_flujos(patrimonio: dict[dt.date, float], valores: dict[dt.date, float], hoy: dt.date) -> dict[tuple[str, str], float]:
+    """Flujo neto a 3 y 12 meses: lo que cambia el patrimonio del fondo menos lo que explica su rentabilidad, en millones
+    de su divisa (`flujo`) y en tanto por uno del patrimonio de partida (`flujo_pct`). El patrimonio se guarda solo cuando
+    cambia, así que entre dos datos se da por igual; la ventana exige un dato en su inicio o antes."""
+    fechas, dias = sorted(patrimonio), sorted(valores)
+
+    def valor_en(f):
+        i = bisect.bisect_right(dias, f)
+        return valores[dias[i - 1]] if i else None
+
+    out: dict[tuple[str, str], float] = {}
+    for ventana, meses in (('3m', 3), ('1a', 12)):
+        antes = [f for f in fechas if f <= meses_antes(hoy, meses)]
+        if not antes:
+            continue
+        puntos = [antes[-1]] + [f for f in fechas if f > antes[-1]]
+        precios = [valor_en(f) for f in puntos]
+        if None in precios or not patrimonio[puntos[0]]:
+            continue
+        flujo = sum(patrimonio[b] - patrimonio[a] * vb / va for a, b, va, vb in zip(puntos, puntos[1:], precios, precios[1:]))
+        out[(ventana, 'flujo')] = flujo
+        out[(ventana, 'flujo_pct')] = flujo / patrimonio[puntos[0]]
+    return out
+
+
 # ------------------------------------------------------------------ percentiles
 # Dónde menos es mejor: el percentil se invierte. La beta no lleva percentil (ni mejor ni peor).
 MENOS_ES_MEJOR = {'ter', 'volatilidad', 'volatilidad_mensual', 'tracking_error', 'captura_bajista', 'recuperacion_semanas',
                   'meses_negativos'}
-SIN_PERCENTIL = {'beta', 'acumulada', 'r2'}
+SIN_PERCENTIL = {'beta', 'acumulada', 'r2', 'flujo', 'flujo_pct'}
 
 
 def percentiles(valores: dict[str, float], nombre: str) -> dict[str, float]:

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_TIPO_DEFECTO } from './nota'
-import { alternativas, cubierta, grupo, grupos, mediana, ordenar, pasa, plazoDe, puntuar, tipoActivo } from './screener'
+import { alternativas, cubierta, deModo, grupo, grupos, mediana, ordenar, pasa, plazoDe, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
   isin: 'X', nombre: 'X', categoria: 'C', divisa: 'EUR', ter: 0.5, srri: 4, gestion: null, patrimonio_meur: 100,
@@ -116,5 +116,14 @@ describe('región o estilo', () => {
     for (const t of ['renta variable', 'renta fija', 'mixto'] as const)
       for (const [c] of [['Global Large-Cap Blend Equity'], ['EUR Government Bond'], ['EUR Moderate Allocation - Global']])
         if (tipoActivo(c) === t) expect(grupos(t)).toContain(grupo(c))
+  })
+})
+
+describe('deModo', () => {
+  it('los modos antiguos indexados y activos pasan al filtro de gestión', () => {
+    expect(deModo('indexados', { tipo: 'mixto' })).toEqual({ modo: 'juntos', filtros: { tipo: 'mixto', gestion: 'indexada' } })
+    expect(deModo('activos', {})).toEqual({ modo: 'juntos', filtros: { gestion: 'activa' } })
+    expect(deModo('separados', { gestion: 'activa' })).toEqual({ modo: 'separados', filtros: { gestion: 'activa' } })
+    expect(deModo(undefined, {})).toEqual({ modo: 'juntos', filtros: {} })
   })
 })

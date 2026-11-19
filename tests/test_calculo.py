@@ -172,3 +172,13 @@ def test_tir_solo_en_categorias_donde_la_publican_casi_todos():
     pct = {i: dict.fromkeys(r, 50.0) for i, r in res.items()}
     out = solo_con_cobertura(pct, res, fondos, ('hoy', 'tir_neta'))
     assert ('hoy', 'tir_neta') in out['A0'] and ('hoy', 'tir_neta') not in out['B0']
+
+
+def test_flujos_con_historial_de_patrimonio_y_sin_percentil():
+    d = datos_base()
+    d['patrimonio'] = {'TECNO0000000': {D(2025, 11, 2): 100.0, D(2026, 11, 8): 150.0},
+                       'TECNO0000001': {D(2025, 11, 2): 100.0, D(2026, 11, 8): 90.0}}
+    filas = por_clave(calculo.calcular(d, HOY)[0])
+    assert ('TECNO0000000', '1a', 'flujo') in filas and ('TECNO0000000', '3m', 'flujo') in filas
+    assert filas[('TECNO0000000', '1a', 'flujo_pct')][1] is None   # sin percentil
+    assert ('GLOBAL000001', '1a', 'flujo') not in filas             # sin historial, sin flujo

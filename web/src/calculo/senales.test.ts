@@ -14,7 +14,7 @@ describe('evolución de la nota', () => {
   })
 })
 
-import { senales, type Par, type Umbrales } from './senales'
+import { senales, senalesAntes, type Par, type Umbrales } from './senales'
 
 const U: Umbrales = { nota_baja_percentil: 50, empeora_puntos: 15, empeora_meses: 12, mejor_puntos: 15, caro_puntos_ter: 0.5, redundante_correlacion: 0.95 }
 const par = (isin: string, nota: number, ter: number, fund_id: string | null = null): Par => ({ isin, nombre: isin, categoria: 'C', ter, fund_id, nota, percentil: null })
@@ -44,5 +44,15 @@ describe('candidatos (solo MyInvestor)', () => {
     const soloC = senales({ isin: 'A', ter: 1.5, fund_id: null }, notas, pares, U, [], [pares[2]])
     expect(todos.map((s) => s.tipo)).toEqual(['Hay algo claramente mejor', 'Caro'])
     expect(soloC.map((s) => s.tipo)).toEqual(['Caro']) // C solo tiene 10 puntos más
+  })
+})
+
+describe('señales de la semana anterior', () => {
+  it('solo las comparables, con las notas sin la última semana', () => {
+    const notas = [{ ...n('2025-11-17', 70), isin: 'A', percentil: 60 }, { ...n('2026-11-02', 66), isin: 'A', percentil: 55 }, { ...n('2026-11-09', 50), isin: 'A', percentil: 20 }]
+    expect(senalesAntes({ isin: 'A', ter: 1.5, fund_id: null }, notas, [par('B', 99, 0.1)], U)).toEqual([])          // la nota baja es de esta semana
+    expect(senalesAntes({ isin: 'A', ter: 1.5, fund_id: null }, notas.slice(0, 2).concat({ ...notas[1], fecha: '2026-11-09' }), [], U)).toEqual([])
+    const antes = [{ ...n('2026-11-02', 40), isin: 'A', percentil: 10 }, { ...n('2026-11-09', 41), isin: 'A', percentil: 12 }]
+    expect(senalesAntes({ isin: 'A', ter: 1.5, fund_id: null }, antes, [], U)).toEqual(['Nota baja'])
   })
 })

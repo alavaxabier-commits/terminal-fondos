@@ -10,15 +10,15 @@ import { serieEur } from '../datos/series'
 import Grafico from './Grafico'
 import Cargando from './Cargando'
 
-type Cats = Awaited<ReturnType<typeof q.categoriasReferencia>>
+export type Cats = Awaited<ReturnType<typeof q.categoriasReferencia>>
 const RANGOS = [1, 3, 5] as const
 const anos = (p: Plazo) => (p === '1a' ? '1 año' : `${parseInt(p)} años`)
 const tono = (v: number | null | undefined) => (v == null ? '' : v >= 0 ? 'text-sube' : 'text-baja')
 
 /** Lo que se carga al elegir un fondo: su serie, la de su referencia (la semanal que guarda `metricas`) y sus carteras. */
-type Extra = { serie: Punto[]; ref: Punto[]; nombreRef: string; carteras: { id: number; nombre: string; peso: number }[] }
+export type Extra = { serie: Punto[]; ref: Punto[]; nombreRef: string; carteras: { id: number; nombre: string; peso: number }[] }
 
-async function cargar(f: Puntuado, cats: Cats | null): Promise<Extra> {
+export async function cargar(f: { isin: string; divisa: string | null }, cats: Cats | null): Promise<Extra> {
   const [serie, fondo, carteras] = await Promise.all([serieEur(f.isin, f.divisa), q.fondo(f.isin), q.carterasDe(f.isin)])
   let ref: Punto[] = [], nombreRef = ''
   if (fondo && cats) {
@@ -33,9 +33,9 @@ async function cargar(f: Puntuado, cats: Cats | null): Promise<Extra> {
 }
 
 /** Barra fina de percentil (100 = mejor) con su cifra. */
-const Pct = ({ p }: { p: number | null }) => p == null ? <><span /><span /></> : (
+export const Pct = ({ p }: { p: number | null }) => p == null ? <><span /><span /></> : (
   <>
-    <span className="relative h-1 rounded-sm bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${p}%` }} /></span>
+    <span className="relative h-1 rounded-sm bg-borde/70"><span className="mueve absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${p}%` }} /></span>
     <span className={`text-right text-[11px] tabular ${colorPercentil(p)}`}>p{Math.round(p)}</span>
   </>
 )
@@ -48,7 +48,6 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
   seguido: boolean; seguir: () => void; senales: Senal[]; elegir: (isin: string) => void; pocos: number
 }) {
   const [extra, setExtra] = useState<Extra | null>(null)
-  const [rango, setRango] = useState<number>(3)
   const bandeja = useBandeja()
   const enBandeja = bandeja.some((x) => x.isin === f.isin)
 
@@ -58,17 +57,6 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
     cargar(f, cats).then((x) => vigente && setExtra(x)).catch(() => vigente && setExtra({ serie: [], ref: [], nombreRef: '', carteras: [] }))
     return () => { vigente = false }
   }, [f.isin, cats]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const grafica = useMemo(() => {
-    if (!extra?.serie.length) return null
-    const ultima = extra.serie.at(-1)!.fecha
-    const desde = [haceAnos(ultima, rango), extra.serie[0].fecha, extra.ref[0]?.fecha ?? ''].sort().at(-1)!
-    const fondo = base100(extra.serie, desde)
-    const ref = extra.ref.length ? base100(extra.ref, desde) : []
-    const lineas = [{ nombre: 'Fondo', serie: fondo, color: 'acento' }]
-    if (ref.length) lineas.push({ nombre: extra.nombreRef || 'Referencia', serie: ref, color: 'suave' })
-    return { lineas, fin: fondo.at(-1)?.valor ?? null, finRef: ref.at(-1)?.valor ?? null }
-  }, [extra, rango])
 
   const v = plazoDe(f, plazo || undefined)
   const filas: [string, string, (x: number) => string][] = monetario
@@ -93,38 +81,17 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
   return (
     <section aria-label="Detalle del fondo" className="flex flex-col gap-3 rounded-lg border border-borde bg-panel p-4 text-[13px]">
       <div className="space-y-1.5">
-        <p className="rotulo text-acento!">{f.categoria}</p>
-        <a href={`#/fondo/${f.isin}`} className="block text-xl font-semibold leading-tight tracking-tight hover:text-acento">{f.nombre}</a>
+        <h2 className="text-xl font-semibold leading-tight tracking-tight"><a href={`#/fondo/${f.isin}`} className="block hover:text-acento">{f.nombre}</a></h2>
         <div className="flex flex-wrap gap-1 text-[11px] text-suave">
+          {f.categoria && <span className="rounded-sm bg-borde/50 px-2">{f.categoria}</span>}
           <span className="rounded-sm bg-borde/50 px-2 font-mono">{f.isin}</span>
           <span className="rounded-sm bg-borde/50 px-2">{f.gestion === 'indexada' ? 'Indexado' : f.gestion === 'activa' ? 'Gestión activa' : 'Gestión sin dato'}</span>
           <span className="rounded-sm bg-borde/50 px-2">{f.divisa}{cubierta(f.nombre) && ' cubierta'}</span>
-          {f.myinvestor && <span className="rounded-sm bg-acento/15 px-2 text-acento">En MyInvestor</span>}
+          {f.myinvestor && <span className="rounded-sm border border-acento/60 px-2 text-acento">En MyInvestor</span>}
         </div>
       </div>
 
-      <div className={seccion}>
-        <div className="flex items-center justify-between gap-2">
-          <h3 className={titulo}>Evolución · base 100</h3>
-          <div role="group" aria-label="Periodo de la gráfica" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[11px]">
-            {RANGOS.map((n) => (
-              <button key={n} onClick={() => setRango(n)} aria-pressed={rango === n}
-                className={`rounded-sm px-2.5 ${rango === n ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{n}A</button>
-            ))}
-          </div>
-        </div>
-        {extra == null ? <Cargando /> : grafica ? (
-          <>
-            <Grafico lineas={grafica.lineas} alto="h-40" />
-            {grafica.fin != null && grafica.finRef != null && (
-              <p className="text-right text-[12px] tabular">
-                <span className="text-suave">frente a {extra.nombreRef || 'su referencia'}: </span>
-                <span className={tono(grafica.fin - grafica.finRef)}>{grafica.fin - grafica.finRef >= 0 ? '+' : ''}{cifra(grafica.fin - grafica.finRef, 1)} puntos</span>
-              </p>
-            )}
-          </>
-        ) : <p className="text-suave">Sin valores descargados.</p>}
-      </div>
+      <div className={seccion}><Evolucion extra={extra} /></div>
 
       {monetario ? (
         <div className={seccion}>
@@ -133,8 +100,8 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
             <div key={et} className="grid grid-cols-[4.5rem_1fr_3.5rem] items-center gap-2">
               <span className="text-suave">{et}</span>
               <span className="relative h-3.5">
-                {r != null && <span className={`absolute inset-y-[3px] left-0 rounded-sm ${et === '12 meses' ? 'bg-suave/60' : 'bg-acento'}`} style={{ width: `${Math.max(0, r / maxR) * 100}%` }} />}
-                {estr != null && <span className="absolute -inset-y-0.5 border-l-[1.5px] border-dashed border-aviso" style={{ left: `${(estr / maxR) * 100}%` }} />}
+                {r != null && <span className={`mueve absolute inset-y-[3px] left-0 rounded-sm ${et === '12 meses' ? 'bg-suave/60' : 'bg-acento'}`} style={{ width: `${Math.max(0, r / maxR) * 100}%` }} />}
+                {estr != null && <span className="mueve absolute -inset-y-0.5 border-l-[1.5px] border-dashed border-aviso" style={{ left: `${(estr / maxR) * 100}%` }} />}
               </span>
               <span className="text-right tabular">{r == null ? '—' : pct(r, 2, false)}</span>
             </div>
@@ -155,7 +122,7 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
               {BLOQUES.filter((k) => f.bloques[k] != null).map((k) => (
                 <div key={k} className={`grid grid-cols-[minmax(0,1fr)_7rem_1.75rem] items-center gap-2 ${f.bloques[k]! < 40 ? 'text-aviso' : ''}`}>
                   <span className="truncate">{NOMBRE_BLOQUE[k]}</span>
-                  <span className="relative h-1.5 overflow-hidden rounded-sm bg-borde/60"><span className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${f.bloques[k]}%`, background: colores[k] }} /></span>
+                  <span className="relative h-1.5 overflow-hidden rounded-sm bg-borde/60"><span className="mueve absolute inset-y-0 left-0 rounded-sm" style={{ width: `${f.bloques[k]}%`, background: colores[k] }} /></span>
                   <span className="text-right tabular">{Math.round(f.bloques[k]!)}</span>
                 </div>
               ))}
@@ -215,5 +182,44 @@ export default function TarjetaFondo({ f, todos, plazo, colores, monetario, cats
       </div>
       <p className="text-[11px] text-suave">j/k mover · Intro ficha{seguido ? '' : ' · s seguir'} · b comparar</p>
     </section>
+  )
+}
+
+/** Evolución en base 100 frente a su referencia, a 1, 3 o 5 años (tarjeta del Screener y panel de Seguimiento). */
+export function Evolucion({ extra }: { extra: Extra | null }) {
+  const [rango, setRango] = useState<number>(3)
+  const grafica = useMemo(() => {
+    if (!extra?.serie.length) return null
+    const ultima = extra.serie.at(-1)!.fecha
+    const desde = [haceAnos(ultima, rango), extra.serie[0].fecha, extra.ref[0]?.fecha ?? ''].sort().at(-1)!
+    const fondo = base100(extra.serie, desde)
+    const ref = extra.ref.length ? base100(extra.ref, desde) : []
+    const lineas = [{ nombre: 'Fondo', serie: fondo, color: 'acento' }]
+    if (ref.length) lineas.push({ nombre: extra.nombreRef || 'Referencia', serie: ref, color: 'suave' })
+    return { lineas, fin: fondo.at(-1)?.valor ?? null, finRef: ref.at(-1)?.valor ?? null }
+  }, [extra, rango])
+  return (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[12px] font-medium text-suave">Evolución · base 100</h3>
+        <div role="group" aria-label="Periodo de la gráfica" className="flex gap-0.5 rounded-sm bg-borde/50 p-0.5 text-[11px]">
+          {RANGOS.map((n) => (
+            <button key={n} onClick={() => setRango(n)} aria-pressed={rango === n}
+              className={`rounded-sm px-2.5 ${rango === n ? 'bg-panel text-texto ring-1 ring-borde' : 'text-suave hover:text-texto'}`}>{n}A</button>
+          ))}
+        </div>
+      </div>
+      {extra == null ? <Cargando /> : grafica ? (
+        <>
+          <Grafico lineas={grafica.lineas} alto="h-40" />
+          {grafica.fin != null && grafica.finRef != null && (
+            <p className="text-right text-[12px] tabular">
+              <span className="text-suave">frente a {extra.nombreRef || 'su referencia'}: </span>
+              <span className={tono(grafica.fin - grafica.finRef)}>{grafica.fin - grafica.finRef >= 0 ? '+' : ''}{cifra(grafica.fin - grafica.finRef, 1)} puntos</span>
+            </p>
+          )}
+        </>
+      ) : <p className="text-suave">Sin valores descargados.</p>}
+    </>
   )
 }

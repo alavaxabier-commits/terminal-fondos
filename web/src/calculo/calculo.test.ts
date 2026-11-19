@@ -68,7 +68,7 @@ describe('formato', () => {
     expect(cifra(1.234)).toBe('1,23')
     expect(millones(1536.31)).toBe('1536 M€'.replace('1536', new Intl.NumberFormat('es-ES').format(1536)))
     expect(fecha('2026-11-06')).toBe('06/11/2026')
-    expect(colorPercentil(80)).toBe('text-sube')
+    expect(colorPercentil(80)).toBe('text-acento')
     expect(colorPercentil(10)).toBe('text-baja')
   })
 

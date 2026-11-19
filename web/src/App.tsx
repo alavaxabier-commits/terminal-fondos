@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import { PANTALLAS } from './calculo/ordenes'
 import { estadoDescargas, type Tarea } from './calculo/vigilancia'
 import Bandeja from './componentes/Bandeja'
@@ -11,15 +11,19 @@ import { rutaCon, useBandeja } from './datos/bandeja'
 import { tamanoBase, vigilancia } from './datos/consultas'
 import { revisar, type Revision as DatosRevision } from './datos/revision'
 import { supabase } from './datos/supabase'
-import Cartera from './pantallas/Cartera'
-import Comparar from './pantallas/Comparar'
 import Entrar from './pantallas/Entrar'
-import Ficha from './pantallas/Ficha'
 import Inicio from './pantallas/Inicio'
-import Revision from './pantallas/Revision'
-import Screener from './pantallas/Screener'
-import Seguimiento from './pantallas/Seguimiento'
-import Simular from './pantallas/Simular'
+import Cargando from './componentes/Cargando'
+import { Barrera } from './componentes/Fallo'
+// Cada pantalla (y ECharts, que solo usan algunas) se descarga al abrirla: Inicio y la entrada van en el paquete principal.
+const Cartera = lazy(() => import('./pantallas/Cartera'))
+const Comparar = lazy(() => import('./pantallas/Comparar'))
+const Ficha = lazy(() => import('./pantallas/Ficha'))
+const Revision = lazy(() => import('./pantallas/Revision'))
+const Screener = lazy(() => import('./pantallas/Screener'))
+const Seguimiento = lazy(() => import('./pantallas/Seguimiento'))
+const Simular = lazy(() => import('./pantallas/Simular'))
+import Cinta from './componentes/Cinta'
 
 /** Ruta mínima por el hash: #/fondo/ISIN, #/cartera/N, #/simular/N[/SALE/ENTRA], #/comparar/ISIN,… y las fijas. Sin librería de rutas. */
 function useRuta(): string {
@@ -54,6 +58,7 @@ const ATAJOS: [string, string][] = [
   ['1 · 3 · 4 · r', 'inicio · screener · seguimiento · revisión'],
   ['c', 'comparador (con la ficha de un fondo abierta, lo añade)'],
   ['m', 'simulador (con una cartera abierta)'],
+  ['a', 'añadir fondos en el comparador (filtros y nota del screener)'],
   ['j / ↓ · k / ↑', 'mover la selección en screener y seguimiento'],
   ['Intro · s · b', 'abrir la ficha · seguir · poner o quitar del comparador'],
   ['← / →', 'pestañas de la ficha y del comparador'],
@@ -109,62 +114,74 @@ export default function App() {
   const cartera = ruta.match(/^#\/cartera\/(\d+)$/)?.[1]
   const simular = ruta.match(/^#\/simular\/(\d+)(?:\/([A-Z0-9]{12})\/([A-Z0-9]{12}))?$/)
   const comparar = ruta.match(/^#\/comparar(?:\/([A-Z0-9,]*))?$/)
+  // el Screener tiene tabla y ficha lado a lado: usa hasta 96 rem (cabecera, contenido y pie, alineados)
+  const ancho = ruta === '#/screener' ? 'max-w-[96rem]' : 'max-w-7xl'
+  const inicio = !fondo && !cartera && !simular && !comparar && !['#/screener', '#/seguimiento', '#/revision'].includes(ruta)
   return (
-    <div className="mx-auto flex min-h-full max-w-7xl flex-col">
-      <header className="sticky top-0 z-10 flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde bg-fondo/95 px-4 backdrop-blur">
-        <a href="#/" className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight text-texto">
-          <i aria-hidden="true" className="inline-block h-3 w-3 rounded-xs bg-acento" />
-          <span className="hidden sm:inline">Terminal de fondos</span>
-        </a>
-        {/* Pestañas de terminal: la pantalla actual, subrayada en acento a ras del filete de la cabecera. */}
-        <nav aria-label="Pantallas" className="order-last -mb-px flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
-          {PANTALLAS.map(([h, t]) => {
-            const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
-            return (
-              <a key={h} href={h} aria-current={actual ? 'page' : undefined}
-                className={`flex items-center whitespace-nowrap border-b-2 px-3 ${actual ? 'border-acento text-texto' : 'border-transparent text-suave hover:text-texto'}`}>{t}</a>
-            )
-          })}
-        </nav>
-        <Buscador />
-        <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
-          aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-sm border border-borde bg-panel text-suave hover:text-texto">
-          {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-            {tema === 'claro'
-              ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
-              : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
-          </svg>
-        </button>
-        <button onClick={() => setContrasena(true)} className="shrink-0 text-suave hover:text-texto" title="Poner o cambiar la contraseña">
-          contraseña
-        </button>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="shrink-0 text-suave hover:text-texto"
-          title="Cerrar sesión"
-        >
-          salir
-        </button>
+    <div className="flex min-h-full flex-col">
+      {/* Cabecera de liga: banda negra a todo el ancho; la pantalla actual, subrayada en amarillo. */}
+      {/* Su alto (cambia en el móvil, donde las pantallas bajan a otra fila) en --alto-cabecera: lo usan las cabeceras pegadas. */}
+      <header className="sticky top-0 z-10 bg-cabecera text-sobre-cabecera" ref={(el) => {
+        if (!el) return
+        const o = new ResizeObserver(() => document.documentElement.style.setProperty('--alto-cabecera', `${el.offsetHeight}px`))
+        o.observe(el)
+        return () => o.disconnect()
+      }}>
+        <div className={`mx-auto flex min-h-12 ${ancho} flex-wrap items-center gap-x-5 gap-y-2 px-4`}>
+          <a href="#/" className="estrecha shrink-0 text-[19px] font-extrabold uppercase leading-none tracking-[0.01em]">
+            <span className="hidden sm:inline">Terminal de fondos</span><span className="sm:hidden">Fondos</span>
+          </a>
+          <nav aria-label="Pantallas" className="pantallas order-last flex min-h-11 w-full min-w-0 self-stretch overflow-x-auto md:order-none md:w-auto">
+            {PANTALLAS.map(([h, t]) => {
+              const actual = (ruta || '#/') === h || (h === '#/comparar' && !!comparar)
+              return (
+                <a key={h} href={h} aria-current={actual ? 'page' : undefined}
+                  className={`flex items-center whitespace-nowrap px-3 text-[14px] ${actual ? 'font-semibold shadow-[inset_0_-3px_0_var(--color-once)]' : 'opacity-75 hover:opacity-100'}`}>{t[0].toUpperCase() + t.slice(1)}</a>
+              )
+            })}
+          </nav>
+          <Buscador />
+          <button onClick={() => { const t = tema === 'claro' ? 'oscuro' : 'claro'; setTema(t); ponerTema(t, true) }}
+            aria-label={tema === 'claro' ? 'Pasar a tema oscuro' : 'Pasar a tema claro'} title={tema === 'claro' ? 'Tema oscuro' : 'Tema claro'}
+            className="grid h-8 w-8 shrink-0 place-items-center opacity-75 hover:opacity-100">
+            {/* En claro, la luna (lleva al oscuro); en oscuro, el sol. */}
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              {tema === 'claro'
+                ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+                : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
+            </svg>
+          </button>
+          <button onClick={() => setContrasena(true)} aria-label="Contraseña" className="grid min-h-8 min-w-8 shrink-0 place-items-center text-[13px] opacity-75 hover:opacity-100" title="Poner o cambiar la contraseña">
+            {/* en el móvil, iconos: el buscador necesita el sitio */}
+            <span className="hidden sm:inline">Contraseña</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 sm:hidden" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 9.2-9.2M17 6l3 3M14 9l2 2" /></svg>
+          </button>
+          <button onClick={() => supabase.auth.signOut()} aria-label="Salir" className="grid min-h-8 min-w-8 shrink-0 place-items-center text-[13px] opacity-75 hover:opacity-100" title="Cerrar sesión">
+            <span className="hidden sm:inline">Salir</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 sm:hidden" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" /></svg>
+          </button>
+        </div>
       </header>
-      <main className="flex-1 space-y-4 px-4 py-4">
+      {inicio && <Cinta />}
+      <main className={`mx-auto w-full flex-1 space-y-5 px-4 py-5 ${ancho}`}>
         {!comparar && <Bandeja />}
+        <Barrera key={ruta}><Suspense fallback={<Cargando pagina />}>
         {fondo ? <Ficha key={fondo} isin={fondo} /> : cartera ? <Cartera key={cartera} id={+cartera} />
           : simular ? <Simular key={simular[0]} id={+simular[1]} sale={simular[2]} entra={simular[3]} />
           : comparar ? <Comparar isins={comparar[1] ? [...new Set(comparar[1].split(',').filter((i) => /^[A-Z0-9]{12}$/.test(i)))].slice(0, 5) : bandeja.map((x) => x.isin)} /> : ruta === '#/screener' ? <Screener /> : ruta === '#/seguimiento' ? <Seguimiento /> : ruta === '#/revision' ? <Revision /> : <Inicio estado={estado} />}
+        </Suspense></Barrera>
       </main>
-      <BarraEstado estado={estado} />
+      <Barrera sin={null}><BarraEstado estado={estado} ancho={ancho} /></Barrera>
       {contrasena && <CambiarContrasena cerrar={() => setContrasena(false)} />}
       {ayuda && (
-        <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
+        <div role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={() => setAyuda(false)} className="velo fixed inset-0 z-30 flex items-center justify-center bg-fondo/80 p-4">
           <section onClick={(e) => e.stopPropagation()} className="w-full max-w-lg border border-borde bg-panel p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="rotulo">Atajos</h2>
               <button onClick={() => setAyuda(false)} aria-label="Cerrar la ayuda" className="min-h-7 min-w-7 text-suave hover:text-texto">✕</button>
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-              {ATAJOS.map(([k, v]) => <Fragment key={k}><dt className="text-acento">{k}</dt><dd>{v}</dd></Fragment>)}
+              {ATAJOS.map(([k, v]) => <Fragment key={k}><dt className="estrecha font-bold text-acento">{k}</dt><dd>{v}</dd></Fragment>)}
             </dl>
             <p className="mt-2 text-suave">Las teclas de una letra no actúan mientras se escribe en un campo.</p>
           </section>
@@ -182,14 +199,15 @@ const cuando = (ts: string) => {
 }
 
 /** Barra de estado al pie: descargas (o sus alarmas, que se detallan en Inicio), espacio de la base y fondos a revisar. */
-function BarraEstado({ estado: { descargas, base, revision, error } }: { estado: Estado }) {
+function BarraEstado({ estado: { descargas, base, revision, error }, ancho }: { estado: Estado; ancho: string }) {
   const mal = descargas?.some((t) => t.alarmas.length || t.atrasada)
   const ultima = descargas?.reduce((m, t) => (t.ts > m ? t.ts : m), '')
   const uso = base ? mb(base.total) / LIMITE_MB : 0
   const tono = uso >= 0.9 ? 'text-baja' : uso >= 0.8 ? 'text-aviso' : 'text-sube' // ámbar desde el 80 %, rojo desde el 90 %
   const aRevisar = revision?.carteras.reduce((n, c) => n + c.fondos.filter((f) => f.senales.length).length, 0) ?? 0
   return (
-    <footer className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-3 border-t border-borde bg-panel px-4 py-1 text-[11px] text-suave">
+    <footer className="sticky bottom-0 z-10 border-t border-borde bg-panel text-[12px] text-suave">
+      <div className={`mx-auto flex ${ancho} flex-wrap items-center gap-x-4 px-4 py-1`}>
       {mal ? <a href="#/" className="text-baja hover:underline">▲ alarmas en las descargas</a>
         : ultima ? <span title={descargas!.map((t) => `${t.tarea} ${cuando(t.ts)}`).join(' · ')}><span className="text-sube" aria-hidden="true">● </span>descargas {cuando(ultima)}</span>
         : <span>{descargas ? 'sin registro de descargas' : 'descargas …'}</span>}
@@ -201,6 +219,7 @@ function BarraEstado({ estado: { descargas, base, revision, error } }: { estado:
       {aRevisar > 0 && <a href="#/revision" className="text-aviso hover:underline">▲ {aRevisar} a revisar</a>}
       {error && <span className="text-baja" title={error}>▲ estado sin leer</span>}
       <span className="ml-auto hidden sm:inline">/ órdenes · j/k mover · ? ayuda</span>
+      </div>
     </footer>
   )
 }

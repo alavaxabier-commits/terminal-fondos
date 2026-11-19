@@ -83,7 +83,7 @@ export default function Buscador({ onElegir, texto: indicacion = '/ fondo, carte
         className="w-full border border-borde bg-panel px-2 py-1 text-texto outline-none focus:border-acento"
       />
       {visible && (
-        <ul ref={lista} id={id} role="listbox" className="absolute left-0 right-0 top-full z-20 max-h-[70vh] overflow-auto border border-borde bg-panel">
+        <ul ref={lista} id={id} role="listbox" className="aparece absolute left-0 right-0 top-full z-20 max-h-[70vh] overflow-auto border border-borde bg-panel">
           {filas.map((f, k) => (
             <li key={f.clave} id={`${id}-${k}`} role="option" aria-selected={k === i} onMouseDown={() => abrir(f)} onMouseEnter={() => setActiva(k)}
               className={`flex cursor-pointer items-baseline gap-2 px-2 py-1.5 ${k === i ? 'bg-borde' : ''}`}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exposicion, mezclar, SECTORES, solapamiento } from './exposicion'
+import { aportaciones, exposicion, mezclar, SECTORES, solapamiento } from './exposicion'
 
 // 60 % en un fondo de acciones (todo EE. UU.) y 40 % en uno mixto (50 % acciones de Japón, 50 % bonos)
 const acciones = {
@@ -98,5 +98,30 @@ describe('solapamiento', () => {
   it('suma el menor peso de cada posición común, sin la liquidez', () => {
     const [s] = solapamiento([{ nombre: 'RV', c: acciones }, { nombre: 'Mixto', c: mixto }, { nombre: 'Sin datos', c: null }])
     expect(s).toEqual({ a: 'RV', b: 'Mixto', pct: 5, comunes: ['Apple'], completo: false }) // Apple: 10 y 5 → 5
+  })
+})
+
+describe('aportaciones', () => {
+  const fondos = [
+    { peso: 60, nombre: 'RV', c: acciones },
+    { peso: 40, nombre: 'Mixto', c: mixto },
+    { peso: 10, nombre: 'Sin datos', c: null },
+  ]
+
+  it('reparte cada región entre los fondos y la suma es la de la cartera', () => {
+    const a = aportaciones(fondos, 'regiones')
+    expect(a.cols).toEqual(['América', 'Asia y Oceanía']) // sin la columna vacía
+    expect(a.filas[0].valores).toEqual([75, 0]) // 60 de acciones de 80 → 75 puntos de EE. UU.
+    expect(a.filas[1].valores).toEqual([0, 25])
+    expect(a.filas[2]).toMatchObject({ valores: null, sin: 'Sin renta variable' })
+    expect(a.total).toEqual(exposicion(fondos).regiones.filter((g) => g.pct).map((g) => g.pct))
+  })
+
+  it('sectores en el orden de sus grupos; calidad solo con los fondos que tienen bonos', () => {
+    expect(aportaciones(fondos, 'sectores').cols).toEqual(['Servicios financieros', 'Tecnología'])
+    const c = aportaciones(fondos, 'calidad')
+    expect(c.cols).toEqual(['AAA'])
+    expect(c.filas.map((r) => r.valores)).toEqual([null, [100], null])
+    expect(c.filas[0].sin).toBe('Sin bonos')
   })
 })

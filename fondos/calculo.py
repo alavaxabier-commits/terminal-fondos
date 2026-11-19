@@ -145,6 +145,8 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
         if isin in datos.get('diarios', {}):  # monetarios: rendimiento reciente con la serie diaria
             resultados[isin].update(m.metricas_monetario(serie_eur(datos['diarios'][isin], fondos[isin].get('divisa'), tipos),
                                                          datos['estr']))
+        if isin in datos.get('patrimonio', {}):  # flujos, con su serie en su divisa, como el patrimonio
+            resultados[isin].update(m.metricas_flujos(datos['patrimonio'][isin], datos['valores'][isin], hoy))
         if fondos[isin].get('ter') is not None:
             resultados[isin][('hoy', 'ter')] = fondos[isin]['ter']  # para el bloque Coste de la nota
         if fondos[isin].get('tir') is not None and m.tipo_activo(fondos[isin].get('categoria')) == 'renta fija':

@@ -1,0 +1,191 @@
+<title>El estándar en cuatro grados</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Marco neutro; cada versión es un boceto del Screener y no sigue el tema. */
+:root{--bg:#f5f6f8;--fg:#141821;--suave:#5c6373;--linea:#dde1e8;--chip:#fff;--acento:#2563eb;--f:"Inter",ui-sans-serif,system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161b;--fg:#eceef2;--suave:#a1a7b3;--linea:#2c3039;--chip:#1e2128;--acento:#8fb0ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14161b;--fg:#eceef2;--suave:#a1a7b3;--linea:#2c3039;--chip:#1e2128;--acento:#8fb0ff;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.5}
+.pag{max-width:1240px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-weight:700;font-size:30px;margin:0 0 8px;letter-spacing:-.02em;text-wrap:balance}
+.intro{color:var(--suave);max-width:70ch;margin:0}
+.escala{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:22px 0 0;padding:0;list-style:none}
+.escala a{display:block;padding:8px 10px;color:var(--fg);text-decoration:none;font-size:14px;border-top:4px solid #c9d7f5;background:var(--chip)}
+.escala li:nth-child(2) a{border-top-color:#8eaef0}.escala li:nth-child(3) a{border-top-color:#4f7fe8}.escala li:nth-child(4) a{border-top-color:#2563eb}
+.escala b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}
+.ver{margin-top:56px;padding-top:24px;border-top:1px solid var(--linea)}
+.kick{font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--acento)}
+.ver h2{font-weight:700;font-size:24px;margin:2px 0 6px;letter-spacing:-.01em}
+.tesis{margin:0 0 18px;max-width:74ch}
+.marco{overflow-x:auto;border:1px solid var(--linea)}.marco>div{min-width:1100px}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px 32px;margin-top:18px}
+.datos h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);margin:0 0 4px}
+.datos p{margin:0;font-size:14px}
+table{border-collapse:collapse;width:100%}td,th{text-align:left}.num{text-align:right;font-variant-numeric:tabular-nums}
+
+.s{font-family:"Inter",sans-serif;font-size:13px;height:660px;overflow:hidden;--azu:#2563eb;--nav:#0f2340;--lin:#e3e8ef;--sua:#64748b;--ver:#15803d;--roj:#b91c1c}
+.s a{color:inherit;text-decoration:none}
+.s .sube{color:var(--ver)}.s .baja{color:var(--roj)}
+.s .tuyo{display:inline-block;font-size:11px;font-weight:600;color:var(--azu);background:#e8efff;border-radius:4px;padding:0 6px;margin-left:6px}
+
+/* 1 · Prudente: la ficha de siempre */
+.v1{background:#fff;color:#1f2937;display:grid;grid-template-rows:auto auto 1fr}
+.v1 header{display:flex;align-items:center;gap:28px;padding:12px 28px;border-bottom:1px solid var(--lin)}
+.v1 .marca{font-weight:700;color:var(--nav)}
+.v1 nav{display:flex;gap:22px}.v1 nav a{color:var(--sua)}.v1 nav a.on{color:var(--azu);font-weight:600}
+.v1 .filt{display:flex;gap:20px;padding:12px 28px;border-bottom:1px solid var(--lin);color:var(--sua)}.v1 .filt b{color:#1f2937;font-weight:500}
+.v1 main{padding:16px 28px}
+.v1 h4{font-size:18px;margin:0 0 10px;font-weight:600}
+.v1 th{font-weight:500;color:var(--sua);padding:8px 10px;border-bottom:1px solid #cbd5e1;font-size:12px}
+.v1 td{padding:8px 10px;border-bottom:1px solid var(--lin)}.v1 td a{color:var(--azu)}
+
+/* 2 · Moderada: panel con barra lateral */
+.v2{background:#f5f7fa;color:#0f172a;display:grid;grid-template-columns:200px 1fr}
+.v2 aside{background:var(--nav);color:#cbd5e1;padding:18px 14px;display:flex;flex-direction:column;gap:4px}
+.v2 aside b{color:#fff;font-size:15px;margin-bottom:14px}
+.v2 aside a{padding:7px 10px;border-radius:6px}.v2 aside a.on{background:#1e3a64;color:#fff}
+.v2 main{padding:18px 24px}
+.v2 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:12px 0}
+.v2 .kpi{background:#fff;border:1px solid var(--lin);border-radius:8px;padding:10px 12px}.v2 .kpi span{color:var(--sua);font-size:12px}.v2 .kpi b{display:block;font-size:20px;font-weight:600}
+.v2 .tabla{background:#fff;border:1px solid var(--lin);border-radius:8px;overflow:hidden}
+.v2 .filt{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--lin)}.v2 .filt span{border:1px solid var(--lin);border-radius:6px;padding:4px 10px;color:var(--sua)}
+.v2 th{font-weight:500;color:var(--sua);padding:8px 12px;border-bottom:1px solid var(--lin)}.v2 td{padding:7px 12px;border-bottom:1px solid var(--lin)}
+.v2 .pill{background:#e0ebff;color:var(--azu);border-radius:999px;padding:2px 8px;font-weight:600}
+
+/* 3 · Decidida: comparador moderno */
+.v3{background:#f7f8fb;color:#0f172a;display:grid;grid-template-columns:230px 1fr;grid-template-rows:auto 1fr}
+.v3 header{grid-column:1/-1;display:flex;align-items:center;gap:20px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--lin)}
+.v3 .marca{font-weight:700;font-size:16px}.v3 .marca i{display:inline-block;width:10px;height:10px;background:var(--azu);border-radius:3px;margin-right:8px}
+.v3 .bus{flex:1;max-width:420px;background:#f1f4f9;border-radius:8px;padding:7px 12px;color:var(--sua)}
+.v3 nav{display:flex;gap:4px;margin-left:auto}.v3 nav a{padding:6px 10px;border-radius:6px;color:var(--sua)}.v3 nav a.on{background:#eef3ff;color:var(--azu);font-weight:600}
+.v3 aside{background:#fff;border-right:1px solid var(--lin);padding:16px}
+.v3 aside h6{margin:0 0 8px;font-size:12px;color:var(--sua);font-weight:600}
+.v3 .grupo{margin-bottom:16px}
+.v3 .op{display:flex;align-items:center;gap:8px;padding:4px 0}.v3 .op i{width:14px;height:14px;border:1.5px solid #94a3b8;border-radius:4px}.v3 .op i.si{background:var(--azu);border-color:var(--azu)}
+.v3 .rango{height:4px;background:var(--lin);border-radius:2px;position:relative;margin:10px 0 4px}.v3 .rango b{position:absolute;left:20%;right:0;height:4px;background:var(--azu);border-radius:2px}
+.v3 main{padding:16px 22px}
+.v3 .seg{display:inline-flex;background:#eef1f6;border-radius:8px;padding:3px;margin-bottom:12px}.v3 .seg span{padding:4px 12px;border-radius:6px;color:var(--sua)}.v3 .seg span.on{background:#fff;color:#0f172a;font-weight:600;box-shadow:0 1px 2px #0001}
+.v3 .tabla{background:#fff;border:1px solid var(--lin);border-radius:12px;overflow:hidden}
+.v3 th{font-weight:500;color:var(--sua);padding:9px 12px;border-bottom:1px solid var(--lin);font-size:12px}.v3 td{padding:8px 12px;border-bottom:1px solid var(--lin)}
+.v3 .cal{display:inline-flex;gap:2px}.v3 .cal i{width:10px;height:10px;border-radius:2px;background:#dbe3f0}.v3 .cal i.on{background:var(--azu)}
+.v3 .nota{font-weight:700}
+
+/* 4 · Atrevida: panel oscuro de producto */
+.v4{background:#0b1220;color:#e2e8f0;display:grid;grid-template-columns:64px 1fr;--lin:#1e293b;--sua:#94a3b8}
+.v4 .rail{background:#070c16;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0}
+.v4 .rail i{width:34px;height:34px;border-radius:10px;background:#111a2c}.v4 .rail i.on{background:var(--azu)}
+.v4 .rail i:first-child{background:#fff;border-radius:50%}
+.v4 main{padding:18px 24px;display:grid;grid-template-columns:1fr 330px;grid-template-rows:auto auto 1fr;gap:14px}
+.v4 .cab{grid-column:1/-1;display:flex;align-items:center;gap:14px}
+.v4 .cab h4{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.v4 .cab .seg{margin-left:auto;display:flex;background:#111a2c;border-radius:8px;padding:3px}.v4 .seg span{padding:4px 12px;border-radius:6px;color:var(--sua)}.v4 .seg span.on{background:var(--azu);color:#fff}
+.v4 .card{background:#0f1a2e;border:1px solid var(--lin);border-radius:12px;padding:14px}
+.v4 .card h5{margin:0 0 8px;font-size:12px;color:var(--sua);font-weight:500}
+.v4 .hist{grid-column:1/-1}
+.v4 .tabla{padding:0;overflow:hidden}
+.v4 th{font-weight:500;color:var(--sua);padding:8px 12px;border-bottom:1px solid var(--lin);font-size:12px}.v4 td{padding:7px 12px;border-bottom:1px solid var(--lin)}
+.v4 .barra{height:6px;border-radius:3px;background:#1e293b;width:90px;display:inline-block;vertical-align:1px;position:relative;overflow:hidden}.v4 .barra b{position:absolute;inset:0 auto 0 0;background:#60a5fa}
+.v4 .sube{color:#4ade80}.v4 .baja{color:#f87171}.v4 .tuyo{background:#1e3a8a;color:#bfdbfe}
+.v4 .big{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.v4 .lst div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--lin)}
+</style>
+
+<div class="pag">
+  <h1>El estándar en cuatro grados</h1>
+  <p class="intro">Lo que hacen Morningstar y los comparadores de fondos, en cuatro intensidades sobre el Screener: de la página clásica de fondos a un panel oscuro de producto. Los fondos, sus ISIN, la nota, el percentil y el TER son reales; los movimientos, la distribución de notas, el reparto en quintiles y las carteras son de ejemplo.</p>
+  <ul class="escala">
+    <li><a href="#v1"><b>1 · Prudente</b>La ficha de siempre</a></li>
+    <li><a href="#v2"><b>2 · Moderada</b>Panel con barra lateral</a></li>
+    <li><a href="#v3"><b>3 · Decidida</b>Comparador moderno</a></li>
+    <li><a href="#v4"><b>4 · Atrevida</b>Panel oscuro</a></li>
+  </ul>
+
+  <section class="ver" id="v1">
+    <div class="kick">1 · Prudente</div><h2>La ficha de siempre</h2>
+    <p class="tesis">Página blanca, menú arriba, filtros en una línea y una tabla con enlaces azules, como las webs clásicas de fondos.</p>
+    <div class="marco"><div class="s v1" id="e1"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Nadie tiene que aprender nada, y es tranquila.</p></div><div><h3>Riesgo</h3><p>Es fría y sin carácter, justo lo que no querías.</p></div></div>
+  </section>
+
+  <section class="ver" id="v2">
+    <div class="kick">2 · Moderada</div><h2>Panel con barra lateral</h2>
+    <p class="tesis">Es la propuesta de la primera página. Barra lateral azul marino, cuatro cifras en tarjetas, filtros como chips y la nota en pastilla azul.</p>
+    <div class="marco"><div class="s v2" id="e2"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Es ordenada y conocida, y las cifras de arriba resumen la categoría.</p></div><div><h3>Riesgo</h3><p>Es la plantilla de panel de todas las aplicaciones.</p></div></div>
+  </section>
+
+  <section class="ver" id="v3">
+    <div class="kick">3 · Decidida</div><h2>Comparador moderno</h2>
+    <p class="tesis">Filtros en un panel lateral con casillas y rangos, un selector de plazo y una tabla redondeada. La calificación por quintiles va en cinco cuadros.</p>
+    <div class="marco"><div class="s v3" id="e3"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Es la más cómoda para filtrar, y la calificación en cuadros se lee de un vistazo.</p></div><div><h3>Riesgo</h3><p>Se parece a los comparadores comerciales, con algo de aire de venta.</p></div></div>
+  </section>
+
+  <section class="ver" id="v4">
+    <div class="kick">4 · Atrevida</div><h2>Panel oscuro</h2>
+    <p class="tesis">Un panel oscuro de producto con raíl de iconos. La distribución de notas de la categoría marca dónde caen tus fondos, la tabla lleva barras de percentil y al lado van tus carteras.</p>
+    <div class="marco"><div class="s v4" id="e4"></div></div>
+    <div class="datos"><div><h3>Qué gana</h3><p>Se ve moderno, y la distribución de notas da contexto de verdad.</p></div><div><h3>Riesgo</h3><p>Es el aspecto de bróker que no quieres: oscuro, con verde y rojo.</p></div></div>
+  </section>
+</div>
+
+<script>
+// Reales: nombre, ISIN, nota, percentil y TER. De ejemplo: movimiento, cartera.
+const EFON=[
+ ['Vanguard Glb Stk Idx € H Acc','IE00B03HD316',85.5,100,0.18,2,'Base'],
+ ['State Street World Unvsl Index Eq I EURH','LU2168639685',85.5,100,0.29,0,''],
+ ['Fidelity MSCI World Index EUR P Acc H','IE00BYX5P602',85.1,98.9,0.17,-1,''],
+ ['iShares Dev Wld Idx (IE) D Acc EUR H','IE000M0KK797',85.0,98.9,0.14,1,'Renta'],
+ ['MFS Meridian Contrarian Value WSH1 EUR','LU2495342268',83.8,98.9,0.65,3,''],
+ ['Algebris Financial Equity I GBP Acc','IE00BWY57036',83.6,97.8,0.91,-2,'Base'],
+ ['T. Rowe Price US Lg Cap Val Eq In EUR 1','LU2594029642',82.2,96.6,0.56,0,''],
+ ['BNPP Rspnb US Value Mlt-Fac Eq IH € R','LU1458428833',81.7,95.5,0.61,1,''],
+ ['M&G (Lux) Japan Smlr Comps C H USD Acc','LU1797817605',80.3,94.4,0.99,-3,''],
+ ['GS Japan Equity RS Acc EURH Snap','LU2365097539',80.0,93.3,0.72,0,'']];
+const n1=(x,d=1)=>x.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});
+const mv=m=>m>0?`<span class="sube">▲ ${m}</span>`:m<0?`<span class="baja">▼ ${-m}</span>`:'—';
+const marca=f=>f[6]?`<span class="tuyo">${f[6]}</span>`:'';
+const SEC=['Inicio','Screener','Seguimiento','Revisión','Carteras','Comparar'];
+const enlaces=()=>SEC.map(t=>`<a class="${t=='Screener'?'on':''}">${t}</a>`).join('');
+
+// 1
+document.getElementById('e1').innerHTML=`<header><span class="marca">Terminal de fondos</span><nav>${enlaces()}</nav></header>
+<div class="filt"><span>Categoría <b>Renta variable · otros</b></span><span>Comercializa <b>MyInvestor</b></span><span>Patrimonio <b>≥ 50 M€</b></span><span>Historia <b>≥ 3 años</b></span></div>
+<main><h4>98 fondos</h4><table><thead><tr><th>Fondo</th><th>ISIN</th><th class="num">Nota</th><th class="num">Percentil</th><th class="num">Semana</th><th class="num">TER</th></tr></thead><tbody>
+${EFON.map(f=>`<tr><td><a>${f[0]}</a>${marca(f)}</td><td style="color:var(--sua)">${f[1]}</td><td class="num">${n1(f[2])}</td><td class="num">${n1(f[3])}</td><td class="num">${mv(f[5])}</td><td class="num">${n1(f[4],2)} %</td></tr>`).join('')}</tbody></table></main>`;
+
+// 2
+document.getElementById('e2').innerHTML=`<aside><b>Terminal de fondos</b>${enlaces()}</aside>
+<main><div style="font-size:20px;font-weight:600">Screener</div>
+<div class="kpis"><div class="kpi"><span>Fondos</span><b>98</b></div><div class="kpi"><span>Nota media</span><b>61,4</b></div><div class="kpi"><span>TER mediano</span><b>0,72 %</b></div><div class="kpi"><span>A revisar</span><b>3</b></div></div>
+<div class="tabla"><div class="filt"><span>Renta variable</span><span>MyInvestor</span><span>≥ 50 M€</span><span>≥ 3 años</span></div>
+<table><thead><tr><th>Fondo</th><th>ISIN</th><th class="num">Nota</th><th class="num">Percentil</th><th class="num">TER</th></tr></thead><tbody>
+${EFON.slice(0,8).map(f=>`<tr><td>${f[0]}${marca(f)}</td><td style="color:var(--sua)">${f[1]}</td><td class="num"><span class="pill">${n1(f[2])}</span></td><td class="num">${n1(f[3])}</td><td class="num">${n1(f[4],2)} %</td></tr>`).join('')}</tbody></table></div></main>`;
+
+// 3 · quintil desde el percentil (1..5)
+const quintil=p=>Math.min(5,Math.floor(p/20)+1);
+document.getElementById('e3').innerHTML=`<header><span class="marca"><i></i>Terminal de fondos</span><span class="bus">Busca un fondo o ISIN</span><nav>${enlaces()}</nav></header>
+<aside><div class="grupo"><h6>Tipo de activo</h6>${['Renta variable','Renta fija','Mixtos','Monetarios'].map((t,i)=>`<div class="op"><i class="${i?'':'si'}"></i>${t}</div>`).join('')}</div>
+<div class="grupo"><h6>Dónde comprar</h6><div class="op"><i class="si"></i>MyInvestor</div></div>
+<div class="grupo"><h6>Patrimonio mínimo · 50 M€</h6><div class="rango"><b></b></div></div>
+<div class="grupo"><h6>Gestión</h6><div class="op"><i class="si"></i>Activa</div><div class="op"><i class="si"></i>Indexada</div></div></aside>
+<main><div class="seg"><span>1 año</span><span class="on">3 años</span><span>5 años</span><span>10 años</span></div>
+<div class="tabla"><table><thead><tr><th>Fondo</th><th>Calificación</th><th class="num">Nota</th><th class="num">Percentil</th><th class="num">Semana</th><th class="num">TER</th></tr></thead><tbody>
+${EFON.map(f=>`<tr><td>${f[0]}${marca(f)}<div style="color:var(--sua);font-size:11px">${f[1]}</div></td><td><span class="cal">${[1,2,3,4,5].map(k=>`<i class="${k<=quintil(f[3])?'on':''}"></i>`).join('')}</span></td><td class="num nota">${n1(f[2])}</td><td class="num">${n1(f[3])}</td><td class="num">${mv(f[5])}</td><td class="num">${n1(f[4],2)} %</td></tr>`).join('')}</tbody></table></div></main>`;
+
+// 4 · histograma de notas (de ejemplo) con escala fija 0..100
+const HIST=[1,2,4,6,9,13,16,17,14,10,6];  // fondos por tramo de 5 puntos, de 35 a 90
+const HW=760,HH=110,bw=HW/HIST.length,mx=17;
+const histo=`<svg width="100%" viewBox="0 0 ${HW} ${HH+18}" role="img" aria-label="Distribución de notas de la categoría">
+${HIST.map((k,i)=>`<rect x="${i*bw+2}" y="${HH-k/mx*HH}" width="${bw-4}" height="${k/mx*HH}" rx="3" fill="${i>=9?'#3b82f6':'#1e3a5f'}"/><text x="${i*bw+bw/2}" y="${HH+14}" fill="#94a3b8" font-size="10" text-anchor="middle">${35+i*5}</text>`).join('')}
+<line x1="${(85.5-35)/5*bw}" x2="${(85.5-35)/5*bw}" y1="0" y2="${HH}" stroke="#fbbf24" stroke-width="2"/><text x="${(85.5-35)/5*bw-6}" y="12" fill="#fbbf24" font-size="11" text-anchor="end">Vanguard (Base) 85,5</text>
+</svg>`;
+document.getElementById('e4').innerHTML=`<div class="rail"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
+<main><div class="cab"><h4>Screener</h4><span style="color:var(--sua)">Renta variable · otros · 98 fondos</span><div class="seg"><span>1A</span><span class="on">3A</span><span>5A</span><span>10A</span></div></div>
+<div class="card hist"><h5>Distribución de notas · tus fondos en amarillo</h5>${histo}</div>
+<div class="card tabla"><table><thead><tr><th>Fondo</th><th>Percentil</th><th class="num">Nota</th><th class="num">Sem.</th><th class="num">TER</th></tr></thead><tbody>
+${EFON.slice(0,7).map(f=>`<tr><td>${f[0]}${marca(f)}</td><td><span class="barra"><b style="width:${f[3]}%"></b></span></td><td class="num">${n1(f[2])}</td><td class="num">${mv(f[5])}</td><td class="num">${n1(f[4],2)}</td></tr>`).join('')}</tbody></table></div>
+<div style="display:flex;flex-direction:column;gap:14px"><div class="card"><h5>Cartera Base · 3 años</h5><div class="big">+6,2 %</div><div style="color:var(--sua)">Volatilidad 9,8 % · Sharpe 0,52</div></div>
+<div class="card lst"><h5>Señales</h5><div><span>Algebris Financial</span><span class="baja">▼ 2</span></div><div><span>M&amp;G Japan Smaller</span><span class="baja">▼ 3</span></div><div><span>MFS Contrarian</span><span class="sube">▲ 3</span></div></div></div></main>`;
+</script>

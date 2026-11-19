@@ -1,0 +1,269 @@
+<title>Mundos de la terminal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Barlow+Condensed:wght@500;700;800&family=Barlow:wght@400;600&family=Noto+Sans:wght@400;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Marco: hoja de presentación neutra; cada boceto lleva su propio mundo y no sigue el tema. */
+:root{--bg:#f4f4f2;--fg:#1c1c1e;--suave:#5f6066;--linea:#dcdcd8;--chip:#ffffff;--acento:#3d4f7a;
+  --f:"Inter",ui-sans-serif,system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181b;--fg:#ececee;--suave:#a2a3aa;--linea:#2e3036;--chip:#22242a;--acento:#9fb2e0;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17181b;--fg:#ececee;--suave:#a2a3aa;--linea:#2e3036;--chip:#22242a;--acento:#9fb2e0;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.5}
+.pag{max-width:1240px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px;text-wrap:balance}
+.intro{color:var(--suave);max-width:68ch;margin:0}
+.indice{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 0;padding:0;list-style:none}
+.indice a{display:inline-block;padding:6px 12px;border:1px solid var(--linea);border-radius:4px;color:var(--fg);text-decoration:none;font-size:14px;background:var(--chip)}
+.indice a:hover{border-color:var(--acento)}
+.mundo{margin-top:56px;padding-top:28px;border-top:1px solid var(--linea)}
+.kick{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--acento);font-weight:600}
+.mundo h2{font-size:24px;font-weight:600;margin:4px 0 6px;letter-spacing:-.01em}
+.tesis{margin:0 0 18px;max-width:72ch}
+.marco{overflow-x:auto;border:1px solid var(--linea);border-radius:4px}
+.marco>div{min-width:1100px}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px 32px;margin-top:18px}
+.datos h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);margin:0 0 6px;font-weight:600}
+.datos p,.datos ul{margin:0;font-size:14px}.datos ul{padding-left:18px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips span{width:28px;height:28px;border-radius:3px;border:1px solid var(--linea)}
+.nota-pie{margin-top:48px;color:var(--suave);font-size:13px;max-width:72ch}
+table{border-collapse:collapse;width:100%}td,th{text-align:left}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ── 1 · Páginas salmón ── */
+.sal{--s-bg:#f6e2d3;--s-pan:#fbefe6;--s-tin:#231c1a;--s-gra:#7d1d36;--s-azu:#23395b;--s-sub:#2c6a45;--s-baj:#a3361f;--s-sua:#6d5d55;
+  background:var(--s-bg);color:var(--s-tin);font-family:"Archivo",sans-serif;font-stretch:87%;font-size:13px;display:grid;grid-template-columns:232px 1fr;grid-template-rows:auto 1fr;height:640px}
+.sal header{grid-column:1/-1;display:flex;align-items:baseline;gap:28px;padding:12px 24px;border-bottom:2px solid var(--s-tin)}
+.sal .marca{font-stretch:125%;font-weight:800;text-transform:uppercase;letter-spacing:.02em;font-size:14px}
+.sal nav{display:flex;gap:18px}.sal nav a{color:var(--s-tin);text-decoration:none}.sal nav a.on{font-weight:700;border-bottom:2px solid var(--s-gra)}
+.sal .fecha{margin-left:auto;color:var(--s-sua)}
+.sal aside{padding:18px 20px;border-right:1px solid #d9bfae;display:flex;flex-direction:column;gap:18px}
+.sal .rot{font-stretch:110%;font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:11px;margin-bottom:6px}
+.sal .peso{display:grid;grid-template-columns:96px 1fr 26px;align-items:center;gap:6px;margin:4px 0}
+.sal .peso i{display:block;height:6px;background:var(--s-tin)}.sal .peso b{font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
+.sal .filtro{display:flex;justify-content:space-between;border-bottom:1px solid #e3c9b8;padding:4px 0}
+.sal main{padding:16px 24px;overflow:hidden}
+.sal h4{font-stretch:62%;font-weight:800;font-size:30px;margin:0;line-height:1;text-transform:uppercase}
+.sal .sub{color:var(--s-sua);margin:4px 0 12px}
+.sal th{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:4px 6px;border-bottom:1px solid var(--s-tin)}
+.sal td{padding:4px 6px}
+.sal tr.cat td{background:var(--s-tin);color:var(--s-bg);font-stretch:110%;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px}
+.sal tr.r5 td{border-bottom:1px solid var(--s-tin)}
+.sal .isin{font-size:11px;color:var(--s-sua)}.sal .sube{color:var(--s-sub)}.sal .baja{color:var(--s-baj)}
+.sal .nota{font-weight:700;font-size:14px}
+.sal .tinta{display:inline-block;width:8px;height:8px;margin-right:6px}
+.sal .viejo{text-decoration:line-through;color:var(--s-sua)}.sal .viejo+small{color:var(--s-baj);margin-left:4px}
+
+/* ── 2 · La clasificación ── */
+.liga{--l-bg:#f3f2ec;--l-tin:#141414;--l-azu:#1d4f9f;--l-roj:#c0392b;--l-ama:#f0c23a;--l-gri:#8a8880;
+  background:var(--l-bg);color:var(--l-tin);font-family:"Barlow",sans-serif;font-size:13px;height:640px;display:grid;grid-template-rows:auto auto 1fr}
+.liga header{display:flex;align-items:center;gap:24px;padding:12px 24px;background:var(--l-tin);color:#fff}
+.liga .marca{font-family:"Barlow Condensed";font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.01em}
+.liga nav{display:flex;gap:16px;opacity:.9}.liga nav a{color:#fff;text-decoration:none}.liga nav a.on{border-bottom:3px solid var(--l-ama)}
+.liga .tabs{display:flex;gap:2px;padding:14px 24px 0;border-bottom:2px solid var(--l-tin)}
+.liga .tabs span{padding:6px 14px;font-family:"Barlow Condensed";font-weight:700;font-size:15px;text-transform:uppercase;background:#e4e2d9}
+.liga .tabs span.on{background:var(--l-tin);color:#fff}
+.liga .cuerpo{display:grid;grid-template-columns:1fr 300px;gap:24px;padding:14px 24px;overflow:hidden}
+.liga th{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;font-size:12px;color:var(--l-gri);padding:4px 8px;border-bottom:1px solid var(--l-tin)}
+.liga td{padding:5px 8px;border-bottom:1px solid #dddbd2}
+.liga td.zona{width:6px;padding:0}.liga .alta{background:var(--l-azu)}.liga .baja{background:var(--l-roj)}
+.liga .pos{font-family:"Barlow Condensed";font-weight:800;font-size:18px;width:34px}
+.liga .nota{font-family:"Barlow Condensed";font-weight:800;font-size:20px}
+.liga .mov{font-family:"Barlow Condensed";font-weight:700;width:36px}.liga .up{color:var(--l-azu)}.liga .dn{color:var(--l-roj)}
+.liga tr.tuyo td{background:#fbefc6}
+.liga .cart{border:2px solid var(--l-tin);padding:12px;background:#fff}
+.liga .cart h5{font-family:"Barlow Condensed";font-weight:800;font-size:18px;text-transform:uppercase;margin:0 0 8px}
+.liga .cart div{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e6e4dc}
+.liga .ley{display:flex;gap:14px;margin-top:10px;font-size:12px;color:var(--l-gri)}.liga .ley i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px}
+
+/* ── 3 · Alta densidad japonesa ── */
+.jp{--j-bg:#ffffff;--j-tin:#111;--j-roj:#d7262e;--j-gri:#e6e6e6;--j-sua:#6f6f6f;
+  background:var(--j-bg);color:var(--j-tin);font-family:"Noto Sans",sans-serif;font-size:11.5px;line-height:1.35;height:640px;display:grid;grid-template-rows:auto auto 1fr}
+.jp header{display:flex;gap:16px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--j-gri)}
+.jp .marca{font-weight:700;font-size:14px}.jp .marca b{color:var(--j-roj)}
+.jp .bus{flex:1;max-width:420px;border:2px solid var(--j-roj);padding:3px 8px;color:var(--j-sua)}
+.jp nav{display:flex;background:#f4f4f4;border-bottom:1px solid var(--j-gri)}
+.jp nav a{padding:5px 14px;color:var(--j-tin);text-decoration:none;border-right:1px solid var(--j-gri)}.jp nav a.on{background:var(--j-roj);color:#fff;font-weight:700}
+.jp .mos{display:grid;grid-template-columns:1fr 1.9fr 1fr;gap:8px;padding:8px;overflow:hidden}
+.jp .mod{border:1px solid #cfcfcf}.jp .mod>b{display:inline-block;background:var(--j-roj);color:#fff;padding:2px 8px;font-size:11px}
+.jp .mod .in{padding:6px 8px}
+.jp .col{display:flex;flex-direction:column;gap:8px}
+.jp td,.jp th{padding:2px 4px;border-bottom:1px solid #ededed}.jp th{background:#f6f6f6;font-weight:700}
+.jp .tag{display:inline-block;border:1px solid var(--j-roj);color:var(--j-roj);font-size:10px;padding:0 3px;margin-left:4px}
+.jp .roj{color:var(--j-roj);font-weight:700}
+
+/* ── 4 · Hoja de zonas ── */
+.zon{--z-bg:#f2f1ee;--z-tin:#1b1b1b;--z-sua:#6e6d69;--z-mag:#b0287a;
+  background:var(--z-bg);color:var(--z-tin);font-family:"Barlow",sans-serif;font-size:13px;height:640px;display:grid;grid-template-columns:1fr 330px;grid-template-rows:auto 1fr}
+.zon header{grid-column:1/-1;display:flex;gap:24px;align-items:baseline;padding:12px 24px;border-bottom:1px solid #cfcdc7}
+.zon .marca{font-family:"Barlow Condensed";font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.zon nav{display:flex;gap:16px}.zon nav a{color:var(--z-sua);text-decoration:none}.zon nav a.on{color:var(--z-tin);font-weight:600}
+.zon main{padding:14px 24px;overflow:hidden}
+.zon .rampa{display:flex;gap:0;margin:0 0 12px;align-items:center;font-family:"JetBrains Mono";font-size:10px;color:var(--z-sua)}
+.zon .rampa i{width:22px;height:12px}
+.zon th{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:11px;color:var(--z-sua);padding:4px 6px}
+.zon td{padding:3px 6px}.zon td.z{width:62px;font-family:"JetBrains Mono";font-size:11px;text-align:center}
+.zon td.n{font-family:"JetBrains Mono";font-weight:600}
+.zon tr.sel td{outline:2px solid var(--z-mag);outline-offset:-2px}
+.zon aside{margin:14px 24px 14px 0;background:#fbfaf8;border:1px solid #cfcdc7;padding:14px;transform:rotate(-.6deg);box-shadow:0 1px 0 #cfcdc7}
+.zon aside h5{font-family:"Barlow Condensed";font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin:0 0 10px}
+.zon .pz{display:grid;grid-template-columns:1fr 70px 40px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #e3e1db}
+.zon .pz i{height:14px;border:1px solid var(--z-tin)}
+.zon .pz b{font-family:"JetBrains Mono";font-weight:400;text-align:right}
+
+/* ── 5 · El estándar ── */
+.can{--c-bg:#f5f7fa;--c-pan:#fff;--c-nav:#0f2340;--c-azu:#2563eb;--c-lin:#e3e8ef;--c-sua:#64748b;
+  background:var(--c-bg);color:#0f172a;font-family:"Inter",sans-serif;font-size:13px;height:640px;display:grid;grid-template-columns:200px 1fr}
+.can aside{background:var(--c-nav);color:#cbd5e1;padding:18px 14px;display:flex;flex-direction:column;gap:4px}
+.can aside b{color:#fff;font-size:15px;margin-bottom:14px}
+.can aside a{color:#cbd5e1;text-decoration:none;padding:7px 10px;border-radius:6px}.can aside a.on{background:#1e3a64;color:#fff}
+.can main{padding:18px 24px;overflow:hidden}
+.can .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:12px 0}
+.can .kpi{background:var(--c-pan);border:1px solid var(--c-lin);border-radius:8px;padding:10px 12px}.can .kpi span{color:var(--c-sua);font-size:12px}.can .kpi b{display:block;font-size:20px;font-weight:600}
+.can .tabla{background:var(--c-pan);border:1px solid var(--c-lin);border-radius:8px;overflow:hidden}
+.can .filt{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--c-lin)}.can .filt span{border:1px solid var(--c-lin);border-radius:6px;padding:4px 10px;color:var(--c-sua)}
+.can th{font-weight:500;color:var(--c-sua);padding:8px 12px;border-bottom:1px solid var(--c-lin)}.can td{padding:7px 12px;border-bottom:1px solid var(--c-lin)}
+.can .pill{background:#e0ebff;color:var(--c-azu);border-radius:999px;padding:2px 8px;font-weight:600}
+</style>
+
+<div class="pag">
+  <h1>Mundos de la terminal</h1>
+  <p class="intro">Cinco mundos visuales posibles para el rediseño, cada uno dibujado sobre el Screener, que es la pantalla que manda. Los fondos, sus ISIN, la nota y el TER son reales (nota de esta semana, categoría con más fondos). Los percentiles por bloque, los movimientos de la semana y las carteras son de ejemplo. Dime en el chat cuál eliges, o si quieres otra mano más prudente o más atrevida.</p>
+  <ul class="indice">
+    <li><a href="#salmon">1 · Páginas salmón</a></li>
+    <li><a href="#liga">2 · La clasificación</a></li>
+    <li><a href="#japon">3 · Alta densidad japonesa</a></li>
+    <li><a href="#zonas">4 · Hoja de zonas</a></li>
+    <li><a href="#estandar">5 · El estándar</a></li>
+  </ul>
+
+  <section class="mundo" id="salmon">
+    <div class="kick">La que ha salido en el sorteo</div>
+    <h2>Páginas salmón</h2>
+    <p class="tesis">El screener se lee como la página de fondos de la prensa económica: una lista estrecha que se recorre de un tirón, agrupada por categoría, sin nada de bróker.</p>
+    <div class="marco"><div class="sal" id="v-sal"></div></div>
+    <div class="datos">
+      <div><h3>Paleta</h3><div class="chips"><span style="background:#f6e2d3"></span><span style="background:#fbefe6"></span><span style="background:#231c1a"></span><span style="background:#7d1d36"></span><span style="background:#23395b"></span></div></div>
+      <div><h3>Gesto propio</h3><p>Cabeceras de categoría en negativo y un filete cada cinco filas, como en los listados del periódico.</p></div>
+      <div><h3>Lo que toma de las otras</h3><ul><li>Un dato viejo se tacha con su fecha, no se oculta.</li><li>Cada cartera tiene una tinta fija en todas las pantallas.</li><li>Toda barra está a escala exacta.</li><li>La ficha da toda el área a un fondo.</li></ul></div>
+      <div><h3>Riesgo</h3><p>Está cerca del arquetipo del periódico: con serifas o demasiados filetes se vuelve un disfraz.</p></div>
+    </div>
+  </section>
+
+  <section class="mundo" id="liga">
+    <div class="kick">Mi favorita</div>
+    <h2>La clasificación</h2>
+    <p class="tesis">Cada categoría es una liga: la nota ordena, los percentiles marcan zonas y cada semana se ve quién sube y quién baja de puesto.</p>
+    <div class="marco"><div class="liga" id="v-liga"></div></div>
+    <div class="datos">
+      <div><h3>Paleta</h3><div class="chips"><span style="background:#f3f2ec"></span><span style="background:#141414"></span><span style="background:#1d4f9f"></span><span style="background:#c0392b"></span><span style="background:#f0c23a"></span></div></div>
+      <div><h3>Gesto propio</h3><p>Franjas de zona al borde de la tabla (cuartil alto y bajo) y la flecha de puestos ganados o perdidos desde la nota anterior.</p></div>
+      <div><h3>Riesgo</h3><p>Es la más reconocible de mi lista; el tono deportivo puede quitar seriedad a una decisión de inversión.</p></div>
+    </div>
+  </section>
+
+  <section class="mundo" id="japon">
+    <div class="kick">Alternativa</div>
+    <h2>Alta densidad japonesa</h2>
+    <p class="tesis">Todo el universo a la vista en módulos con filete y pestaña roja, sin desperdiciar un píxel.</p>
+    <div class="marco"><div class="jp" id="v-jp"></div></div>
+    <div class="datos">
+      <div><h3>Paleta</h3><div class="chips"><span style="background:#fff"></span><span style="background:#111"></span><span style="background:#d7262e"></span><span style="background:#e6e6e6"></span></div></div>
+      <div><h3>Por qué está aquí</h3><p>Gana en tener todo a mano mientras filtras.</p></div>
+      <div><h3>Riesgo</h3><p>Choca con «calma y claridad»: en una revisión tranquila, tanta densidad cansa.</p></div>
+    </div>
+  </section>
+
+  <section class="mundo" id="zonas">
+    <div class="kick">Alternativa</div>
+    <h2>Hoja de zonas</h2>
+    <p class="tesis">Cada percentil se pinta en una rampa exacta de once tonos; el peso en cartera es densidad de trama; un solo magenta marca la selección.</p>
+    <div class="marco"><div class="zon" id="v-zon"></div></div>
+    <div class="datos">
+      <div><h3>Paleta</h3><div class="chips"><span style="background:#f2f1ee"></span><span style="background:#1b1b1b"></span><span style="background:#8a8a8a"></span><span style="background:#b0287a"></span></div></div>
+      <div><h3>Por qué está aquí</h3><p>La rampa da a los percentiles una escala honesta, que se lee de un vistazo.</p></div>
+      <div><h3>Riesgo</h3><p>Casi sin color: puede quedar frío, justo lo que no quieres.</p></div>
+    </div>
+  </section>
+
+  <section class="mundo" id="estandar">
+    <div class="kick">La salida de siempre</div>
+    <h2>El estándar de la categoría</h2>
+    <p class="tesis">Lo que hacen Morningstar y los comparadores de fondos, bien hecho.</p>
+    <div class="marco"><div class="can" id="v-can"></div></div>
+    <div class="datos">
+      <div><h3>Paleta</h3><div class="chips"><span style="background:#fff"></span><span style="background:#0f2340"></span><span style="background:#2563eb"></span><span style="background:#f5f7fa"></span></div></div>
+      <div><h3>Riesgo</h3><p>Indistinguible de cualquier comparador.</p></div>
+    </div>
+  </section>
+
+  <p class="nota-pie">Descartadas tras compararlas: plano de metro nocturno (vuelve al azul noche actual), billetes de avión, partitura de danza y feed vertical. De cada una, la primera propuesta se queda con una idea (la lista de «Lo que toma de las otras»).</p>
+</div>
+
+<script>
+// Fondos reales (nota semanal y TER). Bloques, movimiento y carteras: de ejemplo.
+const F=[
+ ['Vanguard Glb Stk Idx € H Acc','IE00B03HD316',85.5,100,0.18,[92,88,97,58,81],2,'Base'],
+ ['State Street World Unvsl Index Eq I EURH','LU2168639685',85.5,100,0.29,[90,91,86,60,80],0,''],
+ ['Fidelity MSCI World Index EUR P Acc H','IE00BYX5P602',85.1,98.9,0.17,[89,84,98,55,79],-1,''],
+ ['iShares Dev Wld Idx (IE) D Acc EUR H','IE000M0KK797',85.0,98.9,0.14,[88,86,99,52,78],1,'Renta'],
+ ['MFS Meridian Contrarian Value WSH1 EUR','LU2495342268',83.8,98.9,0.65,[94,62,71,90,95],3,''],
+ ['Algebris Financial Equity I GBP Acc','IE00BWY57036',83.6,97.8,0.91,[96,58,44,72,99],-2,'Base'],
+ ['T. Rowe Price US Lg Cap Val Eq In EUR 1','LU2594029642',82.2,96.6,0.56,[83,77,74,81,76],0,''],
+ ['BNPP Rspnb US Value Mlt-Fac Eq IH € R','LU1458428833',81.7,95.5,0.61,[80,80,70,83,74],1,''],
+ ['M&G (Lux) Japan Smlr Comps C H USD Acc','LU1797817605',80.3,94.4,0.99,[86,70,38,88,84],-3,''],
+ ['GS Japan Equity RS Acc EURH Snap','LU2365097539',80.0,93.3,0.72,[78,74,62,79,80],0,'']];
+const es=(x,d=1)=>x.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});
+const mv=(m,u='▲',d='▼')=>m>0?`${u} ${m}`:m<0?`${d} ${-m}`:'=';
+
+// 1 · salmón
+document.getElementById('v-sal').innerHTML=`
+<header><span class="marca">Terminal de fondos</span><nav><a>Inicio</a><a class="on">Screener</a><a>Seguimiento</a><a>Revisión</a><a>Carteras</a></nav><span class="fecha">Lunes 16 de noviembre de 2026 · cierres al viernes 13</span></header>
+<aside><div><div class="rot">Pesos de la nota</div>${[['Coste',40],['Rentab. aj. riesgo',20],['Protección',20],['Consistencia',10],['Rentabilidad',10]].map(([n,p])=>`<div class="peso"><span>${n}</span><i style="width:${p*2.5}%"></i><b>${p}</b></div>`).join('')}</div>
+<div><div class="rot">Filtros</div><div class="filtro"><span>Tipo</span><b>Renta variable</b></div><div class="filtro"><span>Se compra en MyInvestor</span><b>Sí</b></div><div class="filtro"><span>Patrimonio</span><b>≥ 50 M€</b></div><div class="filtro"><span>Historia</span><b>≥ 3 años</b></div></div>
+<div><div class="rot">Carteras</div><div><span class="tinta" style="background:var(--s-gra)"></span>Base</div><div><span class="tinta" style="background:var(--s-azu)"></span>Renta</div></div></aside>
+<main><h4>Screener</h4><div class="sub">98 fondos de la categoría · ordenados por nota</div>
+<table><thead><tr><th>Fondo</th><th>ISIN</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">Semana</th><th class="num">TER %</th></tr></thead><tbody>
+<tr class="cat"><td colspan="6">Renta variable · otros · 98 fondos</td></tr>
+${F.map((f,i)=>`<tr class="${i%5==4?'r5':''}"><td>${f[7]?`<span class="tinta" style="background:var(${f[7]=='Base'?'--s-gra':'--s-azu'})"></span>`:''}${f[0]}</td><td class="isin">${f[1]}</td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[3])}</td><td class="num ${f[6]>0?'sube':f[6]<0?'baja':''}">${mv(f[6])}</td><td class="num">${i==6?`<span class="viejo">${es(f[4],2)}</span><small>06-nov</small>`:es(f[4],2)}</td></tr>`).join('')}
+</tbody></table></main>`;
+
+// 2 · liga
+document.getElementById('v-liga').innerHTML=`
+<header><span class="marca">Terminal de fondos</span><nav><a>Inicio</a><a class="on">Screener</a><a>Seguimiento</a><a>Revisión</a><a>Carteras</a></nav></header>
+<div class="tabs"><span class="on">R. variable otros</span><span>R. variable global</span><span>Mixtos moderados</span><span>Renta fija euro</span><span>Monetarios</span></div>
+<div class="cuerpo"><div><table><thead><tr><th></th><th>Pos.</th><th>Fondo</th><th>Sem.</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">TER %</th></tr></thead><tbody>
+${F.map((f,i)=>`<tr class="${f[7]?'tuyo':''}"><td class="zona ${i<3?'alta':''}"></td><td class="pos">${i+1}</td><td>${f[0]}</td><td class="mov ${f[6]>0?'up':f[6]<0?'dn':''}">${mv(f[6])}</td><td class="num nota">${es(f[2])}</td><td class="num">${es(f[3])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}
+<tr><td class="zona baja"></td><td class="pos">97</td><td>… cuartil bajo</td><td class="mov dn">▼ 4</td><td class="num nota">31,2</td><td class="num">2,1</td><td class="num">1,90</td></tr>
+</tbody></table><div class="ley"><span><i style="background:var(--l-azu)"></i>Cuartil alto</span><span><i style="background:var(--l-roj)"></i>Cuartil bajo</span><span><i style="background:#fbefc6"></i>En tus carteras</span></div></div>
+<div class="cart"><h5>Cartera Base</h5>${[['Vanguard Glb Stk Idx',40,'1.º'],['Algebris Financial Eq',15,'6.º'],['Amundi Prime Euro Govies',30,'4.º'],['MyInvestor Monetario',15,'2.º']].map(([n,p,o])=>`<div><span>${n}</span><span>${p} % · ${o}</span></div>`).join('')}<p style="margin:10px 0 0;color:var(--l-gri)">Puesto en su categoría esta semana</p></div></div>`;
+
+// 3 · Japón
+document.getElementById('v-jp').innerHTML=`
+<header><span class="marca">Terminal <b>de fondos</b></span><span class="bus">Buscar fondo, ISIN u orden…</span><span style="margin-left:auto;color:var(--j-sua)">16/11/2026</span></header>
+<nav><a>Inicio</a><a class="on">Screener</a><a>Seguimiento</a><a>Revisión</a><a>Carteras</a><a>Comparar</a><a>Simular</a></nav>
+<div class="mos"><div class="col"><div class="mod"><b>Pesos</b><div class="in">Coste 40 · Riesgo 20 · Protección 20 · Consistencia 10 · Rentabilidad 10</div></div>
+<div class="mod"><b>Filtros</b><div class="in">Renta variable · MyInvestor · ≥ 50 M€ · ≥ 3 años<br><span class="tag">98 fondos</span></div></div>
+<div class="mod"><b>Alarmas</b><div class="in">Descargas al día. 0 errores.</div></div></div>
+<div class="mod"><b>Screener</b><table><thead><tr><th>#</th><th>Fondo</th><th class="num">Nota</th><th class="num">Pct.</th><th class="num">TER</th></tr></thead><tbody>
+${F.map((f,i)=>`<tr><td>${i+1}</td><td>${f[0]}${f[7]?`<span class="tag">${f[7]}</span>`:''}</td><td class="num roj">${es(f[2])}</td><td class="num">${es(f[3])}</td><td class="num">${es(f[4],2)}</td></tr>`).join('')}</tbody></table></div>
+<div class="col"><div class="mod"><b>Señales</b><div class="in"><span class="roj">3</span> a revisar · Algebris baja 2 puestos · M&amp;G Japan baja 3</div></div>
+<div class="mod"><b>Carteras</b><div class="in">Base · 4 fondos · 3 años +6,2 %<br>Renta · 5 fondos · 3 años +2,1 %</div></div>
+<div class="mod"><b>Comparando</b><div class="in">Vanguard Glb Stk · iShares Dev Wld</div></div></div></div>`;
+
+// 4 · zonas (rampa de 11 tonos: percentil → zona 0..10)
+const tono=p=>{const z=Math.round(p/10);return `hsl(40 3% ${92-z*7.5}%)`},tx=p=>Math.round(p/10)>=6?'#f2f1ee':'#1b1b1b';
+document.getElementById('v-zon').innerHTML=`
+<header><span class="marca">Terminal de fondos</span><nav><a>Inicio</a><a class="on">Screener</a><a>Seguimiento</a><a>Revisión</a><a>Carteras</a></nav></header>
+<main><div class="rampa">pct 0&nbsp;${Array.from({length:11},(_,z)=>`<i style="background:${tono(z*10)}"></i>`).join('')}&nbsp;100</div>
+<table><thead><tr><th>Fondo</th><th>Nota</th><th>Riesgo</th><th>Consist.</th><th>Coste</th><th>Protec.</th><th>Rentab.</th></tr></thead><tbody>
+${F.map((f,i)=>`<tr class="${i==4?'sel':''}"><td>${f[0]}</td><td class="n">${es(f[2])}</td>${f[5].map(p=>`<td class="z" style="background:${tono(p)};color:${tx(p)}">${p}</td>`).join('')}</tr>`).join('')}</tbody></table></main>
+<aside><h5>Cartera Base</h5>${[['Vanguard Glb Stk Idx',40],['Amundi Prime Euro Govies',30],['Algebris Financial Eq',15],['MyInvestor Monetario',15]].map(([n,p])=>`<div class="pz"><span>${n}</span><i style="background:repeating-linear-gradient(45deg,#1b1b1b 0 1px,transparent 1px ${Math.max(2,12-p/4)}px)"></i><b>${p} %</b></div>`).join('')}<p style="font-size:12px;color:var(--z-sua);margin:10px 0 0">Trama más densa, más peso.</p></aside>`;
+
+// 5 · estándar
+document.getElementById('v-can').innerHTML=`
+<aside><b>Terminal de fondos</b><a>Inicio</a><a class="on">Screener</a><a>Seguimiento</a><a>Revisión</a><a>Carteras</a><a>Comparar</a></aside>
+<main><div style="font-size:20px;font-weight:600">Screener</div>
+<div class="kpis"><div class="kpi"><span>Fondos</span><b>98</b></div><div class="kpi"><span>Nota media</span><b>61,4</b></div><div class="kpi"><span>TER mediano</span><b>0,72 %</b></div><div class="kpi"><span>A revisar</span><b>3</b></div></div>
+<div class="tabla"><div class="filt"><span>Renta variable</span><span>MyInvestor</span><span>≥ 50 M€</span><span>≥ 3 años</span></div>
+<table><thead><tr><th>Fondo</th><th>ISIN</th><th class="num">Nota</th><th class="num">Percentil</th><th class="num">TER</th></tr></thead><tbody>
+${F.slice(0,8).map(f=>`<tr><td>${f[0]}</td><td style="color:var(--c-sua)">${f[1]}</td><td class="num"><span class="pill">${es(f[2])}</span></td><td class="num">${es(f[3])}</td><td class="num">${es(f[4],2)} %</td></tr>`).join('')}</tbody></table></div></main>`;
+</script>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { cifra, colorPercentil, fecha, millones, pct } from '../calculo/formato'
+import { cifra, colorPercentil, fecha, fondoPercentil, pct } from '../calculo/formato'
 import type { Composicion } from '../calculo/exposicion'
 import { bloques, grupoPesos, PESOS_TIPO_DEFECTO, tipoActivo } from '../calculo/nota'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
@@ -15,6 +15,10 @@ import { alternar, MAX_BANDEJA, useBandeja } from '../datos/bandeja'
 import * as q from '../datos/consultas'
 import { serieEur } from '../datos/series'
 import Cargando from '../componentes/Cargando'
+import ListaNovedades from '../componentes/ListaNovedades'
+import MapaMetricas from '../componentes/MapaMetricas'
+import { novedades, umbralesNovedades } from '../calculo/novedades'
+import Fallo from '../componentes/Fallo'
 
 type Datos = {
   fondo: q.Fondo
@@ -28,10 +32,14 @@ type Datos = {
   myinvestor: Set<string>
   carteras: { id: number; nombre: string; peso: number }[]
   seguido: boolean
+  cambios: q.CambioGestor[]
+  patrimonio: Punto[]
+  dist: q.Distribucion | null
+  umbrales: { clave: string; valor: number }[]
 }
 
 const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
-const PESTANAS = ['resumen', 'métricas', 'exposición', 'clases'] as const
+const PESTANAS = ['resumen', 'métricas', 'exposición', 'fondo', 'clases'] as const
 type Pestana = (typeof PESTANAS)[number]
 
 /** Serie del índice de referencia: su sustituto o la combinación de sus componentes. */
@@ -52,13 +60,15 @@ async function cargar(isin: string): Promise<Datos | null> {
   const fondo = await q.fondo(isin)
   if (!fondo) return null
   const ref = await q.referencia(fondo)
-  const [serie, serieRef, metricas, comps, notas, clases, carteras, seguidos] = await Promise.all([
+  const [serie, serieRef, metricas, comps, notas, clases, carteras, seguidos, cambios, patrimonio, dist, umbrales] = await Promise.all([
     serieEur(isin, fondo.divisa), serieIndice(ref.indice), q.metricas(isin), q.composiciones([isin]), q.notasDe([isin]),
     fondo.fund_id ? q.clases(fondo.fund_id) : Promise.resolve([]), q.carterasDe(isin), q.seguimiento(),
+    q.cambiosGestor([isin]), q.historialPatrimonio(isin), fondo.en_universo && fondo.categoria ? q.distribucion(fondo.categoria) : Promise.resolve(null),
+    q.umbrales(),
   ])
   const myinvestor = await q.enMyinvestor([isin, ...clases.map((c) => c.isin)])
   return { fondo, ref, serie, serieRef, metricas, comp: comps[0] ?? null, notas, clases, myinvestor, carteras,
-           seguido: seguidos.some((x) => x.isin === isin) }
+           seguido: seguidos.some((x) => x.isin === isin), cambios, patrimonio, dist, umbrales }
 }
 
 export const FILAS: [string, string, (v: number) => string][] = [
@@ -81,20 +91,17 @@ export const FILAS: [string, string, (v: number) => string][] = [
 
 /** Cuartil en la categoría a partir del percentil (100 = mejor): 1 es el mejor cuarto. */
 export const cuartil = (p: number) => (p >= 75 ? 1 : p >= 50 ? 2 : p >= 25 ? 3 : 4)
-// Escala ordenada de un solo tono (dataviz): el primer cuartil, acento pleno; el cuarto, casi el fondo. El número va siempre escrito.
-const FONDO_CUARTIL = ['var(--color-acento)', 'color-mix(in srgb, var(--color-acento) 45%, var(--color-panel))',
-  'color-mix(in srgb, var(--color-acento) 20%, var(--color-panel))', 'color-mix(in srgb, var(--color-borde) 70%, var(--color-panel))']
+// Mismo lenguaje que el mapa de métricas: tinte azul el mejor cuarto, rojo el peor, neutro en medio. El número va siempre escrito.
 function Cuartil({ p }: { p: number | null | undefined }) {
   if (p == null) return <span className="text-suave">—</span>
-  const k = cuartil(p)
-  return <span title={`Percentil ${Math.round(p)} en su categoría`} className="inline-grid h-5 w-full max-w-9 place-items-center rounded-sm text-[11px] font-medium"
-    style={{ background: FONDO_CUARTIL[k - 1], color: k === 1 ? 'var(--color-sobre-acento)' : 'var(--color-texto)' }}>{k}</span>
+  return <span title={`Percentil ${Math.round(p)} en su categoría`} className={`inline-grid h-5 w-full max-w-9 place-items-center rounded-sm text-[11px] font-medium ${fondoPercentil(p)} ${colorPercentil(p)}`}>
+    {cuartil(p)}<span className="sr-only">.º cuartil, percentil {Math.round(p)}</span></span>
 }
-/** Percentil como barra fina (100 = mejor dentro de la categoría). */
+/** Percentil como barra fina (100 = mejor dentro de la categoría), del color de su zona. */
 const BarraPercentil = ({ p }: { p: number }) => (
-  <span className="flex items-center gap-2" title={`Percentil ${Math.round(p)} en su categoría (100 = mejor)`}>
-    <span className="relative h-1 flex-1 rounded-sm bg-borde/70"><span className="absolute inset-y-0 left-0 rounded-sm bg-acento" style={{ width: `${p}%` }} /></span>
-    <span className={`text-[11px] tabular ${colorPercentil(p)}`}>p{Math.round(p)}</span>
+  <span className="flex items-center gap-2">
+    <span className="relative h-1 flex-1 rounded-sm bg-borde/70"><span className={`absolute inset-y-0 left-0 rounded-sm ${p >= 75 ? 'bg-acento' : p < 25 ? 'bg-baja' : 'bg-suave'}`} style={{ width: `${p}%` }} /></span>
+    <span className={`text-[11px] tabular ${colorPercentil(p)}`}><span className="sr-only">percentil </span>p{Math.round(p)}</span>
   </span>
 )
 export const Pastilla = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
@@ -179,7 +186,7 @@ export default function Ficha({ isin }: { isin: string }) {
     return out
   }, [datos, rango])
 
-  if (error) return <p className="text-baja">No se ha podido cargar el fondo: {error}</p>
+  if (error) return <Fallo>No se ha podido cargar el fondo: {error}</Fallo>
   if (datos === undefined) return <Cargando pagina texto={`Cargando ${isin}…`} />
   if (datos === null) return <p className="text-suave">No hay ningún fondo con ISIN {isin}.</p>
 
@@ -190,6 +197,10 @@ export default function Ficha({ isin }: { isin: string }) {
   const seguir = () => q.seguir(f.isin).then(() => setSeguido(true)).catch((x: Error) => setError(x.message))
   const anos = [...new Set((datos.metricas ?? []).filter((x) => /^\d{4}$/.test(x.ventana)).map((x) => x.ventana))].sort().reverse()
   const recup = m.get('10a|recuperacion_semanas')?.valor
+  const doce = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10)
+  const nov = novedades([{ isin: f.isin, nombre: f.nombre, divisa: f.divisa, patrimonio: f.patrimonio_meur == null ? null : Number(f.patrimonio_meur),
+    flujo3m: m.get('3m|flujo')?.valor ?? null, flujoPct3m: m.get('3m|flujo_pct')?.valor ?? null, cambios: datos.cambios.filter((c) => c.fecha >= doce) }],
+    umbralesNovedades(datos.umbrales))
   const textoRef = ref.metodo === 'indice' ? ref.indice?.nombre : ref.metodo === 'media_categoria' ? 'media de su categoría' : 'sin referencia'
 
   const enBandeja = bandeja.some((x) => x.isin === f.isin)
@@ -205,13 +216,13 @@ export default function Ficha({ isin }: { isin: string }) {
     <article className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         <div className="min-w-0 space-y-2">
-          <p className="rotulo text-acento!">{f.categoria ?? 'sin categoría'}</p>
           <h1 className="text-3xl! sm:text-4xl!">{f.nombre}</h1>
           <div className="flex flex-wrap gap-1.5 text-suave">
+            <Pastilla>{f.categoria ?? 'sin categoría'}</Pastilla>
             <Pastilla className="font-mono">{f.isin}</Pastilla>
             <Pastilla>{f.divisa}{cubierta(f.nombre) && ' cubierta'}</Pastilla>
             {f.gestion && <Pastilla>{f.gestion === 'indexada' ? 'Indexado' : 'Gestión activa'}</Pastilla>}
-            {datos.myinvestor.has(f.isin) && <Pastilla className="bg-acento/15! text-acento">En MyInvestor</Pastilla>}
+            {datos.myinvestor.has(f.isin) && <Pastilla className="bg-transparent! border border-acento/60 text-acento">En MyInvestor</Pastilla>}
             {seguido && <Pastilla className="text-acento">★ en seguimiento</Pastilla>}
             {!f.en_universo && <Pastilla className="text-aviso">fuera del universo</Pastilla>}
           </div>
@@ -241,19 +252,26 @@ export default function Ficha({ isin }: { isin: string }) {
         {e && <> · nota de la semana del {fecha(e.fecha)}</>}
       </p>
 
-      <div role="tablist" aria-label="Secciones de la ficha" className="flex flex-wrap gap-5 border-b border-borde">
+      <div role="tablist" aria-label="Secciones de la ficha" className="flex items-end gap-0.5 overflow-x-auto border-b-2 border-texto">
         {pestanas.map((p) => (
           <button key={p} id={`pestana-${p}`} role="tab" aria-selected={pestana === p} aria-controls="panel-ficha" onClick={() => setPestana(p)}
-            className={`-mb-px border-b-2 pb-1.5 capitalize ${pestana === p ? 'border-acento text-texto' : 'border-transparent text-suave hover:text-texto'}`}>
+            className={`estrecha px-3.5 pt-1.5 pb-1 text-[15px] font-bold whitespace-nowrap uppercase ${pestana === p ? 'bg-texto text-fondo' : 'bg-borde/60 text-texto hover:bg-borde'}`}>
             {p}{p === 'clases' ? ` · ${datos.clases.length}` : ''}
           </button>
         ))}
-        <span className="ml-auto self-center text-[11px] text-suave">← → cambiar</span>
+        <span className="ml-auto self-center pl-3 text-[11px] whitespace-nowrap text-suave">← → cambiar</span>
       </div>
 
       <div id="panel-ficha" role="tabpanel" aria-labelledby={`pestana-${pestana}`} className="space-y-5">
         {pestana === 'resumen' && (
           <>
+            {nov.length ? (
+              <section aria-label="Novedades" className="border border-aviso/45 bg-aviso/5 px-4 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="estrecha text-[17px] font-bold uppercase tracking-[0.02em]">Novedades · 12 meses</h2>
+                  <span className="text-[12px] text-suave">cambios de gestor y movimientos fuertes de patrimonio</span></div>
+                <ListaNovedades lista={nov} enlace={(n) => <button onClick={() => setPestana('fondo')} className="text-acento hover:underline">{n.tipo === 'gestor' ? 'ver gestión ›' : 'ver patrimonio ›'}</button>} />
+              </section>
+            ) : <p className="text-[12px] text-suave">Sin novedades en 12 meses: ningún cambio de gestor ni movimiento fuerte de patrimonio (se registran desde noviembre de 2026).</p>}
             {/* Arriba, lo que más se mira: el valor en el tiempo y, a su lado, cómo queda frente a su categoría. */}
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
               <Tarjeta>
@@ -309,35 +327,7 @@ export default function Ficha({ isin }: { isin: string }) {
                   <p className="mt-2 text-[11px] text-suave">Rentabilidad en %, en euros.</p>
                 </Tarjeta>
               )}
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
-                <Tarjeta titulo="Datos del fondo">
-                  <dl className="divide-y divide-borde text-[13px]">
-                    {([
-                      ['Gestora', f.gestora ?? '—'],
-                      ['Equipo gestor', f.gestores?.length ? (
-                        <span className="block text-right">{f.gestores.map((g) => (
-                          <span key={g.nombre} className="block">{g.nombre}{g.desde && <span className="text-suave"> · desde {fecha(g.desde)}</span>}</span>
-                        ))}</span>) : '—'],
-                      ['Referencia', textoRef ?? '—'],
-                      ['Patrimonio', millones(f.patrimonio_meur)],
-                      ['Lanzamiento', fecha(f.fecha_lanzamiento)],
-                      ['Riesgo (SRRI)', f.srri == null ? '—' : (
-                        <span className="flex gap-0.5" aria-label={`${f.srri} de 7`}>
-                          {[1, 2, 3, 4, 5, 6, 7].map((i) => <i key={i} className={`grid h-4 w-4 place-items-center rounded-sm text-[10px] not-italic ${i === Number(f.srri) ? 'bg-acento text-sobre-acento' : 'bg-borde/60 text-suave'}`}>{i}</i>)}
-                        </span>)],
-                      ['Inversión mínima', f.inversion_minima == null ? '—' : `${cifra(Number(f.inversion_minima), 0)} ${f.divisa ?? ''}`],
-                      ['MyInvestor', datos.myinvestor.has(f.isin) ? 'se puede comprar' : 'no'],
-                      ...(f.duracion_efectiva != null || f.calidad_media ? [
-                        ['Duración efectiva', f.duracion_efectiva == null ? '—' : `${cifra(Number(f.duracion_efectiva), 1)} años`],
-                        ['Calidad media', f.calidad_media ?? '—'],
-                      ] : []),
-                    ] as [string, React.ReactNode][]).map(([k, v]) => (
-                      <div key={k} className="flex items-center justify-between gap-4 py-1">
-                        <dt className="text-suave">{k}</dt><dd className="text-right tabular">{v}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </Tarjeta>
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
               <Tarjeta titulo={`Por qué la nota${b?.solo3a ? ' · con métricas a 3 años' : ''}`}>
                 {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_TIPO_DEFECTO[grupoPesos(f.categoria, f.gestion === 'indexada')]} nota={e.nota} /> : <p className="text-suave">—</p>}
                 <p className="mt-2 text-[11px] text-suave">Pesos por defecto de su tipo de activo (o de indexados), sin Diversificación (la nota de las señales). Bloques con las métricas de hoy.</p>
@@ -378,7 +368,7 @@ export default function Ficha({ isin }: { isin: string }) {
               <Tarjeta titulo="Rendimiento reciente" extra={<span className="text-[12px] text-suave">monetario · anualizado, con la serie diaria y neto de gastos</span>}>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[520px] tabular">
-                    <thead><tr className="text-[12px] text-suave"><th />{['Último mes', '2 meses', '3 meses'].map((t) => <th key={t} className="w-[20%] pb-1.5 pl-4 text-right font-normal">{t}</th>)}</tr></thead>
+                    <thead><tr className="rotulo"><th />{['Último mes', '2 meses', '3 meses'].map((t) => <th key={t} className="w-[20%] pb-1.5 pl-4 text-right font-normal">{t}</th>)}</tr></thead>
                     <tbody>
                       {([['rentabilidad', 'Lo que rinde ahora, en % anual', 'Lo ganado en ese tiempo, pasado a un año.'], ['diferencial_estr', 'Frente al €STR', 'Lo que rinde de más sobre el €STR medio de esos meses.']] as const).map(([k, et, ayuda]) => (
                         <tr key={k} className="border-t border-borde/60">
@@ -406,50 +396,85 @@ export default function Ficha({ isin }: { isin: string }) {
                 <p className="mt-2 text-[11px] text-suave">Un mes solo es ruidoso: mira los tres plazos juntos. En clases de distribución el cupón no entra y la cifra sale baja.</p>
               </Tarjeta>
             )}
-            {GRUPOS.map(([grupo, ayudaGrupo, claves]) => (
-              <Tarjeta key={grupo} titulo={grupo} extra={<span className="text-[12px] text-suave">{ayudaGrupo}</span>}>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[600px] tabular">
-                    <thead>
-                      <tr className="text-[12px] text-suave">
-                        <th className="pb-1.5 text-left font-normal" />
-                        {RANGOS.map(([v]) => <th key={v} className="w-[14%] pb-1.5 pl-4 text-right font-normal">{v === '1a' ? '1 año' : `${v.slice(0, -1)} años`}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {claves.map(([nombre, ayuda]) => {
-                        const [, etiqueta, fmt] = FILAS.find(([k]) => k === nombre)!
-                        return (
-                          <tr key={nombre} className="border-t border-borde/60">
-                            <td className="py-2 pr-4 text-left">
-                              <span className="block">{etiqueta}</span>
-                              <span className="block text-[12px] text-suave">{ayuda}</span>
-                            </td>
-                            {RANGOS.map(([v]) => {
-                              const x = m.get(`${v}|${nombre}`)
-                              return (
-                                <td key={v} className="py-2 pl-4 text-right align-top">
-                                  {x ? <>
-                                    <span className="block">{fmt(x.valor)}</span>
-                                    {x.percentil != null && <span className="mt-1 block"><BarraPercentil p={x.percentil} /></span>}
-                                  </> : <span className="text-suave">—</span>}
-                                </td>
-                              )
-                            })}
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Tarjeta>
-            ))}
-            <p className="text-[12px] text-suave">La barra es el percentil en su categoría: 100 es el mejor fondo (en riesgo, el que menos). Solo hay cifra cuando el fondo tiene la historia completa del periodo.</p>
+            <MapaMetricas m={m} dist={datos.dist} />
           </>
         )}
 
         {pestana === 'exposición' && (
           <Exposicion fondos={[{ peso: 100, nombre: f.nombre, c: datos.comp?.datos ?? null, duracion: f.duracion_efectiva, fechaCartera: datos.comp?.fecha_cartera ?? null }]} />
+        )}
+
+        {pestana === 'fondo' && (
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+            <div className="space-y-4">
+                <Tarjeta titulo="Datos">
+                  <dl className="divide-y divide-borde text-[13px]">
+                    {([
+                      ['Gestora', f.gestora ?? '—'],
+                      ['Referencia', textoRef ?? '—'],
+                      ['Lanzamiento', fecha(f.fecha_lanzamiento)],
+                      ['Riesgo (SRRI)', f.srri == null ? '—' : (
+                        <span className="flex gap-0.5" aria-label={`${f.srri} de 7`}>
+                          {[1, 2, 3, 4, 5, 6, 7].map((i) => <i key={i} className={`grid h-4 w-4 place-items-center rounded-sm text-[10px] not-italic ${i === Number(f.srri) ? 'bg-acento text-sobre-acento' : 'bg-borde/60 text-suave'}`}>{i}</i>)}
+                        </span>)],
+                      ['Inversión mínima', f.inversion_minima == null ? '—' : `${cifra(Number(f.inversion_minima), 0)} ${f.divisa ?? ''}`],
+                      ['MyInvestor', datos.myinvestor.has(f.isin) ? 'se puede comprar' : 'no'],
+                      ...(f.duracion_efectiva != null || f.calidad_media ? [
+                        ['Duración efectiva', f.duracion_efectiva == null ? '—' : `${cifra(Number(f.duracion_efectiva), 1)} años`],
+                        ['Calidad media', f.calidad_media ?? '—'],
+                      ] : []),
+                    ] as [string, React.ReactNode][]).map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between gap-4 py-1">
+                        <dt className="text-suave">{k}</dt><dd className="text-right tabular">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </Tarjeta>
+              <Tarjeta titulo="Gestión">
+                {f.gestores?.length ? (
+                  <ul className="divide-y divide-borde">
+                    {f.gestores.map((g) => (
+                      <li key={g.nombre} className="flex items-baseline justify-between gap-4 py-2">
+                        <span><span className="block font-medium">{g.nombre}</span>{g.desde && <span className="text-[12px] text-suave">desde el {fecha(g.desde)}</span>}</span>
+                        {g.desde && <span className="text-right"><span className="cifra text-[22px] leading-none font-extrabold">{Math.floor((Date.now() - Date.parse(g.desde)) / (365.25 * 864e5))}</span><span className="text-[12px] text-suave"> años</span></span>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-suave">Sin equipo gestor en la ficha de Morningstar.</p>}
+                <h3 className="mt-4 mb-1 rotulo">Cambios en el equipo</h3>
+                {datos.cambios.length ? (
+                  <dl className="divide-y divide-borde text-[13px]">
+                    {datos.cambios.map((c) => (
+                      <div key={c.fecha} className="flex justify-between gap-4 py-1">
+                        <dt className="text-suave">{fecha(c.fecha)}</dt>
+                        <dd className="text-right">{[c.entran.length && `entra ${c.entran.join(', ')}`, c.salen.length && `sale ${c.salen.join(', ')}`].filter(Boolean).join(' · ')}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : <p className="border border-dashed border-borde px-3 py-2 text-[13px] text-suave">Ningún cambio desde que se registran (noviembre de 2026). Cada vez que se refresca la ficha se compara el equipo con el guardado.</p>}
+              </Tarjeta>
+            </div>
+            <Tarjeta titulo="Patrimonio y flujos">
+              <div className="flex flex-wrap items-baseline gap-x-3"><span className="cifra text-[34px] leading-none font-extrabold">{f.patrimonio_meur == null ? '—' : `${cifra(Number(f.patrimonio_meur), 1)} M`}</span>
+                <span className="text-[12px] text-suave">patrimonio del fondo (todas sus clases), en millones{f.divisa ? ` de ${f.divisa}` : ''}</span></div>
+              <div className="my-4 grid grid-cols-2 gap-3">
+                {([['3m', 'Flujo neto, 3 meses'], ['1a', 'Flujo neto, 12 meses']] as const).map(([v, t]) => {
+                  const fl = m.get(`${v}|flujo`)?.valor, pc = m.get(`${v}|flujo_pct`)?.valor
+                  return (
+                    <div key={v} className="border-t-2 border-texto pt-1.5">
+                      <div className="text-[12px] text-suave">{t}</div>
+                      <div className={`cifra text-[24px] font-extrabold ${fl == null ? 'text-suave' : Number(fl) >= 0 ? 'text-sube' : 'text-baja'}`}>{fl == null ? '—' : `${Number(fl) > 0 ? '+' : ''}${cifra(Number(fl), 0)} M`}</div>
+                      {pc != null && <div className="text-[12px] text-suave">{pct(Number(pc), 1)} del patrimonio</div>}
+                    </div>
+                  )
+                })}
+              </div>
+              {datos.patrimonio.length > 1
+                ? <Grafico lineas={[{ nombre: 'Patrimonio (M)', serie: datos.patrimonio, color: 'acento' }]} alto="h-56" />
+                : <p className="border border-dashed border-borde px-3 py-2 text-[13px] text-suave">Aún no hay flujos: el patrimonio se guarda desde el {datos.patrimonio[0] ? fecha(datos.patrimonio[0].fecha) : '16-11-2026'}, cada domingo que cambia. El primer flujo saldrá con el segundo dato; los de 3 y 12 meses, cuando haya esa historia.</p>}
+              <p className="mt-2 text-[12px] text-suave">Flujo neto: lo que cambia el patrimonio menos lo que explica la rentabilidad del fondo.</p>
+            </Tarjeta>
+          </div>
         )}
 
         {pestana === 'clases' && (
