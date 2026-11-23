@@ -205,7 +205,7 @@ def orden_universo(repo, limite: int | None, min_patrimonio: float, min_anos: in
              + ('buscador de Morningstar cerrado: fichas refrescadas con la composición · ' if cerrado else f'{n} fichas de Morningstar España · ')
              + f'{dentro} fondos en el universo '
              f'(patrimonio ≥ {min_patrimonio:g} M€, ≥ {min_anos} años, como mucho {tope} por categoría; '
-             f'una clase por fondo, o todas las de MyInvestor si vende alguna) · '
+             f'los de MyInvestor, todos con ≥ 1 año; una clase por fondo, o todas las de MyInvestor si vende alguna) · '
              f'MyInvestor: {len(mi) or "sin descargar"} fondos, {mi_ficha} con ficha ({nuevos} nuevas; {no_estan} no están en Morningstar), {mi_dentro} en el universo · '
              f'inversión mínima conocida en {con_minima} de {fichas} fichas · '
              f'{borrados} valores borrados de fondos que salen')

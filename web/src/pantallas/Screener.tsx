@@ -47,8 +47,8 @@ export default function Screener() {
   const [pesos, setPesos] = useState<PesosTipo>(() => aPesosTipo(g.pesos))
   // pesos que se editan: los del tipo del filtro, o los de indexados si se filtra por ellos
   const [tipoPesos, setTipoPesos] = useState<GrupoPesos>(g.tipoPesos ?? 'renta variable')
-  const [filtros, setFiltros] = useState<Filtros>(() => deModo(g.modo, g.filtros ?? {}).filtros)
-  const [modo, setModo] = useState<Modo>(() => deModo(g.modo, g.filtros ?? {}).modo)
+  const [filtros, setFiltros] = useState<Filtros>(() => deModo(g.modo, g.filtros ?? { soloMyinvestor: true }).filtros)
+  const [modo, setModo] = useState<Modo>(() => deModo(g.modo, g.filtros ?? { soloMyinvestor: true }).modo)
   const [carteraId, setCarteraId] = useState<number | ''>(g.carteraId ?? '')
   const [enCartera, setEnCartera] = useState<Set<string>>(new Set())
   const [excluirSuyos, setExcluirSuyos] = useState(g.excluirSuyos ?? false)
