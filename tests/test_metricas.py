@@ -2,6 +2,7 @@ import datetime as dt
 import math
 
 import pytest
+from fondos.nucleo import metricas as m
 
 from fondos.nucleo.metricas import (a_eur, correlacion_media, anualizada, captura, combinar, consistencia, desviacion_bajista,
                                     maxima_caida, media_rendimientos, metricas_fondo, nota, percentiles, regresion,
@@ -289,3 +290,43 @@ def test_mensuales_con_curso_anade_el_mes_a_medias():
     # si el último dato ya es un cierre, no hay mes a medias que añadir
     cerrado = {dt.date(2026, 9, 30): 100.0, dt.date(2026, 10, 30): 102.0}
     assert mensuales_con_curso(cerrado) == mensuales(cerrado)
+
+
+# ------------------------------------------------------------------ nota nueva (en validación)
+def test_escalas_de_la_nota_nueva():
+    assert m.escala(110, 20, 200) == 50 and m.escala(500, 20, 200) == 100 and m.escala(5, 20, 200) == 0
+    assert m.bloque_coste(0.5, 'renta variable') == 75 and m.bloque_coste(1.0, 'renta fija') == 0
+    assert m.bloque_coste(0.0, 'mixto') == 100
+    assert m.bloque_gestor(None) == 100 and m.bloque_gestor(3) == 50 and m.bloque_gestor(0.5) == 0
+    assert m.bloque_tamano(110, None) == 50 and m.bloque_tamano(200, -0.25) == 75 and m.bloque_tamano(None, None) is None
+
+
+def test_suavizar_categorias_pequenas():
+    assert m.suavizar(80, 40, 5) == 60 and m.suavizar(80, 40, 20) == 80
+    assert m.suavizar(None, 40, 5) == 40 and m.suavizar(80, None, 5) == 80
+
+
+def test_bloques_nota_nueva():
+    tipo_ = {('5a', 'diferencia_seguimiento'): 90, ('3a', 'ratio_informacion'): 70, ('hist', 'consistencia'): 50,
+             ('5a', 'captura_bajista'): 40, ('5a', 'caida_relativa'): 60, ('5a', 'volatilidad_relativa'): 20,
+             ('5a', 'sharpe'): 40, ('5a', 'sortino'): 40}
+    cat = {('5a', 'sharpe'): 80, ('5a', 'sortino'): 80}
+    b, solo3 = m.bloques_nota_nueva(cat, tipo_, 5, 'renta variable', 0.5, patrimonio_meur=110)
+    assert not solo3
+    assert b == {'coste': 75, 'proteccion': 50, 'riesgo': 40, 'consistencia': 60, 'rentabilidad': 90,
+                 'gestor': 100, 'tamano': 50}  # riesgo: media de (80·½ + 40·½) y 20
+    # sin exceso sobre un índice (sin referencia) o sin 3 años: sin nota
+    assert m.bloques_nota_nueva(cat, {('5a', 'sharpe'): 40}, 5, 'renta variable', 0.5) is None
+    # con 3 años, la consistencia es solo el ratio de información a 3 años
+    b, solo3 = m.bloques_nota_nueva({}, {('3a', 'diferencia_seguimiento'): 10, ('3a', 'ratio_informacion'): 30,
+                                         ('hist', 'consistencia'): 99}, 30, 'renta fija', None)
+    assert solo3 and b['consistencia'] == 30 and 'coste' not in b
+
+
+def test_metricas_relativas():
+    ref = {(2020 + i // 52, i % 52 + 1): 100 * (1.002 ** i) * (0.7 if 100 <= i < 120 else 1) for i in range(52 * 4)}
+    fondo = {k: 100 + (v - 100) / 2 for k, v in ref.items()}  # se mueve la mitad que su índice
+    r = m.metricas_relativas(fondo, ref)
+    assert r[('3a', 'caida_relativa')] > 0  # cayó menos
+    assert 0.3 < r[('3a', 'volatilidad_relativa')] < 0.7
+    assert ('5a', 'caida_relativa') not in r  # no hay 5 años

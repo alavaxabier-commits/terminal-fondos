@@ -182,3 +182,15 @@ def test_flujos_con_historial_de_patrimonio_y_sin_percentil():
     assert ('TECNO0000000', '1a', 'flujo') in filas and ('TECNO0000000', '3m', 'flujo') in filas
     assert filas[('TECNO0000000', '1a', 'flujo_pct')][1] is None   # sin percentil
     assert ('GLOBAL000001', '1a', 'flujo') not in filas             # sin historial, sin flujo
+
+
+def test_percentiles_por_tipo_de_activo_y_nota_nueva():
+    fondos = {f'F{i}': {'categoria': 'Global Large-Cap Blend Equity' if i < 3 else 'Sector Equity Technology',
+                        'en_universo': True, 'ter': 0.5, 'fund_id': f'F{i}', 'gestion': 'activa'} for i in range(6)}
+    fondos['F5']['gestion'] = 'indexada'
+    res = {i: {('3a', 'diferencia_seguimiento'): k / 100, ('3a', 'sharpe'): k} for k, i in enumerate(fondos)}
+    por_tipo = calculo.percentiles_categoria(res, fondos, lambda f: 'todos')
+    assert por_tipo['F0'][('3a', 'diferencia_seguimiento')] == 0 and por_tipo['F5'][('3a', 'diferencia_seguimiento')] == 100
+    notas = calculo.notas_nuevas(res, fondos, calculo.percentiles_categoria(res, fondos))
+    assert set(notas) == {'F0', 'F1', 'F2', 'F3', 'F4'}  # el indexado sigue con su nota
+    assert notas['F4'][2]['rentabilidad'] == 80 and notas['F4'][1]  # solo 3 años

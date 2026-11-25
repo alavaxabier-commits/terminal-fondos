@@ -70,3 +70,18 @@ def test_comparar_propios():
     texto = comparar_propios(fotos, fondos, dt.date(2022, 6, 30))
     assert '| sin bloques propios | — | — | — | 5.5 (2) | — |' in texto
     assert '| con bloques propios | — | — | — | 94.5 (2) | — |' in texto
+
+
+def test_nota_de_hoy_frente_a_la_nueva():
+    from fondos.analisis import comparar_notas
+    fondos = {f'F{i}': {'categoria': 'Global Large-Cap Blend Equity', 'en_universo': True, 'ter': 1.0, 'fund_id': f'F{i}'} for i in range(10)}
+    c0, c1 = dt.date(2021, 6, 30), dt.date(2022, 6, 30)
+    # la nueva ordena igual que el exceso futuro; la de hoy, al revés
+    fotos = {c0: {i: {'bloques': {'coste': 100 - k * 10}, 'nueva': k * 10, 'valores': {}} for k, i in enumerate(fondos)},
+             c1: {i: {'bloques': {}, 'nueva': None,
+                      'valores': {('1a', 'diferencia_seguimiento'): (k - 5) / 100, ('1a', 'max_caida'): -0.1}}
+                  for k, i in enumerate(fondos)}}
+    texto = comparar_notas(fotos, fondos)
+    assert '| de hoy | 0.0 % | -4.50 | -10.0 |  | 2 |' in texto
+    assert '| nueva | 100.0 % | +3.50 | -10.0 | 1/1 | 2 |' in texto
+    assert '| todos (sin elegir) | 40.0 % |' in texto

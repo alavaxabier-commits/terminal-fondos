@@ -578,3 +578,101 @@ def ponderar(bloques: dict[str, float], pesos: dict[str, float]) -> float | None
     con = {b: x for b, x in bloques.items() if pesos.get(b)}
     total = sum(pesos[b] for b in con)
     return sum(pesos[b] * x for b, x in con.items()) / total if total else None
+
+
+# ------------------------------------------------------------------ nota nueva (en validación)
+# Especificación, pestaña «Puntuación: opciones», «La nota nueva». Lo que mide frente al índice (Rentabilidad,
+# Consistencia, Protección y la mitad relativa de Riesgo) se pasa a percentil en el tipo de activo; Sharpe y Sortino, en
+# la categoría, suavizados hacia el tipo si la categoría tiene pocos fondos; coste, gestor y tamaño, con escalas fijas.
+# Solo fondos activos que no son monetarios: indexados y monetarios siguen con `bloques_nota`.
+PESOS_NOTA_NUEVA = {'coste': 30, 'proteccion': 20, 'riesgo': 15, 'consistencia': 15, 'rentabilidad': 10,
+                    'gestor': 5, 'tamano': 5, 'tir': 0}
+TOPE_TER = {'renta variable': 2.0, 'otros': 2.0, 'mixto': 1.5, 'renta fija': 1.0, 'monetario': 0.5}  # % con nota 0
+CATEGORIA_LLENA = 10  # con menos fondos, el percentil de la categoría se mezcla con el del tipo de activo
+MENOS_ES_MEJOR.add('volatilidad_relativa')
+
+
+def metricas_relativas(s: SerieSemanal, ref: SerieSemanal) -> dict[tuple[str, str], float]:
+    """Frente a la referencia, en cada plazo completo: caída máxima del fondo − la de la referencia en las mismas
+    semanas (positiva = cayó menos) y volatilidad del fondo / la de la referencia."""
+    out = {}
+    if len(s) < 2:
+        return out
+    ultima = list(s)[-1]
+    for nombre_v, n in VENTANAS.items():
+        w = ventana_completa(s, ultima, n)
+        if w is None:
+            continue
+        wr = {k: ref[k] for k in w if k in ref}
+        if len(wr) < 10:
+            continue
+        cf, cr = maxima_caida(w)[0], maxima_caida(wr)[0]
+        if cf is not None and cr is not None:
+            out[(nombre_v, 'caida_relativa')] = cf - cr
+        vf, vr = volatilidad(list(rendimientos(w).values())), volatilidad(list(rendimientos(wr).values()))
+        if vf is not None and vr:
+            out[(nombre_v, 'volatilidad_relativa')] = vf / vr
+    return out
+
+
+def escala(x: float, cero: float, cien: float) -> float:
+    """x pasado a 0–100 en línea recta entre `cero` y `cien` (vale al revés: cero > cien), recortado a 0–100."""
+    return max(0.0, min(100.0, (x - cero) / (cien - cero) * 100))
+
+
+def bloque_coste(ter: float, tipo: str) -> float:
+    """TER (%) a 0–100: 0 % = 100 y el tope de su tipo de activo = 0."""
+    return escala(ter, TOPE_TER.get(tipo, 2.0), 0.0)
+
+
+def bloque_gestor(anos: float | None) -> float:
+    """Años desde el último cambio de equipo a 0–100: menos de 1 = 0, 5 o más = 100. Sin cambio registrado = 100."""
+    return 100.0 if anos is None else escala(anos, 1, 5)
+
+
+def bloque_tamano(patrimonio_meur: float | None, flujo_pct: float | None) -> float | None:
+    """Media de dos tramos: patrimonio 20 M€ = 0 y 200 M€ = 100; flujos a 1 año (tanto por uno) −40 % = 0 y −10 % = 100."""
+    xs = ([escala(patrimonio_meur, 20, 200)] if patrimonio_meur is not None else []) + \
+         ([escala(flujo_pct, -0.40, -0.10)] if flujo_pct is not None else [])
+    return fmean(xs) if xs else None
+
+
+def suavizar(p_cat: float | None, p_tipo: float | None, n_cat: int) -> float | None:
+    """Percentil en la categoría mezclado con el del tipo de activo cuando la categoría tiene menos de CATEGORIA_LLENA
+    fondos: con n fondos, n/10 del de la categoría."""
+    if p_cat is None or p_tipo is None:
+        return p_cat if p_tipo is None else p_tipo
+    w = min(n_cat, CATEGORIA_LLENA) / CATEGORIA_LLENA
+    return w * p_cat + (1 - w) * p_tipo
+
+
+def bloques_nota_nueva(pct_cat: dict[tuple[str, str], float], pct_tipo: dict[tuple[str, str], float], n_cat: int,
+                       tipo: str, ter: float | None, gestor_anos: float | None = None,
+                       patrimonio_meur: float | None = None, flujo_pct: float | None = None,
+                       ventana: str | None = None) -> tuple[dict[str, float], bool] | None:
+    """Bloques 0–100 de la nota nueva de un fondo activo y si va con 3A por no tener 5; None sin 3 años o sin referencia
+    (sin exceso sobre el índice no se puede puntuar). `pct_cat` y `pct_tipo`: percentiles en su categoría y en su tipo
+    de activo, {(ventana, nombre): percentil}."""
+    v = ventana or ('5a' if ('5a', 'diferencia_seguimiento') in pct_tipo else '3a')
+    if (v, 'diferencia_seguimiento') not in pct_tipo:
+        return None
+    largo = v in ('5a', '10a')
+
+    def media(*xs):
+        xs = [x for x in xs if x is not None]
+        return fmean(xs) if xs else None
+
+    t = pct_tipo.get
+    riesgo_abs = suavizar(media(pct_cat.get((v, 'sharpe')), pct_cat.get((v, 'sortino'))),
+                          media(t((v, 'sharpe')), t((v, 'sortino'))), n_cat)
+    bloques = {
+        'coste': bloque_coste(ter, tipo) if ter is not None else None,
+        'proteccion': media(t((v, 'captura_bajista')), t((v, 'caida_relativa'))),
+        'riesgo': media(riesgo_abs, t((v, 'volatilidad_relativa'))),
+        'consistencia': media(t(('hist', 'consistencia')) if largo else None, t(('3a' if largo else v, 'ratio_informacion'))),
+        'rentabilidad': t((v, 'diferencia_seguimiento')),
+        'gestor': bloque_gestor(gestor_anos),
+        'tamano': bloque_tamano(patrimonio_meur, flujo_pct),
+        'tir': pct_cat.get(('hoy', 'tir_neta')) if tipo == 'renta fija' else None,
+    }
+    return {b: x for b, x in bloques.items() if x is not None}, ventana is None and v == '3a'

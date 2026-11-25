@@ -66,10 +66,11 @@ def referencias(fondos: dict[str, dict], rend: dict[str, dict], indices: dict[st
     return series, usa
 
 
-def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict]) -> dict[str, dict]:
-    """{isin: {(ventana, nombre): valor}} → {isin: {(ventana, nombre): percentil}} dentro de la categoría, entre fondos
-    del universo y con una sola clase por fondo (la de menor TER); las demás clases del universo de ese fondo se sitúan
-    frente a la misma distribución, sin contar en ella."""
+def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict], grupo=None) -> dict[str, dict]:
+    """{isin: {(ventana, nombre): valor}} → {isin: {(ventana, nombre): percentil}} dentro de la categoría (o del grupo
+    que dé `grupo(fondo)`, p. ej. el tipo de activo), entre fondos del universo y con una sola clase por fondo (la de
+    menor TER); las demás clases del universo de ese fondo se sitúan frente a la misma distribución, sin contar en ella."""
+    clave = grupo or (lambda f: f['categoria'])
     del_universo = [i for i in resultados if fondos[i].get('en_universo') and fondos[i].get('categoria')]
     cuenta: dict[str, str] = {}
     for isin in sorted(del_universo, key=lambda i: (fondos[i].get('ter') is None, fondos[i].get('ter') or 0, i)):
@@ -78,14 +79,14 @@ def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict]) 
     por_cat_metrica: dict[tuple[str, str, str], dict[str, float]] = defaultdict(dict)
     for isin in cuentan:
         for (ventana, nombre), valor in resultados[isin].items():
-            por_cat_metrica[(fondos[isin]['categoria'], ventana, nombre)][isin] = valor
+            por_cat_metrica[(clave(fondos[isin]), ventana, nombre)][isin] = valor
     pct: dict[str, dict] = defaultdict(dict)
     for (cat, ventana, nombre), valores in por_cat_metrica.items():
         for isin, p in m.percentiles(valores, nombre).items():
             pct[isin][(ventana, nombre)] = p
     for isin in set(del_universo) - cuentan:
         for (ventana, nombre), valor in resultados[isin].items():
-            valores = por_cat_metrica.get((fondos[isin]['categoria'], ventana, nombre), {})
+            valores = por_cat_metrica.get((clave(fondos[isin]), ventana, nombre), {})
             p = m.percentiles({**valores, isin: valor}, nombre).get(isin)
             if p is not None:
                 pct[isin][(ventana, nombre)] = p
@@ -110,6 +111,37 @@ def solo_con_cobertura(pct: dict[str, dict], resultados: dict[str, dict], fondos
         if clave in p and fondos[isin].get('categoria') in pocas:
             del p[clave]
     return pct
+
+
+# Lo que la nota nueva compara en el tipo de activo (todo lo que va frente al índice, y Sharpe y Sortino para suavizar)
+EN_TIPO = {'diferencia_seguimiento', 'ratio_informacion', 'consistencia', 'captura_bajista', 'caida_relativa',
+           'volatilidad_relativa', 'sharpe', 'sortino'}
+
+
+def notas_nuevas(resultados: dict[str, dict], fondos: dict[str, dict], pct_cat: dict[str, dict],
+                 extra: dict[str, dict] | None = None) -> dict[str, tuple[float, bool, dict]]:
+    """Nota nueva (en validación) de los fondos activos que no son monetarios: {isin: (nota, solo 3A, bloques)}.
+    `extra`: {isin: {'gestor_anos', 'patrimonio_meur'}} (lo que no sale de las series)."""
+    extra = extra or {}
+    pct_tipo = percentiles_categoria({i: {k: v for k, v in r.items() if k[1] in EN_TIPO} for i, r in resultados.items()},
+                                     fondos, lambda f: m.tipo_activo(f['categoria']))
+    fondos_cat: dict[str, set] = defaultdict(set)
+    for i, f in fondos.items():
+        if f.get('en_universo') and f.get('categoria'):
+            fondos_cat[f['categoria']].add(f.get('fund_id') or i)
+    out = {}
+    for isin, pt in pct_tipo.items():
+        f = fondos[isin]
+        tipo = m.tipo_activo(f.get('categoria'))
+        if f.get('gestion') == 'indexada' or tipo == 'monetario':
+            continue
+        e = extra.get(isin, {})
+        b = m.bloques_nota_nueva(pct_cat.get(isin, {}), pt, len(fondos_cat[f['categoria']]), tipo, f.get('ter'),
+                                 e.get('gestor_anos'), e.get('patrimonio_meur'),
+                                 resultados[isin].get(('1a', 'flujo_pct')))
+        if b and (n := m.ponderar(b[0], m.PESOS_NOTA_NUEVA)) is not None:
+            out[isin] = (n, b[1], b[0])
+    return out
 
 
 def diversificacion(rend: dict[str, dict], fondos: dict[str, dict], carteras: dict[int, list[str]]) -> list[tuple]:
@@ -142,6 +174,8 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
     for isin, s in semanales.items():
         ref = series_ref.get(usa.get(isin, ''))
         resultados[isin] = m.metricas_fondo(s, ref, estr_semanal, hoy, en_eur[isin])
+        if ref:
+            resultados[isin].update(m.metricas_relativas(s, ref))  # para la nota nueva
         if isin in datos.get('diarios', {}):  # monetarios: rendimiento reciente con la serie diaria
             resultados[isin].update(m.metricas_monetario(serie_eur(datos['diarios'][isin], fondos[isin].get('divisa'), tipos),
                                                          datos['estr']))
