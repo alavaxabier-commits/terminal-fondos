@@ -156,11 +156,13 @@ BLOQUES = {
 POSICION = {'nombre': 'SecurityName', 'isin': 'ISIN', 'peso': 'Weighting', 'tipo': 'DetailHoldingTypeId',
             'sector': 'GlobalSectorId', 'pais': 'CountryId'}
 PAGINAS = ('equityHoldingPage', 'boldHoldingPage', 'otherHoldingPage')  # acciones, bonos, otros
+MAX_POSICIONES = 1000  # la cola de los fondos con miles de líneas pesa ~0 en el X-Ray y llenaba la base
 
 
 def leer_posiciones(datos) -> list[dict] | None:
     """Respuesta de posiciones → [{nombre, isin, peso, tipo, sector, pais}] de mayor a menor peso; None si no trae páginas.
-    Sector y país vienen con nombre (no con código, como en la ficha de detalle); las cortas, con peso negativo."""
+    Sector y país vienen con nombre (no con código, como en la ficha de detalle); las cortas, con peso negativo.
+    Como mucho MAX_POSICIONES, las de más peso en valor absoluto."""
     if not isinstance(datos, dict) or not any(isinstance(datos.get(p), dict) for p in PAGINAS):
         return None
     out = []
@@ -172,6 +174,7 @@ def leer_posiciones(datos) -> list[dict] | None:
             x = {'nombre': h['securityName'].strip(), 'isin': h.get('isin'), 'peso': round(peso, 4), 'tipo': h.get('holdingTypeId'),
                  'sector': h.get('sector') or h.get('primarySectorName'), 'pais': h.get('country')}
             out.append({k: v for k, v in x.items() if v is not None})
+    out = sorted(out, key=lambda x: -abs(x['peso']))[:MAX_POSICIONES]
     return sorted(out, key=lambda x: -x['peso'])
 
 

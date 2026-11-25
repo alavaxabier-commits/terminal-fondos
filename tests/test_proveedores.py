@@ -108,6 +108,12 @@ def test_leer_posiciones_todas_las_paginas():
     assert leer_posiciones([]) is None
 
 
+def test_leer_posiciones_tope_por_peso_absoluto(monkeypatch):
+    monkeypatch.setattr('fondos.proveedores.morningstar.MAX_POSICIONES', 2)
+    datos = {'equityHoldingPage': {'holdingList': [{'securityName': n, 'weighting': w} for n, w in (('a', 3), ('b', 0.1), ('c', -2))]}}
+    assert [x['nombre'] for x in leer_posiciones(datos)] == ['a', 'c']
+
+
 def test_completas_si_trae_casi_todas():
     diez = [{'peso': 1}] * 10
     assert not completas(diez, {'total': 2428, 'Stock': 1814})  # fondo que solo publica las 10 mayores
