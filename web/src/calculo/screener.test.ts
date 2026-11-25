@@ -30,11 +30,11 @@ describe('screener', () => {
   it('ordena por nota y deja al final los que no la tienen', () => {
     const r = puntuar([
       fila({ isin: 'A', nombre: 'A', pct: { '1a|rentabilidad': 90 } }),
-      fila({ isin: 'B', nombre: 'B', pct: { '5a|rentabilidad': 20 } }),
-      fila({ isin: 'C', nombre: 'C', pct: { '5a|rentabilidad': 80, 'hoy|ter': 100 } }),
+      fila({ isin: 'B', nombre: 'B', pct: { 'nota|rentabilidad': 20 } }),
+      fila({ isin: 'C', nombre: 'C', pct: { 'nota|rentabilidad': 80, 'nota|coste': 100 } }),
     ], PESOS_TIPO_DEFECTO)
     expect(r.map((x) => x.isin)).toEqual(['C', 'B', 'A'])
-    expect(r[0].nota).toBeCloseTo((80 * 10 + 100 * 40) / 50)
+    expect(r[0].nota).toBeCloseTo((80 * 5 + 100 * 45) / 50)
     expect(r[2].nota).toBeNull()
   })
 })
@@ -85,13 +85,13 @@ describe('región o estilo', () => {
   })
 
   it('la diversificación entra en la nota si hay cartera', () => {
-    const f = fila({ pct: { '5a|rentabilidad': 50 } })
+    const f = fila({ pct: { 'nota|rentabilidad': 50 } })
     expect(puntuar([f], PESOS_TIPO_DEFECTO)[0].nota).toBe(50)
-    expect(puntuar([f], PESOS_TIPO_DEFECTO, new Map([['X', 100]]))[0].nota).toBeCloseTo((50 * 10 + 100 * 10) / 20)
+    expect(puntuar([f], PESOS_TIPO_DEFECTO, new Map([['X', 100]]))[0].nota).toBeCloseTo((50 * 5 + 100 * 10) / 15)
   })
 
   it('alternativas en su categoría: más nota y más barato primero, luego parecida y más barata, luego mucha más nota', () => {
-    const pct = (n: number) => ({ '5a|rentabilidad': n, 'hoy|ter': n })
+    const pct = (n: number) => ({ 'nota|rentabilidad': n, 'nota|coste': n, '5a|rentabilidad': n })
     const fs = puntuar([
       fila({ isin: 'YO', categoria: 'C', ter: 0.4, pct: pct(60) }),
       fila({ isin: 'MEJOR', categoria: 'C', ter: 0.2, pct: pct(70) }),

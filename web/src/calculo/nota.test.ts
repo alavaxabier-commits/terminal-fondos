@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import caso from './caso_metricas.json'
-import { aPesosTipo, bloques, grupoPesos, nota, PESOS_DEFECTO, PESOS_TIPO_DEFECTO, pesosEfectivos, tipoActivo, type Plazo, type Tipo } from './nota'
+import { aPesosTipo, bloques, grupoPesos, nota, PESOS_DEFECTO, PESOS_TIPO_DEFECTO, pesosEfectivos, tipoActivo, type GrupoPesos, type Plazo } from './nota'
 
-describe('nota del screener (port de Python)', () => {
-  it('da lo mismo que Python en el caso común (pesos por defecto, sin Diversificación)', () => {
+describe('nota del screener (bloques de Python)', () => {
+  it('lee los bloques que guarda Python y da la misma nota con los pesos por defecto de su grupo', () => {
     for (const c of caso.notas) {
-      const b = bloques(c.pct as unknown as Record<string, number>, c.indexada, (c.ventana ?? undefined) as Plazo | undefined,
-        (c.tipo ?? undefined) as Tipo | undefined)
+      const b = bloques(c.pct as unknown as Record<string, number>, (c.plazo ?? undefined) as Plazo | undefined)
       if (c.nota === null) { expect(b).toBeNull(); continue }
       expect(b!.solo3a).toBe(c.solo_3a)
-      expect(nota(b!.bloques, { ...PESOS_DEFECTO, ...(c.pesos ?? {}) })).toBeCloseTo(c.nota, 9)
+      expect(nota(b!.bloques, PESOS_TIPO_DEFECTO[c.grupo as GrupoPesos])).toBeCloseTo(c.nota, 9)
     }
   })
 
   it('reparte el peso de un bloque a 0 entre los demás', () => {
-    const b = { riesgo: 100, coste: 0 }
-    expect(pesosEfectivos(b, { ...PESOS_DEFECTO, coste: 0 })).toEqual({ riesgo: 1 })
-    expect(nota(b, PESOS_DEFECTO)).toBeCloseTo(100 * 20 / 60)
+    const b = { proteccion: 100, coste: 0 }
+    expect(pesosEfectivos(b, { ...PESOS_DEFECTO, coste: 0 })).toEqual({ proteccion: 1 })
+    expect(nota(b, PESOS_DEFECTO)).toBeCloseTo(100 * 20 / 65)
   })
 })
 

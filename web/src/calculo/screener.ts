@@ -118,8 +118,7 @@ export function mediana(xs: (number | null | undefined)[]): number | null {
 export function puntuar(filas: FilaScreener[], pesos: PesosTipo, diversificacion?: Map<string, number>, plazo?: Plazo): Puntuado[] {
   return filas
     .map((f) => {
-      const t = tipoActivo(f.categoria)
-      const b = bloques(f.pct ?? {}, indexada(f), plazo, t)
+      const b = bloques(f.pct ?? {}, plazo)
       const d = diversificacion?.get(f.isin)
       const bs = b ? (d == null ? b.bloques : { ...b.bloques, diversificacion: d }) : {}
       return { ...f, bloques: bs, solo3a: b?.solo3a ?? false, nota: b ? nota(bs, pesos[grupoPesos(f.categoria, indexada(f))]) : null }

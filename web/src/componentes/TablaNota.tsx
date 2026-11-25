@@ -1,15 +1,15 @@
 import { cifra } from '../calculo/formato'
 import { BLOQUES, NOMBRE_BLOQUE, pesosEfectivos, type Bloque, type Pesos } from '../calculo/nota'
 
-/** Por qué una nota: percentil, peso efectivo y aportación de cada bloque, y los bloques flojos (percentil < 40). */
+/** Por qué una nota: puntuación (0–100), peso efectivo y aportación de cada bloque, y los bloques flojos (< 40). */
 export default function TablaNota({ bloques, pesos, nota }: { bloques: Partial<Record<Bloque, number>>; pesos: Pesos; nota: number }) {
   const w = pesosEfectivos(bloques, pesos)
-  const flojos = BLOQUES.filter((k) => w[k] && bloques[k]! < 40).map((k) => `${NOMBRE_BLOQUE[k].toLowerCase()} (percentil ${Math.round(bloques[k]!)})`)
+  const flojos = BLOQUES.filter((k) => w[k] && bloques[k]! < 40).map((k) => `${NOMBRE_BLOQUE[k].toLowerCase()} (${Math.round(bloques[k]!)} de 100)`)
   return (
     <>
       <table className="w-full text-right tabular [&_tr>*+*]:pl-2">
         <thead className="rotulo">
-          <tr><th className="py-0.5 text-left font-normal">Bloque</th><th className="font-normal">Pct.</th><th className="font-normal">Peso</th><th className="font-normal">Pone</th></tr>
+          <tr><th className="py-0.5 text-left font-normal">Bloque</th><th className="font-normal">Punt.</th><th className="font-normal">Peso</th><th className="font-normal">Pone</th></tr>
         </thead>
         <tbody>
           {BLOQUES.map((k) => (

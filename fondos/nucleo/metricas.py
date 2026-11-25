@@ -590,6 +590,12 @@ def ponderar(bloques: dict[str, float], pesos: dict[str, float]) -> float | None
 PESOS_NOTA_NUEVA = {'coste': 45, 'proteccion': 20, 'consistencia': 15, 'riesgo': 5, 'rentabilidad': 5,
                     'gestor': 5, 'tamano': 5, 'tir': 0}
 TOPE_TER = {'renta variable': 2.0, 'otros': 2.0, 'mixto': 1.5, 'renta fija': 1.0, 'monetario': 0.5}  # % con nota 0
+# Pesos por defecto de cada grupo con la nota nueva (como PESOS_TIPO_DEFECTO en web/src/calculo/nota.ts): los activos,
+# la nueva; monetarios e indexados, la suya de siempre. PESOS_TIPO se queda como la nota anterior (la compara `analisis`).
+PESOS_GRUPO = {t: PESOS_NOTA_NUEVA for t in ('renta variable', 'renta fija', 'mixto', 'otros')} | {
+    'monetario': PESOS_NOTA, 'indexados': PESOS_TIPO['indexados']}
+PLAZOS_NOTA = ('1a', '3a', '5a', '10a')  # el selector de plazo del screener
+BLOQUES_DE_PLAZO = {'riesgo', 'consistencia', 'proteccion', 'rentabilidad'}  # los demás no dependen del plazo
 CATEGORIA_LLENA = 10  # con menos fondos, el percentil de la categoría se mezcla con el del tipo de activo
 MENOS_ES_MEJOR.add('volatilidad_relativa')
 

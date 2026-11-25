@@ -118,30 +118,57 @@ EN_TIPO = {'diferencia_seguimiento', 'ratio_informacion', 'consistencia', 'captu
            'volatilidad_relativa', 'sharpe', 'sortino'}
 
 
-def notas_nuevas(resultados: dict[str, dict], fondos: dict[str, dict], pct_cat: dict[str, dict],
-                 extra: dict[str, dict] | None = None) -> dict[str, tuple[float, bool, dict]]:
-    """Nota nueva (en validación) de los fondos activos que no son monetarios: {isin: (nota, solo 3A, bloques)}.
-    `extra`: {isin: {'gestor_anos', 'patrimonio_meur'}} (lo que no sale de las series)."""
-    extra = extra or {}
+def bloques_fondos(resultados: dict[str, dict], fondos: dict[str, dict], pct_cat: dict[str, dict],
+                   solo_activos: bool = False) -> dict[str, dict]:
+    """Bloques de la nota de cada fondo con percentiles: {isin: {plazo: (bloques, solo 3A)}}, con plazo None = el de la
+    nota (5A o 3A) y los del selector del screener. Activos que no son monetarios: la nota nueva (frente al índice; sin
+    referencia, sin nota), con su patrimonio y los años desde el último cambio de gestor (`fondos`). Indexados y
+    monetarios: `bloques_nota`."""
     pct_tipo = percentiles_categoria({i: {k: v for k, v in r.items() if k[1] in EN_TIPO} for i, r in resultados.items()},
                                      fondos, lambda f: m.tipo_activo(f['categoria']))
     fondos_cat: dict[str, set] = defaultdict(set)
     for i, f in fondos.items():
         if f.get('en_universo') and f.get('categoria'):
             fondos_cat[f['categoria']].add(f.get('fund_id') or i)
-    out = {}
-    for isin, pt in pct_tipo.items():
+    out: dict[str, dict] = {}
+    for isin, pc in pct_cat.items():
         f = fondos[isin]
         tipo = m.tipo_activo(f.get('categoria'))
-        if f.get('gestion') == 'indexada' or tipo == 'monetario':
-            continue
-        e = extra.get(isin, {})
-        b = m.bloques_nota_nueva(pct_cat.get(isin, {}), pt, len(fondos_cat[f['categoria']]), tipo, f.get('ter'),
-                                 e.get('gestor_anos'), e.get('patrimonio_meur'),
-                                 resultados[isin].get(('1a', 'flujo_pct')))
-        if b and (n := m.ponderar(b[0], m.PESOS_NOTA_NUEVA)) is not None:
-            out[isin] = (n, b[1], b[0])
+        ix = f.get('gestion') == 'indexada'
+        if ix or tipo == 'monetario':
+            if solo_activos:
+                continue
+            por = {v: m.bloques_nota(pc, ix, v, tipo) for v in (None, *m.PLAZOS_NOTA)}
+        else:
+            por = {v: m.bloques_nota_nueva(pc, pct_tipo.get(isin, {}), len(fondos_cat[f.get('categoria')]), tipo,
+                                           f.get('ter'), f.get('gestor_anos'), f.get('patrimonio_meur'),
+                                           resultados.get(isin, {}).get(('1a', 'flujo_pct')), v)
+                   for v in (None, *m.PLAZOS_NOTA)}
+        por = {v: b for v, b in por.items() if b}
+        if por:
+            out[isin] = por
     return out
+
+
+def filas_nota(isin: str, por: dict) -> list[tuple]:
+    """Filas de metrica con los bloques de un fondo ({plazo: (bloques, solo 3A)}): ventana 'nota' (todos, y 'solo3a') y
+    'nota_<plazo>' (solo los que dependen del plazo); valor y percentil = la puntuación. Así las lee `bloques` en
+    web/src/calculo/nota.ts."""
+    filas = []
+    for plazo, (bs, solo3) in por.items():
+        for k, x in bs.items():
+            if plazo is None or k in m.BLOQUES_DE_PLAZO:
+                filas.append((isin, f'nota_{plazo}' if plazo else 'nota', k, x, x))
+        if plazo is None:
+            filas.append((isin, 'nota', 'solo3a', float(solo3), float(solo3)))
+    return filas
+
+
+def notas_nuevas(resultados: dict[str, dict], fondos: dict[str, dict], pct_cat: dict[str, dict]
+                 ) -> dict[str, tuple[float, bool, dict]]:
+    """Nota nueva de los fondos activos que no son monetarios: {isin: (nota, solo 3A, bloques)} (la usa `analisis`)."""
+    return {i: (n, b[None][1], b[None][0]) for i, b in bloques_fondos(resultados, fondos, pct_cat, True).items()
+            if None in b and (n := m.ponderar(b[None][0], m.PESOS_NOTA_NUEVA)) is not None}
 
 
 def diversificacion(rend: dict[str, dict], fondos: dict[str, dict], carteras: dict[int, list[str]]) -> list[tuple]:
@@ -188,18 +215,21 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
 
     filas = []
     pct = solo_con_cobertura(percentiles_categoria(resultados, fondos), resultados, fondos, ('hoy', 'tir_neta'))
-    # nota del screener (pesos por defecto de su tipo de activo, o de indexados) y su percentil en la categoría, con la misma regla de una
-    # clase por fondo
-    notas = {isin: n for isin, p in pct.items()
-             if (n := m.nota(p, (ix := fondos[isin].get('gestion') == 'indexada'),
-                             m.PESOS_TIPO[m.grupo_pesos(fondos[isin].get('categoria'), ix)],
-                             m.tipo_activo(fondos[isin].get('categoria')))) is not None}
+    # bloques de la nota (0–100): se guardan en metrica (ventana 'nota' y, los que dependen del plazo, 'nota_<plazo>'; valor y
+    # percentil = la puntuación) para que la web solo pondere. Nota semanal: pesos por defecto de su grupo y su percentil en
+    # la categoría, con la misma regla de una clase por fondo
+    bloques = bloques_fondos(resultados, fondos, pct)
+    notas = {i: (n, b[None][1]) for i, b in bloques.items() if None in b
+             and (n := m.ponderar(b[None][0], m.PESOS_GRUPO[m.grupo_pesos(fondos[i].get('categoria'),
+                                                                           fondos[i].get('gestion') == 'indexada')])) is not None}
     pct_nota = percentiles_categoria({i: {('hoy', 'nota'): n[0]} for i, n in notas.items()}, fondos)
     notas_filas = [(i, round(n, 2), pct_nota.get(i, {}).get(('hoy', 'nota')), solo3)
                    for i, (n, solo3) in notas.items()]
     for isin, res in resultados.items():
         for (ventana, nombre), valor in res.items():
             filas.append((isin, ventana, nombre, float(valor), pct.get(isin, {}).get((ventana, nombre))))
+    for isin, por in bloques.items():
+        filas += filas_nota(isin, por)
     # las referencias, también de cierre a cierre de mes (y el mes en curso, para el año en curso), para las carteras (que se calculan en la web)
     ref_mes, _ = referencias(fondos, {i: m.mensuales_con_curso(v) for i, v in en_eur.items()},
                              datos['indices'], datos['categorias'], m.tasa_mensual(datos['estr']))

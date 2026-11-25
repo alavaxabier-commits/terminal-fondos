@@ -37,37 +37,37 @@ def calcular(hoy, serie, ref, rf):
     return {f'{v}|{n}': x for (v, n), x in sorted(out.items())}
 
 
-# Notas del screener: percentiles de un fondo → nota (o None), para el port de la web
-NOTAS = [
-    ({'5a|sharpe': 80, '5a|sortino': 60, 'hist|consistencia': 40, '3a|ratio_informacion': 60, 'hoy|ter': 90,
-      '5a|max_caida': 30, '5a|captura_bajista': 50, '5a|rentabilidad': 100, '5a|tracking_error': 0}, False),
-    ({'5a|sharpe': 80, '5a|sortino': 60, 'hist|consistencia': 40, '3a|ratio_informacion': 60, 'hoy|ter': 90,
-      '5a|max_caida': 30, '5a|captura_bajista': 50, '5a|rentabilidad': 100, '5a|tracking_error': 0}, True),
-    ({'3a|rentabilidad': 50, '3a|sharpe': 50, 'hist|consistencia': 0, '3a|ratio_informacion': 100}, False),
-    ({'1a|rentabilidad': 50}, False),
-    # con plazo elegido en el screener
-    ({'1a|rentabilidad': 40, '1a|sharpe': 60, '1a|captura_bajista': 20, '1a|ratio_informacion': 70, 'hist|consistencia': 10,
-      '3a|ratio_informacion': 0, 'hoy|ter': 50, '5a|rentabilidad': 90}, False, '1a'),
-    ({'10a|rentabilidad': 40, '10a|max_caida': 60, 'hist|consistencia': 10, '3a|ratio_informacion': 30, '10a|tracking_error': 80},
-     False, '10a'),
-    ({'10a|rentabilidad': 40, '10a|tracking_error': 80}, True, '10a'),
-    ({'5a|rentabilidad': 90}, False, '10a'),
-    # bloques propios: indexado (tracking difference + tracking error), monetario (13 semanas) y renta fija (TIR)
-    ({'5a|rentabilidad': 40, '5a|diferencia_seguimiento': 90, '5a|tracking_error': 30, 'hoy|ter': 80}, True, None, None),
-    ({'5a|rentabilidad': 40, '13s|rentabilidad': 90, 'hoy|ter': 80}, False, None, 'monetario'),
-    ({'5a|rentabilidad': 40, 'hoy|tir_neta': 70, 'hoy|ter': 80}, False, None, 'renta fija', {'tir': 25}),
-]
+# Notas del screener: Python guarda los bloques en metrica (calculo.filas_nota) y la web solo los lee y pondera con los
+# pesos por defecto de su grupo. El caso: bloques calculados aquí → filas → lo que la web debe leer y la nota esperada.
+TIPO_ACTIVO = {('5a', 'diferencia_seguimiento'): 90, ('3a', 'diferencia_seguimiento'): 70, ('3a', 'ratio_informacion'): 70,
+               ('hist', 'consistencia'): 50, ('5a', 'captura_bajista'): 40, ('5a', 'caida_relativa'): 60,
+               ('5a', 'volatilidad_relativa'): 20, ('5a', 'sharpe'): 40, ('5a', 'sortino'): 40, ('3a', 'sharpe'): 10}
+CATEGORIA = {('5a', 'sharpe'): 80, ('5a', 'sortino'): 80, ('3a', 'sharpe'): 30, ('5a', 'rentabilidad'): 40,
+             ('3a', 'rentabilidad'): 60, ('5a', 'tracking_error'): 30, ('5a', 'diferencia_seguimiento'): 90,
+             ('hoy', 'ter'): 80, ('13s', 'rentabilidad'): 90, ('hoy', 'tir_neta'): 70, ('5a', 'max_caida'): 20}
+
+
+def casos_nota():
+    yield 'renta variable', {v: m.bloques_nota_nueva(CATEGORIA, TIPO_ACTIVO, 5, 'renta variable', 0.5, None, 110, -0.2, v)
+                             for v in (None, '3a', '5a', '1a')}
+    yield 'renta fija', {v: m.bloques_nota_nueva(CATEGORIA, {k: x for k, x in TIPO_ACTIVO.items() if k[0] != '5a'}, 30,
+                                                 'renta fija', 0.4, 2.0, None, None, v) for v in (None, '3a')}
+    yield 'renta variable', {None: m.bloques_nota_nueva(CATEGORIA, {}, 5, 'renta variable', 0.5)}  # sin referencia
+    yield 'indexados', {v: m.bloques_nota(CATEGORIA, True, v) for v in (None, '5a', '3a')}
+    yield 'monetario', {v: m.bloques_nota(CATEGORIA, False, v, 'monetario') for v in (None, '5a')}
 
 
 def notas():
+    from fondos.calculo import filas_nota
     out = []
-    for pct, indexada, *resto in NOTAS:
-        ventana, tipo, extra = (resto + [None, None, None])[:3]
-        pesos = {**m.PESOS_NOTA, **(extra or {})}
-        b = m.bloques_nota({tuple(k.split('|')): v for k, v in pct.items()}, indexada, ventana, tipo)
-        n = b and m.ponderar(b[0], pesos)
-        out.append({'pct': pct, 'indexada': indexada, 'ventana': ventana, 'tipo': tipo, 'pesos': extra,
-                    'nota': n, 'solo_3a': b and b[1] if n is not None else None})
+    for grupo, por in casos_nota():
+        por = {v: b for v, b in por.items() if b}
+        pct = {f'{v}|{n}': p for _, v, n, _, p in filas_nota('X', por)}
+        for plazo in (None, '1a', '3a', '5a'):
+            b = por.get(plazo)
+            n = b and m.ponderar(b[0], m.PESOS_GRUPO[grupo])
+            out.append({'pct': pct, 'grupo': grupo, 'plazo': plazo, 'nota': n,
+                        'solo_3a': b[1] if n is not None else None})
     return out
 
 

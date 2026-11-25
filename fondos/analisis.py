@@ -62,7 +62,8 @@ def cortes(desde: dt.date, hasta: dt.date) -> list[dt.date]:
 def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
     """Todo calculado como si fuera `corte`: {isin: {'bloques': {...}, 'valores': {(ventana, nombre): valor}}}."""
     recortados = {**datos, 'carteras': {},
-                  'fondos': {i: {**f, 'tir': None} for i, f in datos['fondos'].items()},  # la TIR de hoy no se sabía entonces
+                  # la TIR, el patrimonio y los cambios de gestor de hoy no se sabían entonces
+                  'fondos': {i: {**f, 'tir': None, 'patrimonio_meur': None, 'gestor_anos': None} for i, f in datos['fondos'].items()},
                   'valores': {i: {d: v for d, v in s.items() if d <= corte} for i, s in datos['valores'].items()}}
     filas = calcular(recortados, corte)[0]
     pct: dict[str, dict] = defaultdict(dict)

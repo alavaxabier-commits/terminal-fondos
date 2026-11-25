@@ -125,8 +125,12 @@ def test_notas_con_percentil_en_la_categoria():
     assert filas[('TECNO0000004', 'hoy', 'ter')] == (pytest.approx(0.6), 100)  # menos TER, mejor percentil
     notas = {i: (n, p, solo3) for i, n, p, solo3 in calculo.calcular(d, HOY)[2]}
     tecno = [notas[f'TECNO000000{k}'] for k in range(5)]
-    assert [p for _, p, _ in tecno] == [0, 25, 50, 75, 100]
+    assert sorted(p for _, p, _ in tecno) == [0, 25, 50, 75, 100]
     assert all(0 <= n <= 100 and not solo3 for n, _, solo3 in tecno)
+    # los bloques se guardan en metrica para que la web solo pondere: coste con escala fija (TER 0,6 % → 70)
+    assert filas[('TECNO0000004', 'nota', 'coste')] == (70.0, 70.0)
+    assert filas[('TECNO0000004', 'nota', 'solo3a')] == (0.0, 0.0)
+    assert ('TECNO0000004', 'nota_5a', 'rentabilidad') in filas and ('TECNO0000004', 'nota_5a', 'coste') not in filas
     assert 'PROXYWORLD01' not in notas  # fuera del universo y sin percentiles: sin nota
 
 

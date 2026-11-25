@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { exposicion, type Composicion, type Fila } from '../calculo/exposicion'
 import { cifra, colorPercentil, millones, pct } from '../calculo/formato'
 import { rendimientos, riesgo, semanal } from '../calculo/metricas'
-import { BLOQUES, bloques, NOMBRE_BLOQUE, nota, grupoPesos, PESOS_TIPO_DEFECTO, tipoActivo, type Plazo } from '../calculo/nota'
+import { BLOQUES, bloques, NOMBRE_BLOQUE, nota, grupoPesos, PESOS_TIPO_DEFECTO, type Plazo } from '../calculo/nota'
 import { base100, caidas, haceAnos, inicioComun, type Punto } from '../calculo/series'
 import Candidatos from '../componentes/Candidatos'
 import Dispersion from '../componentes/Dispersion'
@@ -219,7 +219,7 @@ const Fila = ({ etiqueta, celdas }: { etiqueta: string; celdas: React.ReactNode[
 function Resumen({ fondos, color, ventana }: Props & { ventana: string }) {
   const notas = fondos.map((d) => {
     const pcts = Object.fromEntries([...d.metricas].filter(([, x]) => x.percentil != null).map(([k, x]) => [k, x.percentil!]))
-    const b = bloques(pcts, d.fondo.gestion === 'indexada', ventana as Plazo, tipoActivo(d.fondo.categoria))
+    const b = bloques(pcts, ventana as Plazo)
     return b && { bloques: b.bloques, nota: nota(b.bloques, PESOS_TIPO_DEFECTO[grupoPesos(d.fondo.categoria, d.fondo.gestion === 'indexada')]) }
   })
   const barra = (v: number | null | undefined, resaltar: boolean) => v == null ? <span className="text-suave">—</span> : (

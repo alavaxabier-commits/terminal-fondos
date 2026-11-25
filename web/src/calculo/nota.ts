@@ -1,16 +1,21 @@
-// Nota del screener: port de `nota()` en fondos/nucleo/metricas.py (los dos pasan las notas de caso_metricas.json).
-// Cada bloque promedia los percentiles de sus métricas (de la tabla metrica, dentro de la categoría); la nota es la
-// media ponderada de los bloques con datos: el peso de un bloque sin datos se reparte entre los demás.
+// Nota del screener. Los bloques (0–100) los calcula Python (`bloques_fondos` en fondos/calculo.py) y los guarda en la
+// tabla metrica (ventana 'nota' y, los que dependen del plazo, 'nota_<plazo>'); aquí solo se leen y se ponderan con los
+// pesos elegidos. Los dos lados pasan las notas de caso_metricas.json.
 
-export const BLOQUES = ['riesgo', 'consistencia', 'coste', 'proteccion', 'rentabilidad', 'tir', 'diversificacion'] as const
+export const BLOQUES = ['coste', 'proteccion', 'consistencia', 'riesgo', 'rentabilidad', 'gestor', 'tamano', 'tir', 'diversificacion'] as const
 export type Bloque = (typeof BLOQUES)[number]
 export type Pesos = Record<Bloque, number>
+const DE_PLAZO: Bloque[] = ['riesgo', 'consistencia', 'proteccion', 'rentabilidad'] // BLOQUES_DE_PLAZO en Python
 
 export const NOMBRE_BLOQUE: Record<Bloque, string> = {
-  riesgo: 'Rentab. ajustada al riesgo', consistencia: 'Consistencia', coste: 'Coste',
-  proteccion: 'Protección en caídas', rentabilidad: 'Rentabilidad', tir: 'TIR neta', diversificacion: 'Diversificación',
+  riesgo: 'Riesgo', consistencia: 'Consistencia', coste: 'Coste', proteccion: 'Protección en caídas',
+  rentabilidad: 'Rentabilidad', gestor: 'Estabilidad del gestor', tamano: 'Tamaño y flujos', tir: 'TIR neta',
+  diversificacion: 'Diversificación',
 }
-export const PESOS_DEFECTO: Pesos = { riesgo: 20, consistencia: 10, coste: 40, proteccion: 20, rentabilidad: 10, tir: 0, diversificacion: 10 }
+// Pesos por defecto (PESOS_GRUPO en fondos/nucleo/metricas.py): los activos, la nota nueva; Diversificación solo cuenta
+// al buscar para una cartera.
+export const PESOS_DEFECTO: Pesos = { coste: 45, proteccion: 20, consistencia: 15, riesgo: 5, rentabilidad: 5, gestor: 5, tamano: 5, tir: 0, diversificacion: 10 }
+const PESOS_ANTERIORES: Pesos = { coste: 40, proteccion: 20, consistencia: 10, riesgo: 20, rentabilidad: 10, gestor: 0, tamano: 0, tir: 0, diversificacion: 10 }
 
 /** Tipos de activo (como TIPOS y tipo_activo en fondos/nucleo/metricas.py): cada uno tiene sus pesos. */
 export const TIPOS = ['renta variable', 'renta fija', 'mixto', 'monetario', 'otros'] as const
@@ -31,10 +36,12 @@ export function tipoActivo(categoria: string | null): Tipo {
   return 'otros'
 }
 
-/** Pesos por defecto de cada grupo (PESOS_TIPO en Python): los indexados, casi todo seguimiento del índice y coste. */
+/** Pesos por defecto de cada grupo (PESOS_GRUPO en Python): monetarios e indexados siguen con su nota de siempre (los
+ * indexados, casi todo seguimiento del índice y coste). */
 export const PESOS_TIPO_DEFECTO: PesosTipo = {
   ...(Object.fromEntries(TIPOS.map((t) => [t, PESOS_DEFECTO])) as Record<Tipo, Pesos>),
-  indexados: { riesgo: 0, consistencia: 60, coste: 30, proteccion: 10, rentabilidad: 0, tir: 0, diversificacion: 10 },
+  monetario: PESOS_ANTERIORES,
+  indexados: { ...PESOS_ANTERIORES, riesgo: 0, consistencia: 60, coste: 30, proteccion: 10, rentabilidad: 0 },
 }
 
 /** Pesos guardados (perfil o pestaña) → pesos por tipo: un juego único (perfiles antiguos) vale para todos los tipos;
@@ -51,28 +58,17 @@ export function aPesosTipo(p: unknown): PesosTipo {
 export const PLAZOS = ['1a', '3a', '5a', '10a'] as const
 export type Plazo = (typeof PLAZOS)[number]
 
-/** Percentiles de un fondo {'ventana|nombre': percentil} → percentil de cada bloque y si va con 3A por no tener 5; null
- * sin 3 años. Con `plazo`, solo ese plazo (null si el fondo no lo tiene). Bloques propios (como bloques_nota en Python):
- * en los indexados, Consistencia es el seguimiento del índice (tracking difference y tracking error); en los monetarios,
- * Rentabilidad es la de las últimas 13 semanas; en renta fija, TIR es la TIR neta de gastos. */
-export function bloques(pct: Record<string, number>, indexada: boolean, plazo?: Plazo, tipo?: Tipo): { bloques: Partial<Record<Bloque, number>>; solo3a: boolean } | null {
-  const v = plazo ?? ('5a|rentabilidad' in pct ? '5a' : '3a|rentabilidad' in pct ? '3a' : null)
-  if (!v || !(`${v}|rentabilidad` in pct)) return null
-  const largo = v === '5a' || v === '10a'
-  const media = (...claves: string[]) => {
-    const xs = claves.filter((k) => k in pct).map((k) => pct[k])
-    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined
-  }
-  const b: Partial<Record<Bloque, number | undefined>> = {
-    riesgo: media(`${v}|sharpe`, `${v}|sortino`),
-    consistencia: indexada ? media(`${v}|diferencia_seguimiento`, `${v}|tracking_error`)
-      : media(...(largo ? ['hist|consistencia'] : []), `${largo ? '3a' : v}|ratio_informacion`),
-    coste: media('hoy|ter'),
-    proteccion: media(`${v}|max_caida`, `${v}|captura_bajista`),
-    rentabilidad: tipo === 'monetario' ? media('13s|rentabilidad') : media(`${v}|rentabilidad`),
-    tir: tipo === 'renta fija' ? media('hoy|tir_neta') : undefined,
-  }
-  return { bloques: Object.fromEntries(Object.entries(b).filter(([, x]) => x !== undefined)) as Partial<Record<Bloque, number>>, solo3a: !plazo && v === '3a' }
+/** Bloques de un fondo leídos de sus filas de metrica {'ventana|nombre': puntuación} y si va con 3A por no tener 5;
+ * null sin nota. Con `plazo`, los que dependen del plazo son los de ese plazo (null si el fondo no lo tiene). */
+export function bloques(pct: Record<string, number>, plazo?: Plazo): { bloques: Partial<Record<Bloque, number>>; solo3a: boolean } | null {
+  const de = (ventana: string) => Object.fromEntries(BLOQUES.filter((k) => `${ventana}|${k}` in pct).map((k) => [k, pct[`${ventana}|${k}`]])) as Partial<Record<Bloque, number>>
+  const base = de('nota')
+  if (!Object.keys(base).length) return null
+  if (!plazo) return { bloques: base, solo3a: pct['nota|solo3a'] === 1 }
+  const propios = de(`nota_${plazo}`)
+  if (!Object.keys(propios).length) return null
+  const fijos = Object.fromEntries(Object.entries(base).filter(([k]) => !DE_PLAZO.includes(k as Bloque)))
+  return { bloques: { ...fijos, ...propios }, solo3a: false }
 }
 
 /** Peso efectivo de cada bloque con datos (suma 1); los bloques sin datos o con peso 0 no aparecen. */

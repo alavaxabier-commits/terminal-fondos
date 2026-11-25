@@ -26,7 +26,8 @@ const tono = (v: number | null | undefined) => (v == null ? 'text-suave' : v >= 
  *  una paleta legible (dataviz): el acento en dos intensidades alternas, separados por un hueco, y el nombre en la leyenda y el orden. */
 const FUERTE = 'var(--color-acento)', FLOJO = 'color-mix(in srgb, var(--color-acento) 45%, var(--color-panel))'
 const COLOR_BLOQUE: Record<Bloque, string> = {
-  riesgo: FUERTE, consistencia: FLOJO, coste: FUERTE, proteccion: FLOJO, rentabilidad: FUERTE, tir: FLOJO, diversificacion: 'var(--color-gris)',
+  coste: FUERTE, proteccion: FLOJO, consistencia: FUERTE, riesgo: FLOJO, rentabilidad: FUERTE, gestor: FLOJO, tamano: FUERTE, tir: FLOJO,
+  diversificacion: 'var(--color-gris)',
 }
 
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
@@ -36,7 +37,7 @@ const anos = (p: Plazo) => (p === '1a' ? '1 año' : `${parseInt(p)} años`)
 const leer = (): Partial<Guardado> => { try { return JSON.parse(sessionStorage.getItem(CLAVE) ?? '{}') } catch { return {} } }
 const escribir = (g: Partial<Guardado>) => { try { sessionStorage.setItem(CLAVE, JSON.stringify({ ...leer(), ...g })) } catch { /* sin almacenamiento: se pierde al salir */ } }
 
-/** Screener: el universo ordenado por la nota (percentiles de su categoría, pesos ajustables), con filtros y perfiles. */
+/** Screener: el universo ordenado por la nota (bloques de 0 a 100 calculados en Python, pesos ajustables), con filtros y perfiles. */
 export default function Screener() {
   const [g] = useState(leer)
   const [datos, setDatos] = useState<q.FilaScreener[] | null>(null)
