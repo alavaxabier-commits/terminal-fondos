@@ -82,6 +82,7 @@ def test_nota_de_hoy_frente_a_la_nueva():
                       'valores': {('1a', 'diferencia_seguimiento'): (k - 5) / 100, ('1a', 'max_caida'): -0.1}}
                   for k, i in enumerate(fondos)}}
     texto = comparar_notas(fotos, fondos)
-    assert '| de hoy | 0.0 % | -4.50 | -10.0 |  | 2 |' in texto
-    assert '| nueva | 100.0 % | +3.50 | -10.0 | 1/1 | 2 |' in texto
+    assert '| nota de hoy | 0.0 % | -4.50 | -10.0 |  | 2 |' in texto
+    assert '| nota nueva | 100.0 % | +3.50 | -10.0 | 1/1 | 2 |' in texto
+    assert '| hoy · coste | 0.0 % |' in texto
     assert '| todos (sin elegir) | 40.0 % |' in texto

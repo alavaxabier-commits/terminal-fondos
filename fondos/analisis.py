@@ -85,6 +85,7 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
         por_plazo = {v: x[0] for v in VENTANAS if (x := m.bloques_nota(pct.get(isin, {}), indexada, v, t))}
         out[isin] = {'bloques': b[0] if b else {}, 'sin_propios': sin[0] if sin else {}, 'indexada': indexada,
                      'nueva': nuevas[isin][0] if isin in nuevas else None,
+                     'bloques_nueva': nuevas[isin][2] if isin in nuevas else {},
                      'valores': valores.get(isin, {}),
                      'ventanas': por_plazo if len(por_plazo) == len(VENTANAS) else {}}  # solo con todos: misma muestra
     return out
@@ -353,8 +354,9 @@ PEQUENA = 10
 
 
 def seleccion(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str, dict], h: int
-              ) -> dict[str, list[tuple[float, float, float, float]]]:
-    """{categoría: [(nota de hoy, nota nueva, exceso futuro sobre el índice, caída máxima futura)]} de un corte."""
+              ) -> dict[str, list[tuple[dict[str, float], float, float]]]:
+    """{categoría: [({puntuación: valor}, exceso futuro sobre el índice, caída máxima futura)]} de un corte. Puntuaciones:
+    las dos notas y cada bloque de cada una."""
     ke, kc = (f'{h}a', 'diferencia_seguimiento'), (f'{h}a', 'max_caida')
     elegida: dict[str, str] = {}
     for isin in sorted(antes, key=lambda i: (fondos[i].get('ter') is None, fondos[i].get('ter') or 0, i)):
@@ -363,15 +365,18 @@ def seleccion(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str
             elegida.setdefault(f.get('fund_id') or isin, isin)
     out: dict[str, list] = defaultdict(list)
     for i in elegida.values():
-        hoy_ = m.ponderar(antes[i]['bloques'], m.PESOS_TIPO[m.grupo_pesos(fondos[i]['categoria'], False)])
+        a = antes[i]
+        hoy_ = m.ponderar(a['bloques'], m.PESOS_TIPO[m.grupo_pesos(fondos[i]['categoria'], False)])
         if hoy_ is not None:
+            p = {'nota de hoy': hoy_, 'nota nueva': a['nueva'], **{f'hoy · {b}': x for b, x in a['bloques'].items()},
+                 **{f'nueva · {b}': x for b, x in a.get('bloques_nueva', {}).items()}}
             v = despues[i]['valores']
-            out[fondos[i]['categoria']].append((hoy_, antes[i]['nueva'], v[ke], v[kc]))
+            out[fondos[i]['categoria']].append((p, v[ke], v[kc]))
     return out
 
 
 def comparar_notas(fotos: dict[dt.date, dict], fondos: dict[str, dict]) -> str:
-    # {(h, grupo, nota): [(% que bate, exceso medio, caída media, fondos) por corte]}
+    # {(h, grupo, puntuación): [(% que bate, exceso medio, caída media, fondos) por corte]}
     res: dict[tuple, list[tuple]] = defaultdict(list)
     for c in fotos:
         for h in HORIZONTES:
@@ -383,31 +388,36 @@ def comparar_notas(fotos: dict[dt.date, dict], fondos: dict[str, dict]) -> str:
                 if len(xs) < 2:
                     continue
                 grupos = ('todos', f'categorías de menos de {PEQUENA}') if len(xs) < PEQUENA else ('todos',)
-                k = math.ceil(len(xs) / 5)
-                por = {'de hoy': sorted(xs, key=lambda x: -x[0])[:k], 'nueva': sorted(xs, key=lambda x: -x[1])[:k],
-                       'todos (sin elegir)': xs}
+                por = {'todos (sin elegir)': xs}
+                for nombre in {k for p, _, _ in xs for k in p}:
+                    con = sorted((x for x in xs if nombre in x[0]), key=lambda x: -x[0][nombre])
+                    if len(con) >= 2:
+                        por[nombre] = con[:math.ceil(len(con) / 5)]
                 for g in grupos:
                     for nombre, ys in por.items():
                         elegidos[(g, nombre)] += ys
             for (g, nombre), ys in elegidos.items():
-                res[(h, g, nombre)].append((100 * fmean(y[2] > 0 for y in ys), 100 * fmean(y[2] for y in ys),
-                                            100 * fmean(y[3] for y in ys), len(ys)))
+                res[(h, g, nombre)].append((c, 100 * fmean(y[1] > 0 for y in ys), 100 * fmean(y[1] for y in ys),
+                                            100 * fmean(y[2] for y in ys), len(ys)))
     lineas = ['## Nota de hoy frente a la nueva', '',
-              'El 20 % con mejor nota de cada categoría (al menos uno) en cada corte, y qué le pasó después: % que batió a '
-              'su índice, exceso medio sobre él (% anual) y caída máxima media (%). Media de los cortes; «a favor», cortes '
-              'en los que la nueva elige fondos que baten más a menudo que la de hoy. Sin gestor ni tamaño (no hay '
-              'historia).', '']
+              'El 20 % con mejor puntuación de cada categoría (al menos uno) en cada corte, y qué le pasó después: % que '
+              'batió a su índice, exceso medio sobre él (% anual) y caída máxima media (%). Media de los cortes; «a favor», '
+              'cortes en los que esa puntuación elige fondos que baten más a menudo que la nota de hoy. Cada bloque, solo. '
+              'Sin gestor ni tamaño (no hay historia).', '']
     for h in HORIZONTES:
         for g in ('todos', f'categorías de menos de {PEQUENA}'):
-            filas = {n: res[(h, g, n)] for n in ('de hoy', 'nueva', 'todos (sin elegir)') if res.get((h, g, n))}
-            if not filas:
+            base = {x[0]: x[1] for x in res.get((h, g, 'nota de hoy'), [])}
+            if not base:
                 continue
-            lineas += [f'### A {h} año{"s" if h > 1 else ""} · {g} · {len(filas["de hoy"])} cortes', '',
-                       '| Nota | Bate al índice | Exceso medio | Caída máxima media | A favor | Fondos/corte |',
+            nombres = sorted((n for (hh, gg, n) in res if hh == h and gg == g),
+                             key=lambda n: (n != 'nota de hoy', n != 'nota nueva', n == 'todos (sin elegir)', n))
+            lineas += [f'### A {h} año{"s" if h > 1 else ""} · {g} · {len(base)} cortes', '',
+                       '| Puntuación | Bate al índice | Exceso medio | Caída máxima media | A favor | Fondos/corte |',
                        '|---|---:|---:|---:|---:|---:|']
-            for n, xs in filas.items():
-                favor = (f'{sum(a[0] > b[0] for a, b in zip(xs, filas["de hoy"]))}/{len(xs)}' if n == 'nueva' else '')
-                lineas.append(f'| {n} | {fmean(x[0] for x in xs):.1f} % | {fmean(x[1] for x in xs):+.2f} | '
-                              f'{fmean(x[2] for x in xs):.1f} | {favor} | {fmean(x[3] for x in xs):.0f} |')
+            for n in nombres:
+                xs = [x for x in res[(h, g, n)] if x[0] in base]
+                favor = '' if n in ('nota de hoy', 'todos (sin elegir)') else f'{sum(x[1] > base[x[0]] for x in xs)}/{len(xs)}'
+                lineas.append(f'| {n} | {fmean(x[1] for x in xs):.1f} % | {fmean(x[2] for x in xs):+.2f} | '
+                              f'{fmean(x[3] for x in xs):.1f} | {favor} | {fmean(x[4] for x in xs):.0f} |')
             lineas.append('')
     return '\n'.join(lineas)
