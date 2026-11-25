@@ -351,6 +351,12 @@ def comparar_propios(fotos: dict[dt.date, dict], fondos: dict[str, dict], separa
 # bate a su índice en los años siguientes más a menudo que con la de hoy y su caída máxima posterior no es peor, en
 # conjunto y en las categorías pequeñas. Muestra: fondos activos con las dos notas, una clase por fondo.
 PEQUENA = 10
+# Repartos centrados en el coste (lo único que predice batir al índice) con algo de protección (que reduce la caída)
+CANDIDATOS = {'coste 100': {'coste': 100}, 'coste 80 · protección 20': {'coste': 80, 'proteccion': 20},
+              'coste 70 · protección 30': {'coste': 70, 'proteccion': 30},
+              'coste 60 · protección 40': {'coste': 60, 'proteccion': 40},
+              'coste 60 · protección 20 · consistencia 20': {'coste': 60, 'proteccion': 20, 'consistencia': 20},
+              'coste 50 · protección 25 · consistencia 25': {'coste': 50, 'proteccion': 25, 'consistencia': 25}}
 
 
 def seleccion(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str, dict], h: int
@@ -369,7 +375,8 @@ def seleccion(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str
         hoy_ = m.ponderar(a['bloques'], m.PESOS_TIPO[m.grupo_pesos(fondos[i]['categoria'], False)])
         if hoy_ is not None:
             p = {'nota de hoy': hoy_, 'nota nueva': a['nueva'], **{f'hoy · {b}': x for b, x in a['bloques'].items()},
-                 **{f'nueva · {b}': x for b, x in a.get('bloques_nueva', {}).items()}}
+                 **{f'nueva · {b}': x for b, x in a.get('bloques_nueva', {}).items()},
+                 **{f'reparto {n}': x for n, w in CANDIDATOS.items() if (x := m.ponderar(a['bloques'], w)) is not None}}
             v = despues[i]['valores']
             out[fondos[i]['categoria']].append((p, v[ke], v[kc]))
     return out
