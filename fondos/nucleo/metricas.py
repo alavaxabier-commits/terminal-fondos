@@ -701,8 +701,10 @@ def bloques_nota_nueva(pct_cat: dict[tuple[str, str], float], pct_tipo: dict[tup
 # si no lo hay, 3A; sin 3 años o con menos de CUESTIONARIO_MINIMO puntos con respuesta, sin nota. Los textos están en
 # web/src/calculo/cuestionario.ts. Los monetarios no responden 3 y 4 (el €STR no cae) y los indexados, 9 (gestor).
 # Pesos revisados con `analisis` (25-11-2026): con 20 puntos de coste, el cuestionario elegía fondos que batían al índice
-# menos que la nota de hoy; el coste es lo que más se repite, así que pasa a 35 con tres tramos y bajan 1, 6 y 7.
-PREGUNTAS = {'p1': 10, 'p2': 10, 'p3': 10, 'p4': 5, 'p5': 35, 'p6': 5, 'p7': 5, 'p8': 10, 'p9': 10}
+# menos que la nota de hoy; el coste es lo que más se repite, así que pasa a 35 con tres tramos y baja la 1. La fuerza
+# bruta (`pesos_cuestionario`) no distingue entre repartos razonables: Sharpe y regularidad a 10, tamaño y gestor a 5,
+# como prefiere Xabier (en la prueba, igual o algo mejor que con 5 y 10).
+PREGUNTAS = {'p1': 10, 'p2': 10, 'p3': 10, 'p4': 5, 'p5': 35, 'p6': 10, 'p7': 10, 'p8': 5, 'p9': 5}
 TRAMOS_COSTE = ((90, 1.0), (75, 5 / 7), (50, 5 / 14))  # percentil del TER en la categoría → parte de los puntos
 CUESTIONARIO_MINIMO = 70
 
@@ -734,14 +736,14 @@ def cuestionario(res: dict[tuple[str, str], float], pct: dict[tuple[str, str], f
     sin_caidas = tipo == 'monetario'
     r = {
         'p1': _tramo(res.get((v, 'diferencia_seguimiento')), PREGUNTAS['p1'], lambda x: x >= 0, lambda x: x >= -0.01),
-        'p2': _tramo(res.get(('hist', 'consistencia')), 10, lambda x: x >= 60, lambda x: x >= 40),
-        'p3': None if sin_caidas else _tramo(res.get((v, 'captura_bajista')), 10, lambda x: x <= 90, lambda x: x <= 100),
-        'p4': None if sin_caidas else _tramo(res.get((v, 'caida_relativa')), 5, lambda x: x >= 0, lambda x: x >= -0.03),
+        'p2': _tramo(res.get(('hist', 'consistencia')), PREGUNTAS['p2'], lambda x: x >= 60, lambda x: x >= 40),
+        'p3': None if sin_caidas else _tramo(res.get((v, 'captura_bajista')), PREGUNTAS['p3'], lambda x: x <= 90, lambda x: x <= 100),
+        'p4': None if sin_caidas else _tramo(res.get((v, 'caida_relativa')), PREGUNTAS['p4'], lambda x: x >= 0, lambda x: x >= -0.03),
         'p5': _coste(pct.get(('hoy', 'ter'))),
         'p6': _tramo(pct.get((v, 'sharpe')), PREGUNTAS['p6'], lambda x: x >= 75, lambda x: x >= 50),
         'p7': _tramo(buenos, PREGUNTAS['p7'], lambda x: x >= 2 / 3, lambda x: x >= 0.5),
-        'p8': _tramo(patrimonio_meur, 10, lambda x: x >= 200, lambda x: x >= 50),
-        'p9': None if indexada else _tramo(gestor_anos, 10, lambda x: x >= 5, lambda x: x >= 2),
+        'p8': _tramo(patrimonio_meur, PREGUNTAS['p8'], lambda x: x >= 200, lambda x: x >= 50),
+        'p9': None if indexada else _tramo(gestor_anos, PREGUNTAS['p9'], lambda x: x >= 5, lambda x: x >= 2),
     }
     r = {k: x for k, x in r.items() if x is not None}
     posibles = sum(PREGUNTAS[k] for k in r)

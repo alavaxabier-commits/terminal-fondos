@@ -448,8 +448,8 @@ def comparar_notas(fotos: dict[dt.date, dict], fondos: dict[str, dict]) -> str:
 # pregunta no se tocan (multiplicarían los repartos y el riesgo de ajustar al ruido).
 CON_HISTORIA = ('p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7')
 VARIANTES_CUESTIONARIO = {
-    'actual (coste 35)': {k: m.PREGUNTAS[k] for k in CON_HISTORIA},
-    'Sharpe y regularidad a 10': {**{k: m.PREGUNTAS[k] for k in CON_HISTORIA}, 'p6': 10, 'p7': 10},
+    'actual': {k: m.PREGUNTAS[k] for k in CON_HISTORIA},
+    'coste 35 con Sharpe y regularidad a 5': {**{k: m.PREGUNTAS[k] for k in CON_HISTORIA}, 'p6': 5, 'p7': 5},
     'primera versión (coste 20)': {'p1': 15, 'p2': 10, 'p3': 10, 'p4': 5, 'p5': 20, 'p6': 10, 'p7': 10},
     'solo coste': {'p5': 100},
 }
