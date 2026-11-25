@@ -90,6 +90,9 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
                      'bloques_nueva': nuevas[isin][2] if isin in nuevas else {},
                      # cuestionario sin tamaño ni gestor (preguntas 8 y 9): no hay historia de ninguno de los dos
                      'cuestionario': todos.get(isin, {}).get(('cuestionario', 'nota')),
+                     # parte de los puntos de cada pregunta contestada (0, 0,5, 1 o los tramos del coste): la fuerza bruta
+                     'respuestas': {k: x / m.PREGUNTAS[k] for (v, k), x in todos.get(isin, {}).items()
+                                    if v == 'cuestionario' and k in m.PREGUNTAS},
                      'valores': valores.get(isin, {}),
                      'ventanas': por_plazo if len(por_plazo) == len(VENTANAS) else {}}  # solo con todos: misma muestra
     return out
@@ -207,7 +210,7 @@ def analizar(datos: dict, hoy: dt.date, desde: dt.date = dt.date(2019, 6, 30), l
                 for r in RESULTADOS:
                     resultados[(c, h, r)] = evaluar(fotos[c], fotos[despues], datos['fondos'], h, r)
     return (comparar_notas(fotos, datos['fondos']) + '\n' + informe(resultados) + '\n' + validar(fotos, datos['fondos'])
-            + '\n' + comparar_propios(fotos, datos['fondos']))
+            + '\n' + comparar_propios(fotos, datos['fondos']) + '\n' + pesos_cuestionario(fotos, datos['fondos'], log))
 
 
 # ------------------------------------------------------------------ validación fuera de muestra
@@ -436,3 +439,121 @@ def comparar_notas(fotos: dict[dt.date, dict], fondos: dict[str, dict]) -> str:
                               f'{fmean(x[3] for x in xs):.1f} | {favor} | {fmean(x[4] for x in xs):.0f} |')
             lineas.append('')
     return '\n'.join(lineas)
+
+
+# ------------------------------------------------------------------ pesos del cuestionario (fuerza bruta)
+# Todos los repartos de 100 puntos entre las preguntas 1–7 en pasos de 10 (8.008): se elige el que mejor funciona en los
+# cortes de entreno (mismo objetivo y separación que `validar`) y se mide en los de prueba junto a los de a mano. Las
+# preguntas 8 y 9 (tamaño y gestor) no tienen historia: no se pueden probar y aquí no cuentan. Los umbrales de cada
+# pregunta no se tocan (multiplicarían los repartos y el riesgo de ajustar al ruido).
+CON_HISTORIA = ('p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7')
+VARIANTES_CUESTIONARIO = {
+    'actual (coste 35)': {k: m.PREGUNTAS[k] for k in CON_HISTORIA},
+    'Sharpe y regularidad a 10': {**{k: m.PREGUNTAS[k] for k in CON_HISTORIA}, 'p6': 10, 'p7': 10},
+    'primera versión (coste 20)': {'p1': 15, 'p2': 10, 'p3': 10, 'p4': 5, 'p5': 20, 'p6': 10, 'p7': 10},
+    'solo coste': {'p5': 100},
+}
+
+
+def repartos_cuestionario(paso: int = PASO, claves: tuple[str, ...] = CON_HISTORIA) -> list[dict[str, int]]:
+    """Todos los repartos de 100 entre `claves` en pasos de `paso`."""
+    def rec(i: int, resto: int) -> list[dict[str, int]]:
+        if i == len(claves) - 1:
+            return [{claves[i]: resto * paso}]
+        return [{claves[i]: k * paso, **r} for k in range(resto + 1) for r in rec(i + 1, resto - k)]
+    return rec(0, 100 // paso)
+
+
+def _grupos_cuestionario(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str, dict], h: int,
+                         r: str) -> list[tuple[list[dict], list[float], list[float]]]:
+    """Por categoría (las de `muestra`), los fondos con cuestionario: (respuestas, percentil futuro, TER para desempatar)."""
+    out = []
+    for xs in muestra(antes, despues, fondos, h, r).values():
+        ys = [(antes[i]['respuestas'], y, fondos[i].get('ter') or 9.0) for i, y in xs if antes[i].get('respuestas')]
+        if len(ys) >= MIN_CATEGORIA:
+            out.append(tuple(map(list, zip(*ys))))
+    return out
+
+
+def _top_medio(grupos, pesos):
+    """Percentil futuro medio del 20 % con mejor nota de cada categoría, para una matriz de pesos (repartos × 7): un valor
+    por reparto. Las preguntas sin respuesta no cuentan (su peso se reparte, como en la nota); empates: el más barato."""
+    import numpy as np
+    w = np.asarray(pesos, dtype=float)
+    suma, n = np.zeros(len(w)), 0
+    for resp, y, ter in grupos:
+        f = np.array([[x.get(k, np.nan) for k in CON_HISTORIA] for x in resp])
+        con = ~np.isnan(f)
+        num, den = np.nan_to_num(f) @ w.T, con.astype(float) @ w.T
+        nota = np.where(den > 0, num / np.where(den > 0, den, 1), -1.0) - np.asarray(ter)[:, None] * 1e-6
+        k = math.ceil(len(y) / 5)
+        top = np.argpartition(-nota, k - 1, axis=0)[:k]
+        suma += np.asarray(y)[top].sum(axis=0)
+        n += k
+    return suma / n if n else None
+
+
+def _bate(antes, despues, fondos, h, pesos) -> tuple[float, float, float, int] | None:
+    """Del 20 % con mejor nota de cada categoría con estos pesos: % que bate a su índice, exceso medio, caída media."""
+    ke, kc = (f'{h}a', 'diferencia_seguimiento'), (f'{h}a', 'max_caida')
+    elegida: dict[str, str] = {}
+    for i in sorted(antes, key=lambda i: (fondos[i].get('ter') is None, fondos[i].get('ter') or 0, i)):
+        v = despues.get(i, {}).get('valores', {})
+        if fondos[i].get('en_universo') and fondos[i].get('categoria') and antes[i].get('respuestas') and ke in v and kc in v:
+            elegida.setdefault(fondos[i].get('fund_id') or i, i)
+    por_cat: dict[str, list] = defaultdict(list)
+    for i in elegida.values():
+        n = m.ponderar({k: x * 100 for k, x in antes[i]['respuestas'].items()}, pesos)
+        if n is not None:
+            por_cat[fondos[i]['categoria']].append((n - (fondos[i].get('ter') or 9.0) * 1e-6, despues[i]['valores']))
+    sel = [v for xs in por_cat.values() if len(xs) >= 2 for _, v in sorted(xs, key=lambda x: -x[0])[:math.ceil(len(xs) / 5)]]
+    if not sel:
+        return None
+    return (100 * fmean(v[ke] > 0 for v in sel), 100 * fmean(v[ke] for v in sel), 100 * fmean(v[kc] for v in sel), len(sel))
+
+
+def pesos_cuestionario(fotos: dict[dt.date, dict], fondos: dict[str, dict], log=print,
+                       separacion: dt.date = SEPARACION) -> str:
+    def mas(c: dt.date, h: int) -> dt.date:
+        return dt.date(c.year + h, c.month, c.day)
+
+    g = {(c, h, r): _grupos_cuestionario(fotos[c], fotos[mas(c, h)], fondos, h, r)
+         for c in fotos for h in HORIZONTES if mas(c, h) in fotos for r in RESULTADOS}
+    entreno = sorted(c for c in fotos if (c, 1, OBJETIVO[0]) in g and mas(c, 1) <= separacion)
+    prueba = sorted(c for c in fotos if c >= separacion)
+    if not entreno or not prueba:
+        return ''
+    todos_ = repartos_cuestionario()
+    matriz = [[p[k] for k in CON_HISTORIA] for p in todos_]
+    t0 = dt.datetime.now()
+    medias = [x for c in entreno for r in OBJETIVO if (x := _top_medio(g[(c, 1, r)], matriz)) is not None]
+    puntos = sum(medias) / len(medias)
+    elegido = todos_[int(puntos.argmax())]
+    log(f'cuestionario: {len(todos_)} repartos en {len(entreno)} cortes de entreno · {(dt.datetime.now() - t0).seconds} s')
+    candidatos = {**VARIANTES_CUESTIONARIO, 'elegido en el entreno': elegido}
+    orden = sorted(range(len(todos_)), key=lambda j: -puntos[j])[:5]
+
+    lineas = ['## Pesos del cuestionario (fuerza bruta)', '',
+              f'{len(todos_)} repartos de 100 puntos entre las preguntas 1–7 (pasos de 10; 8 y 9 sin historia). Entreno: '
+              f'{len(entreno)} cortes ({entreno[0]} a {entreno[-1]}), objetivo: percentil futuro medio del top 20 % en '
+              f'rentabilidad y Sharpe a 1 año. Prueba: cortes desde {separacion}.', '',
+              '### Los 5 mejores repartos en el entreno', '', '| ' + ' | '.join(CON_HISTORIA) + ' | Entreno |',
+              '|' + '---:|' * (len(CON_HISTORIA) + 1)]
+    lineas += ['| ' + ' | '.join(str(todos_[j][k]) for k in CON_HISTORIA) + f' | {puntos[j]:.1f} |' for j in orden]
+    lineas += ['', '### Candidatos', '', '| Reparto | ' + ' | '.join(CON_HISTORIA) + ' |', '|---|' + '---:|' * len(CON_HISTORIA)]
+    lineas += [f'| {n} | ' + ' | '.join(str(p.get(k, 0)) for k in CON_HISTORIA) + ' |' for n, p in candidatos.items()]
+    for h in HORIZONTES:
+        cs = [c for c in prueba if mas(c, h) in fotos]
+        if not cs:
+            continue
+        lineas += ['', f'### Prueba a {h} año{"s" if h > 1 else ""} · {len(cs)} cortes ({cs[0]} a {cs[-1]})', '',
+                   '| Reparto | Rentabilidad | Sharpe | Caída (alto = cayó menos) | Bate al índice | Exceso medio | Caída máxima media |',
+                   '|---|---:|---:|---:|---:|---:|---:|']
+        for nombre, p in candidatos.items():
+            fila = [p.get(k, 0) for k in CON_HISTORIA]
+            pct = [[x[0] for c in cs if (x := _top_medio(g.get((c, h, r), []), [fila])) is not None] for r in RESULTADOS]
+            b = [x for c in cs if (x := _bate(fotos[c], fotos[mas(c, h)], fondos, h, p))]
+            celdas = [f'{fmean(x):.1f}' if x else '—' for x in pct]
+            celdas += [f'{fmean(x[0] for x in b):.1f} %', f'{fmean(x[1] for x in b):+.2f}', f'{fmean(x[2] for x in b):.1f}'] if b else ['—'] * 3
+            lineas.append(f'| {nombre} | ' + ' | '.join(celdas) + ' |')
+    return '\n'.join(lineas) + '\n'

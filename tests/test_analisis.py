@@ -101,3 +101,28 @@ def test_foto_lleva_el_cuestionario_sin_tamano_ni_gestor():
     filas = {(i, v, n): x for i, v, n, x, _ in calcular({**d, 'fondos': {i: {**f, 'patrimonio_meur': None, 'gestor_veterano': None}
                                                                          for i, f in d['fondos'].items()}}, dt.date(2026, 11, 13))[0]}
     assert hoy['GLOBAL000001']['cuestionario'] == filas[('GLOBAL000001', 'cuestionario', 'nota')]
+
+
+def test_fuerza_bruta_del_cuestionario_encuentra_la_pregunta_que_acierta():
+    import random
+    from fondos.analisis import cortes, pesos_cuestionario, repartos_cuestionario
+    assert len(repartos_cuestionario()) == 8008 and all(sum(p.values()) == 100 for p in repartos_cuestionario()[:50])
+    rnd = random.Random(1)
+    fondos = {f'F{i:02}': {'categoria': 'Global Large-Cap Blend Equity', 'en_universo': True, 'ter': 1.0 + i / 100}
+              for i in range(20)}
+    cs = cortes(dt.date(2019, 6, 30), dt.date(2025, 12, 31))
+    resp = {c: {i: {'p5': rnd.random(), 'p6': rnd.random()} for i in fondos} for c in cs}
+    fotos = {c: {i: {'bloques': {'coste': 50}, 'respuestas': resp[c][i], 'valores': {}} for i in fondos} for c in cs}
+    for c in cs:  # lo que pasa h años después lo decide la pregunta 5 del corte de partida (la 6 es ruido)
+        for h in (1, 3):
+            d = dt.date(c.year + h, c.month, c.day)
+            if d in fotos:
+                for i in fondos:
+                    x = resp[c][i]['p5']
+                    fotos[d][i]['valores'] |= {(f'{h}a', r): x + rnd.gauss(0, 0.1) for r in ('rentabilidad', 'sharpe', 'max_caida')}
+                    fotos[d][i]['valores'][(f'{h}a', 'diferencia_seguimiento')] = x - 0.5
+    texto = pesos_cuestionario(fotos, fondos, log=lambda x: None)
+    elegido = next(l for l in texto.splitlines() if l.startswith('| elegido en el entreno'))
+    celdas = elegido.split(' | ')
+    assert int(celdas[5]) > 0 and celdas[6] == '0'  # peso a la pregunta 5, la que acierta, y nada a la 6 (ruido)
+    assert '### Prueba a 1 año' in texto
