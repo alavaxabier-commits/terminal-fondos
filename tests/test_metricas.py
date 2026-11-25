@@ -353,9 +353,13 @@ def _res_cuestionario(**cambios):
 def test_cuestionario_puntos_y_nota():
     res, pct = _res_cuestionario()
     c = m.cuestionario(res, pct, 'renta variable', False, 120.0, 6.0)
-    # 15 + 10 + 5 (captura 95) + 0 (caída −5 pp) + 20 + 5 (Sharpe p60) + 10 (3 de 4 años) + 5 (120 M€) + 10 = 80 de 100
-    assert {k: c[k] for k in PREGUNTAS} == {'p1': 15, 'p2': 10, 'p3': 5, 'p4': 0, 'p5': 20, 'p6': 5, 'p7': 10, 'p8': 5, 'p9': 10}
-    assert c['puntos'] == 80 and c['posibles'] == 100 and c['nota'] == 80 and c['plazo'] == 5
+    # 10 + 10 + 5 (captura 95) + 0 (caída −5 pp) + 25 (TER p80) + 2,5 (Sharpe p60) + 5 (3 de 4 años) + 5 (120 M€) + 10
+    assert {k: c[k] for k in PREGUNTAS} == {'p1': 10, 'p2': 10, 'p3': 5, 'p4': 0, 'p5': 25, 'p6': 2.5, 'p7': 5, 'p8': 5, 'p9': 10}
+    assert c['puntos'] == 72.5 and c['posibles'] == 100 and c['nota'] == 73 and c['plazo'] == 5  # medio punto, hacia arriba
+
+
+def test_cuestionario_tramos_del_coste():
+    assert [m._coste(p) for p in (95, 90, 80, 60, 49, None)] == [35, 35, 25, 12.5, 0, None]
 
 
 def test_cuestionario_reparte_las_preguntas_sin_respuesta():
@@ -371,9 +375,9 @@ def test_cuestionario_tres_anos_y_sin_nota():
     res, pct = _res_cuestionario()
     tres = {('3a', 'rentabilidad'): 0.05, ('3a', 'diferencia_seguimiento'): -0.02}
     c = m.cuestionario(tres, {('hoy', 'ter'): 10.0}, 'renta variable', False, 30.0, 1.0)
-    assert c is None  # solo 1, 5, 8 y 9 tienen respuesta: 55 puntos posibles < 70
+    assert c is None  # solo 1, 5, 8 y 9 tienen respuesta: 65 puntos posibles < 70
     c = m.cuestionario({**tres, ('3a', 'captura_bajista'): 80.0, ('3a', 'caida_relativa'): 0.01}, {('hoy', 'ter'): 10.0},
                        'renta variable', False, 30.0, 1.0)
-    assert c['plazo'] == 3 and c['posibles'] == 70 and c['puntos'] == 15 and c['nota'] == 21
+    assert c['plazo'] == 3 and c['posibles'] == 80 and c['puntos'] == 15 and c['nota'] == 19
     assert m.cuestionario({}, pct, 'renta variable', False, 300.0, 9.0) is None  # sin 3 años
     assert m.cuestionario({**res, ('5a', 'diferencia_seguimiento'): -0.5}, pct, 'renta variable', False, 0.0, 0.0)['nota'] >= 1

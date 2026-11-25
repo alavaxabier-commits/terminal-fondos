@@ -697,10 +697,13 @@ def bloques_nota_nueva(pct_cat: dict[tuple[str, str], float], pct_tipo: dict[tup
 
 # ------------------------------------------------------------------ cuestionario (nota 1–100)
 # Nueve preguntas frente al índice puro (preguntas 1–4), la categoría (5–7) y el propio fondo (8–9); cada una da sus
-# puntos enteros, la mitad o nada. Nota = puntos ÷ puntos de las preguntas con respuesta × 100 (mínimo 1). Plazo: 5A o,
+# puntos enteros, la mitad o nada (el coste, tres tramos). Nota = puntos ÷ puntos de las preguntas con respuesta × 100 (mínimo 1). Plazo: 5A o,
 # si no lo hay, 3A; sin 3 años o con menos de CUESTIONARIO_MINIMO puntos con respuesta, sin nota. Los textos están en
 # web/src/calculo/cuestionario.ts. Los monetarios no responden 3 y 4 (el €STR no cae) y los indexados, 9 (gestor).
-PREGUNTAS = {'p1': 15, 'p2': 10, 'p3': 10, 'p4': 5, 'p5': 20, 'p6': 10, 'p7': 10, 'p8': 10, 'p9': 10}
+# Pesos revisados con `analisis` (25-11-2026): con 20 puntos de coste, el cuestionario elegía fondos que batían al índice
+# menos que la nota de hoy; el coste es lo que más se repite, así que pasa a 35 con tres tramos y bajan 1, 6 y 7.
+PREGUNTAS = {'p1': 10, 'p2': 10, 'p3': 10, 'p4': 5, 'p5': 35, 'p6': 5, 'p7': 5, 'p8': 10, 'p9': 10}
+TRAMOS_COSTE = ((90, 1.0), (75, 5 / 7), (50, 5 / 14))  # percentil del TER en la categoría → parte de los puntos
 CUESTIONARIO_MINIMO = 70
 
 
@@ -709,6 +712,13 @@ def _tramo(x: float | None, maximo: float, entero, medio) -> float | None:
     if x is None:
         return None
     return float(maximo) if entero(x) else maximo / 2 if medio(x) else 0.0
+
+
+def _coste(p: float | None) -> float | None:
+    """Pregunta 5: 35 puntos en el 10 % más barato de la categoría, 25 en el 25 %, 12,5 en la mitad barata."""
+    if p is None:
+        return None
+    return next((PREGUNTAS['p5'] * parte for minimo, parte in TRAMOS_COSTE if p >= minimo), 0.0)
 
 
 def cuestionario(res: dict[tuple[str, str], float], pct: dict[tuple[str, str], float], tipo: str, indexada: bool,
@@ -723,13 +733,13 @@ def cuestionario(res: dict[tuple[str, str], float], pct: dict[tuple[str, str], f
     buenos = sum(p >= 50 for p in anos) / len(anos) if len(anos) >= 3 else None
     sin_caidas = tipo == 'monetario'
     r = {
-        'p1': _tramo(res.get((v, 'diferencia_seguimiento')), 15, lambda x: x >= 0, lambda x: x >= -0.01),
+        'p1': _tramo(res.get((v, 'diferencia_seguimiento')), PREGUNTAS['p1'], lambda x: x >= 0, lambda x: x >= -0.01),
         'p2': _tramo(res.get(('hist', 'consistencia')), 10, lambda x: x >= 60, lambda x: x >= 40),
         'p3': None if sin_caidas else _tramo(res.get((v, 'captura_bajista')), 10, lambda x: x <= 90, lambda x: x <= 100),
         'p4': None if sin_caidas else _tramo(res.get((v, 'caida_relativa')), 5, lambda x: x >= 0, lambda x: x >= -0.03),
-        'p5': _tramo(pct.get(('hoy', 'ter')), 20, lambda x: x >= 75, lambda x: x >= 50),
-        'p6': _tramo(pct.get((v, 'sharpe')), 10, lambda x: x >= 75, lambda x: x >= 50),
-        'p7': _tramo(buenos, 10, lambda x: x >= 2 / 3, lambda x: x >= 0.5),
+        'p5': _coste(pct.get(('hoy', 'ter'))),
+        'p6': _tramo(pct.get((v, 'sharpe')), PREGUNTAS['p6'], lambda x: x >= 75, lambda x: x >= 50),
+        'p7': _tramo(buenos, PREGUNTAS['p7'], lambda x: x >= 2 / 3, lambda x: x >= 0.5),
         'p8': _tramo(patrimonio_meur, 10, lambda x: x >= 200, lambda x: x >= 50),
         'p9': None if indexada else _tramo(gestor_anos, 10, lambda x: x >= 5, lambda x: x >= 2),
     }
@@ -739,4 +749,4 @@ def cuestionario(res: dict[tuple[str, str], float], pct: dict[tuple[str, str], f
         return None
     puntos = sum(r.values())
     return r | {'puntos': puntos, 'posibles': float(posibles), 'plazo': float(v[0]),
-                'nota': float(max(1, round(100 * puntos / posibles)))}
+                'nota': float(max(1, math.floor(100 * puntos / posibles + 0.5)))}

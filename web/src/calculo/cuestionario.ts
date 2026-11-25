@@ -7,13 +7,13 @@ export type Frente = 'índice' | 'categoría' | 'fondo'
 export type Pregunta = { clave: Clave; frente: Frente; texto: string; max: number; regla: string }
 
 export const PREGUNTAS: Pregunta[] = [
-  { clave: 'p1', frente: 'índice', max: 15, texto: '¿Bate a su índice después de gastos?', regla: 'sí: rentabilidad anual ≥ la del índice puro · a medias: hasta 1 punto por debajo' },
+  { clave: 'p1', frente: 'índice', max: 10, texto: '¿Bate a su índice después de gastos?', regla: 'sí: rentabilidad anual ≥ la del índice puro · a medias: hasta 1 punto por debajo' },
   { clave: 'p2', frente: 'índice', max: 10, texto: '¿Lo bate de forma consistente?', regla: 'sí: en ≥ 60 % de las ventanas de 3 años · a medias: ≥ 40 %' },
   { clave: 'p3', frente: 'índice', max: 10, texto: '¿Cae menos que el índice cuando baja el mercado?', regla: 'sí: captura bajista ≤ 90 · a medias: ≤ 100' },
   { clave: 'p4', frente: 'índice', max: 5, texto: '¿Su peor caída fue menor que la del índice?', regla: 'sí: cayó menos · a medias: hasta 3 puntos más' },
-  { clave: 'p5', frente: 'categoría', max: 20, texto: '¿Es barato para su categoría?', regla: 'sí: TER en el 25 % más barato · a medias: en la mitad barata' },
-  { clave: 'p6', frente: 'categoría', max: 10, texto: '¿Rinde bien para el riesgo que asume?', regla: 'sí: Sharpe en el 25 % mejor · a medias: en la mitad alta' },
-  { clave: 'p7', frente: 'categoría', max: 10, texto: '¿Es regular año tras año?', regla: 'sí: ≥ 2/3 de sus años naturales en la mitad alta · a medias: ≥ la mitad (con 3 años o más)' },
+  { clave: 'p5', frente: 'categoría', max: 35, texto: '¿Es barato para su categoría?', regla: 'sí: TER en el 10 % más barato (35) · a medias: en el 25 % (25) o en la mitad barata (12,5)' },
+  { clave: 'p6', frente: 'categoría', max: 5, texto: '¿Rinde bien para el riesgo que asume?', regla: 'sí: Sharpe en el 25 % mejor · a medias: en la mitad alta' },
+  { clave: 'p7', frente: 'categoría', max: 5, texto: '¿Es regular año tras año?', regla: 'sí: ≥ 2/3 de sus años naturales en la mitad alta · a medias: ≥ la mitad (con 3 años o más)' },
   { clave: 'p8', frente: 'fondo', max: 10, texto: '¿Tiene tamaño suficiente?', regla: 'sí: ≥ 200 M€ · a medias: ≥ 50 M€' },
   { clave: 'p9', frente: 'fondo', max: 10, texto: '¿Tiene un equipo gestor estable?', regla: 'sí: el gestor más veterano lleva ≥ 5 años · a medias: ≥ 2' },
 ]

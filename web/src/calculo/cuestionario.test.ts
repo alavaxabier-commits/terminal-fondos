@@ -7,10 +7,10 @@ describe('cuestionario', () => {
   })
 
   it('lee lo guardado en metrica y en la vista del screener', () => {
-    const m = new Map([['cuestionario|nota', 80], ['cuestionario|p1', 15], ['cuestionario|p3', 5], ['cuestionario|posibles', 100], ['cuestionario|puntos', 80], ['cuestionario|plazo', 5]])
+    const m = new Map([['cuestionario|nota', 80], ['cuestionario|p1', 10], ['cuestionario|p3', 5], ['cuestionario|posibles', 100], ['cuestionario|puntos', 80], ['cuestionario|plazo', 5]])
     const c = leer(m)!
     expect(c.nota).toBe(80)
-    expect(c.puntosDe).toEqual({ p1: 15, p3: 5 })
+    expect(c.puntosDe).toEqual({ p1: 10, p3: 5 })
     expect(leer({ nota: 40, p5: 0, plazo: 3 })!.plazo).toBe(3)
     expect(leer(new Map())).toBeNull()
     expect(leer(null)).toBeNull()
@@ -18,8 +18,9 @@ describe('cuestionario', () => {
 
   it('respuesta: sí, a medias, no o sin respuesta', () => {
     const p1 = PREGUNTAS[0]
-    expect(respuesta(p1, 15)).toBe('sí')
-    expect(respuesta(p1, 7.5)).toBe('a medias')
+    expect(respuesta(p1, 10)).toBe('sí')
+    expect(respuesta(p1, 5)).toBe('a medias')
+    expect(respuesta(PREGUNTAS[4], 25)).toBe('a medias') // coste: 25 de 35
     expect(respuesta(p1, 0)).toBe('no')
     expect(respuesta(p1, undefined)).toBeNull()
   })
