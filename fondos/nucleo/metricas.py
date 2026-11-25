@@ -585,7 +585,9 @@ def ponderar(bloques: dict[str, float], pesos: dict[str, float]) -> float | None
 # Consistencia, Protección y la mitad relativa de Riesgo) se pasa a percentil en el tipo de activo; Sharpe y Sortino, en
 # la categoría, suavizados hacia el tipo si la categoría tiene pocos fondos; coste, gestor y tamaño, con escalas fijas.
 # Solo fondos activos que no son monetarios: indexados y monetarios siguen con `bloques_nota`.
-PESOS_NOTA_NUEVA = {'coste': 30, 'proteccion': 20, 'riesgo': 15, 'consistencia': 15, 'rentabilidad': 10,
+# Pesos elegidos con `analisis` (25-11-2026): el coste es lo que más se repite y la protección baja la caída posterior;
+# rentabilidad y riesgo pasados no predicen, se quedan con poco peso como criterio.
+PESOS_NOTA_NUEVA = {'coste': 45, 'proteccion': 20, 'consistencia': 15, 'riesgo': 5, 'rentabilidad': 5,
                     'gestor': 5, 'tamano': 5, 'tir': 0}
 TOPE_TER = {'renta variable': 2.0, 'otros': 2.0, 'mixto': 1.5, 'renta fija': 1.0, 'monetario': 0.5}  # % con nota 0
 CATEGORIA_LLENA = 10  # con menos fondos, el percentil de la categoría se mezcla con el del tipo de activo
