@@ -16,7 +16,7 @@ import math
 from collections import defaultdict
 from statistics import correlation, fmean
 
-from .calculo import calcular, notas_nuevas, percentiles_categoria
+from .calculo import calcular, notas_nuevas, percentiles_categoria, percentiles_nota
 from .nucleo import metricas as m
 
 HORIZONTES = (1, 3)
@@ -67,16 +67,16 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
                              for i, f in datos['fondos'].items()},
                   'valores': {i: {d: v for d, v in s.items() if d <= corte} for i, s in datos['valores'].items()}}
     filas = calcular(recortados, corte)[0]
-    pct: dict[str, dict] = defaultdict(dict)
     valores: dict[str, dict] = defaultdict(dict)
     todos: dict[str, dict] = defaultdict(dict)
     for isin, ventana, nombre, valor, p in filas:
         todos[isin][(ventana, nombre)] = valor
-        if p is not None:
-            pct[isin][(ventana, nombre)] = p
         if nombre in RESULTADOS + ('diferencia_seguimiento',) and ventana in ('1a', '3a'):
             valores[isin][(ventana, nombre)] = valor
     # nota nueva sin gestor ni patrimonio: no hay historia de ninguno de los dos antes de noviembre de 2026
+    # percentiles como los de la nota de verdad (activos e indexados por separado), no los que se enseñan
+    pct = percentiles_nota({i: {k: v for k, v in r.items() if not k[0].startswith(('nota', 'cuestionario'))}
+                            for i, r in todos.items()}, recortados['fondos'])
     nuevas = notas_nuevas(todos, recortados['fondos'], pct)
     out = {}
     for isin in set(pct) | set(valores):

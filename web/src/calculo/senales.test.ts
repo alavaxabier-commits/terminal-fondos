@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evolucion } from './senales'
+import { evolucion, senalesCatalogo } from './senales'
 
 const n = (fecha: string, nota: number) => ({ isin: 'X', fecha, nota, percentil: 50 })
 
@@ -54,5 +54,15 @@ describe('señales de la semana anterior', () => {
     expect(senalesAntes({ isin: 'A', ter: 1.5, fund_id: null }, notas.slice(0, 2).concat({ ...notas[1], fecha: '2026-11-09' }), [], U)).toEqual([])
     const antes = [{ ...n('2026-11-02', 40), isin: 'A', percentil: 10 }, { ...n('2026-11-09', 41), isin: 'A', percentil: 12 }]
     expect(senalesAntes({ isin: 'A', ter: 1.5, fund_id: null }, antes, [], U)).toEqual(['Nota baja'])
+  })
+})
+
+describe('fondos que ya no se pueden comprar o no publican valores', () => {
+  it('fuera del catálogo, 10 días sin valor o sin valores; nada si está al día', () => {
+    expect(senalesCatalogo(true, '2026-11-24', '2026-11-25')).toEqual([])
+    expect(senalesCatalogo(true, '2026-11-16', '2026-11-25')).toEqual([])
+    expect(senalesCatalogo(false, '2026-11-15', '2026-11-25').map((s) => s.tipo)).toEqual(['Fuera de MyInvestor', 'Sin valores'])
+    expect(senalesCatalogo(true, '2026-11-15', '2026-11-25')[0].motivo).toMatch(/15\/11\/2026: 10 días/)
+    expect(senalesCatalogo(true, null, '2026-11-25')[0].tipo).toBe('Sin valores')
   })
 })

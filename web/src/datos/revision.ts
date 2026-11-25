@@ -1,9 +1,10 @@
 // Revisión de las carteras: señales de cada fondo y sus mejores alternativas. Junta consultas y cálculo
 // (calculo/senales.ts); lo usan las pantallas Revisión, Cartera e Inicio.
 import { riesgo, rendimientos, semanal } from '../calculo/metricas'
-import { alternativas, evolucion, senales, senalesAntes, type NotaSemanal, type Par, type Senal, type Umbrales } from '../calculo/senales'
+import { alternativas, evolucion, senales, senalesAntes, senalesCatalogo, type NotaSemanal, type Par, type Senal, type Umbrales } from '../calculo/senales'
 import { serieEur } from './series'
 import * as q from './consultas'
+import { hoy } from '../calculo/formato'
 
 export type Alternativa = Par & { myinvestor: boolean; c: number | null }
 export type FondoRevisado = {
@@ -28,13 +29,14 @@ export async function revisar(ids?: number[]): Promise<Revision> {
   const isins = [...fondos.keys()]
   const categorias = [...new Set([...fondos.values()].map((f) => f.categoria).filter((c): c is string => !!c))]
   const [notas, todosPares] = await Promise.all([q.notasDe(isins), q.pares(categorias)])
-  const mi = await q.enMyinvestor(todosPares.map((p) => p.isin))
+  const mi = await q.enMyinvestor([...new Set([...isins, ...todosPares.map((p) => p.isin)])])
   const rend = new Map<string, Map<string, number>>()
   const cargarRend = async (isin: string, divisa: string | null) => {
     if (!rend.has(isin)) rend.set(isin, rendimientos(semanal(await serieEur(isin, divisa))))
     return rend.get(isin)!
   }
   await Promise.all([...fondos.values()].map((f) => cargarRend(f.isin, f.divisa)))
+  const ultimo = new Map(await Promise.all([...fondos.values()].map(async (f) => [f.isin, (await serieEur(f.isin, f.divisa)).at(-1)?.fecha ?? null] as const)))
 
   const carteras = detalles.map(({ cartera, fondos: fs }) => {
     const r = riesgo(fs.map((x) => rend.get(x.fondo.isin)!), fs.map((x) => x.peso))
@@ -46,7 +48,7 @@ export async function revisar(ids?: number[]): Promise<Revision> {
         const suyas = notas.filter((n) => n.isin === fondo.isin)
         const corr = fs.map((x, j) => ({ nombre: x.fondo.nombre, c: j === i ? null : r?.matriz[i][j] ?? null }))
         const f = { isin: fondo.isin, ter: fondo.ter == null ? null : Number(fondo.ter), fund_id: fondo.fund_id ?? null }
-        const s = senales(f, suyas, pares, u, corr, candidatos)
+        const s = [...senalesCatalogo(mi.has(fondo.isin), ultimo.get(fondo.isin) ?? null, hoy()), ...senales(f, suyas, pares, u, corr, candidatos)]
         const alts = s.length ? alternativas({ isin: fondo.isin, fund_id: fondo.fund_id ?? null }, candidatos) : []
         return { fondo, peso, nota: evolucion(suyas, u.empeora_meses), senales: s, alternativas: alts.map((a) => ({ ...a, myinvestor: mi.has(a.isin), c: null })),
           antes: senalesAntes(f, suyas, pares, u) }

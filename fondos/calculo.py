@@ -70,15 +70,17 @@ def referencias(fondos: dict[str, dict], rend: dict[str, dict], indices: dict[st
     return series, usa
 
 
-def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict], grupo=None) -> dict[str, dict]:
+def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict], grupo=None, cuenta_si=None) -> dict[str, dict]:
     """{isin: {(ventana, nombre): valor}} → {isin: {(ventana, nombre): percentil}} dentro de la categoría (o del grupo
     que dé `grupo(fondo)`, p. ej. el tipo de activo), entre fondos del universo y con una sola clase por fondo (la de
-    menor TER); las demás clases del universo de ese fondo se sitúan frente a la misma distribución, sin contar en ella."""
+    menor TER); las demás clases del universo de ese fondo, y los fondos que no cumplen `cuenta_si(fondo)`, se sitúan
+    frente a la misma distribución, sin contar en ella."""
     clave = grupo or (lambda f: f['categoria'])
     del_universo = [i for i in resultados if fondos[i].get('en_universo') and fondos[i].get('categoria')]
     cuenta: dict[str, str] = {}
     for isin in sorted(del_universo, key=lambda i: (fondos[i].get('ter') is None, fondos[i].get('ter') or 0, i)):
-        cuenta.setdefault(fondos[isin].get('fund_id') or isin, isin)
+        if cuenta_si is None or cuenta_si(fondos[isin]):
+            cuenta.setdefault(fondos[isin].get('fund_id') or isin, isin)
     cuentan = set(cuenta.values())
     por_cat_metrica: dict[tuple[str, str, str], dict[str, float]] = defaultdict(dict)
     for isin in cuentan:
@@ -98,6 +100,25 @@ def percentiles_categoria(resultados: dict[str, dict], fondos: dict[str, dict], 
 
 
 COBERTURA_MINIMA = 0.7
+MIN_INDEXADOS = 5  # con menos indexados en su grupo, el indexado se sitúa frente a los activos
+
+
+def por_gestion(fondos: dict[str, dict], clave=lambda f: f['categoria']):
+    """(grupo, cuenta_si) para `percentiles_categoria` en las notas: activos solo frente a activos e indexados frente a
+    indexados si hay al menos MIN_INDEXADOS en su grupo; si no, el indexado se sitúa frente a los activos sin contar en ellos."""
+    ix: dict = defaultdict(set)
+    for i, f in fondos.items():
+        if f.get('en_universo') and f.get('categoria') and f.get('gestion') == 'indexada':
+            ix[clave(f)].add(f.get('fund_id') or i)
+    aparte = lambda f: f.get('gestion') == 'indexada' and len(ix.get(clave(f), ())) >= MIN_INDEXADOS
+    return (lambda f: (clave(f), aparte(f))), (lambda f: f.get('gestion') != 'indexada' or aparte(f))
+
+
+def percentiles_nota(resultados: dict[str, dict], fondos: dict[str, dict]) -> dict[str, dict]:
+    """Percentiles en la categoría para los bloques de la nota y el cuestionario, con activos e indexados por separado
+    (`por_gestion`). Los que se enseñan (`metrica.percentil`) siguen con toda la categoría, como Morningstar."""
+    return solo_con_cobertura(percentiles_categoria(resultados, fondos, *por_gestion(fondos)), resultados, fondos,
+                              ('hoy', 'tir_neta'))
 
 
 def solo_con_cobertura(pct: dict[str, dict], resultados: dict[str, dict], fondos: dict[str, dict], clave: tuple[str, str],
@@ -129,10 +150,10 @@ def bloques_fondos(resultados: dict[str, dict], fondos: dict[str, dict], pct_cat
     referencia, sin nota), con su patrimonio y los años desde el último cambio de gestor (`fondos`). Indexados y
     monetarios: `bloques_nota`."""
     pct_tipo = percentiles_categoria({i: {k: v for k, v in r.items() if k[1] in EN_TIPO} for i, r in resultados.items()},
-                                     fondos, lambda f: m.tipo_activo(f['categoria']))
-    fondos_cat: dict[str, set] = defaultdict(set)
+                                     fondos, *por_gestion(fondos, lambda f: m.tipo_activo(f['categoria'])))
+    fondos_cat: dict[str, set] = defaultdict(set)  # activos de cada categoría (la nota nueva no cuenta los indexados)
     for i, f in fondos.items():
-        if f.get('en_universo') and f.get('categoria'):
+        if f.get('en_universo') and f.get('categoria') and f.get('gestion') != 'indexada':
             fondos_cat[f['categoria']].add(f.get('fund_id') or i)
     out: dict[str, dict] = {}
     for isin, pc in pct_cat.items():
@@ -235,11 +256,12 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
     # bloques de la nota (0–100): se guardan en metrica (ventana 'nota' y, los que dependen del plazo, 'nota_<plazo>'; valor y
     # percentil = la puntuación) para que la web solo pondere. Nota semanal: pesos por defecto de su grupo y su percentil en
     # la categoría, con la misma regla de una clase por fondo
-    bloques = bloques_fondos(resultados, fondos, pct)
+    pct_n = percentiles_nota(resultados, fondos)
+    bloques = bloques_fondos(resultados, fondos, pct_n)
     notas = {i: (n, b[None][1]) for i, b in bloques.items() if None in b
              and (n := m.ponderar(b[None][0], m.PESOS_GRUPO[m.grupo_pesos(fondos[i].get('categoria'),
                                                                            fondos[i].get('gestion') == 'indexada')])) is not None}
-    pct_nota = percentiles_categoria({i: {('hoy', 'nota'): n[0]} for i, n in notas.items()}, fondos)
+    pct_nota = percentiles_categoria({i: {('hoy', 'nota'): n[0]} for i, n in notas.items()}, fondos, *por_gestion(fondos))
     notas_filas = [(i, round(n, 2), pct_nota.get(i, {}).get(('hoy', 'nota')), solo3)
                    for i, (n, solo3) in notas.items()]
     for isin, res in resultados.items():
@@ -247,7 +269,7 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
             filas.append((isin, ventana, nombre, float(valor), pct.get(isin, {}).get((ventana, nombre))))
     for isin, por in bloques.items():
         filas += filas_nota(isin, por)
-    filas += filas_cuestionario(resultados, fondos, pct)
+    filas += filas_cuestionario(resultados, fondos, pct_n)
     # las referencias, también de cierre a cierre de mes (y el mes en curso, para el año en curso), para las carteras (que se calculan en la web)
     ref_mes, _ = referencias(fondos, {i: m.mensuales_con_curso(v) for i, v in en_eur.items()},
                              datos['indices'], datos['categorias'], m.tasa_mensual(datos['estr']), 12)

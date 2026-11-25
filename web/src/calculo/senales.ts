@@ -32,7 +32,7 @@ export type Umbrales = {
 }
 /** Un fondo con su nota de la última semana (los de su categoría son los «pares»). */
 export type Par = { isin: string; nombre: string; categoria: string | null; divisa?: string | null; ter: number | null; fund_id: string | null; nota: number; percentil: number | null }
-export type Senal = { tipo: 'Nota baja' | 'Empeora' | 'Hay algo claramente mejor' | 'Caro' | 'Redundante'; motivo: string }
+export type Senal = { tipo: 'Nota baja' | 'Empeora' | 'Hay algo claramente mejor' | 'Caro' | 'Redundante' | 'Fuera de MyInvestor' | 'Sin valores'; motivo: string }
 
 const n0 = (x: number) => Math.round(x)
 const n2 = (x: number) => x.toFixed(2).replace('.', ',')
@@ -72,6 +72,20 @@ export function senales(f: { isin: string; ter: number | null; fund_id: string |
   const juntos = correlaciones.filter((x) => x.c != null && x.c >= u.redundante_correlacion)
   if (juntos.length)
     out.push({ tipo: 'Redundante', motivo: `Correlación de ${juntos.map((x) => `${n2(x.c!)} con ${x.nombre}`).join(' y ')} (umbral ${n2(u.redundante_correlacion)}).` })
+  return out
+}
+
+/** Días naturales sin valor liquidativo a partir de los cuales avisa (los fondos de las carteras se descargan cada día hábil). */
+export const DIAS_SIN_VALOR = 10
+
+/** Señales de un fondo de una cartera que ya no se puede comprar (dejó el catálogo de MyInvestor o la clase está cerrada)
+ *  o que ha dejado de publicar valores (liquidado, fusionado o la descarga falla). `ultimo`: fecha de su último valor. */
+export function senalesCatalogo(enMyinvestor: boolean, ultimo: string | null, hoy: string): Senal[] {
+  const out: Senal[] = []
+  if (!enMyinvestor) out.push({ tipo: 'Fuera de MyInvestor', motivo: 'Ya no está en el catálogo de MyInvestor o su clase está cerrada: no se puede comprar.' })
+  const dias = ultimo ? Math.round((Date.parse(hoy) - Date.parse(ultimo)) / 864e5) : null
+  if (dias == null || dias >= DIAS_SIN_VALOR)
+    out.push({ tipo: 'Sin valores', motivo: ultimo ? `Último valor del ${ultimo.split('-').reverse().join('/')}: ${dias} días sin publicar (¿liquidado o fusionado?).` : 'No tiene valores.' })
   return out
 }
 

@@ -197,7 +197,21 @@ def test_percentiles_por_tipo_de_activo_y_nota_nueva():
     assert por_tipo['F0'][('3a', 'diferencia_seguimiento')] == 0 and por_tipo['F5'][('3a', 'diferencia_seguimiento')] == 100
     notas = calculo.notas_nuevas(res, fondos, calculo.percentiles_categoria(res, fondos))
     assert set(notas) == {'F0', 'F1', 'F2', 'F3', 'F4'}  # el indexado sigue con su nota
-    assert notas['F4'][2]['rentabilidad'] == 80 and notas['F4'][1]  # solo 3 años
+    assert notas['F4'][2]['rentabilidad'] == 100 and notas['F4'][1]  # solo 3 años; el indexado F5 no cuenta frente a los activos
+
+
+def test_percentiles_de_la_nota_separan_activos_e_indexados():
+    cat = 'US Large-Cap Blend Equity'
+    fondos = {f'A{i}': {'categoria': cat, 'en_universo': True, 'gestion': 'activa'} for i in range(3)}
+    fondos |= {f'X{i}': {'categoria': cat, 'en_universo': True, 'gestion': 'indexada'} for i in range(calculo.MIN_INDEXADOS)}
+    res = {i: {('3a', 'sharpe'): k} for k, i in enumerate(fondos)}   # los indexados, todos mejores que los activos
+    pct = calculo.percentiles_nota(res, fondos)
+    assert [pct[f'A{i}'][('3a', 'sharpe')] for i in range(3)] == [0, 50, 100]          # activos solo entre activos
+    assert pct['X0'][('3a', 'sharpe')] == 0 and pct['X4'][('3a', 'sharpe')] == 100     # indexados entre indexados
+    del fondos['X4'], res['X4']                                                        # con menos de 5 indexados…
+    pct = calculo.percentiles_nota(res, fondos)
+    assert pct['A2'][('3a', 'sharpe')] == 100 and pct['X0'][('3a', 'sharpe')] == 100   # …se sitúan frente a los activos sin contar
+    assert calculo.percentiles_categoria(res, fondos)['A2'][('3a', 'sharpe')] == 33.3  # lo que se enseña, con toda la categoría
 
 
 def test_indice_puro_suma_el_ter_del_sustituto():
