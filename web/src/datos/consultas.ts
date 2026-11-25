@@ -295,6 +295,7 @@ export type FilaScreener = {
   gestion: 'activa' | 'indexada' | null; patrimonio_meur: number | null; fecha_lanzamiento: string | null
   myinvestor: boolean; pct: Record<string, number> | null; r5: number | null; r3: number | null
   cifras: Record<string, [number, number | null]> | null // valor y percentil: volatilidad, Sharpe, monetarios…
+  cuestionario?: Record<string, number> | null // nota 1–100 y puntos de cada pregunta (ver calculo/cuestionario.ts)
 }
 
 /** El universo entero con los percentiles de la nota (vista fondos.screener), de 1.000 en 1.000. */

@@ -20,9 +20,12 @@ def serie_eur(valores: dict[dt.date, float], divisa: str | None, tipos: dict[str
 
 
 def referencias(fondos: dict[str, dict], rend: dict[str, dict], indices: dict[str, dict],
-                categorias: dict[str, dict], estr_semanal: dict) -> tuple[dict[str, dict], dict[str, str]]:
+                categorias: dict[str, dict], estr_semanal: dict, periodos: int = m.SEMANAS_ANO
+                ) -> tuple[dict[str, dict], dict[str, str]]:
     """Serie de referencia de cada índice y de cada categoría con media, y qué clave usa cada fondo, a partir de las
-    rentabilidades de cada fondo y del €STR (semanales, o mensuales para los años naturales de una cartera).
+    rentabilidades de cada fondo y del €STR (semanales, o mensuales con `periodos` = 12 para las carteras).
+    Índice puro: a la serie del fondo sustituto se le devuelve su TER (`m.sin_gastos`); la media de la categoría y el
+    €STR se quedan como están.
 
     Devuelve ({clave: serie}, {isin: clave}). Claves: 'indice:<id>' o 'media:<categoría>'.
     """
@@ -36,7 +39,8 @@ def referencias(fondos: dict[str, dict], rend: dict[str, dict], indices: dict[st
             return estr_semanal
         if ind.get('componentes'):
             return m.combinar([(rend_indice(c['id'], profundidad + 1), float(c['peso'])) for c in ind['componentes']])
-        return rend.get(ind.get('proxy_isin') or '', {})
+        proxy = ind.get('proxy_isin') or ''
+        return m.sin_gastos(rend.get(proxy, {}), fondos.get(proxy, {}).get('ter'), periodos)
 
     for iid in indices:
         r = rend_indice(iid)
@@ -171,6 +175,19 @@ def notas_nuevas(resultados: dict[str, dict], fondos: dict[str, dict], pct_cat: 
             if None in b and (n := m.ponderar(b[None][0], m.PESOS_NOTA_NUEVA)) is not None}
 
 
+def filas_cuestionario(resultados: dict[str, dict], fondos: dict[str, dict], pct: dict[str, dict]) -> list[tuple]:
+    """Filas de metrica con el cuestionario de cada fondo del universo (ventana 'cuestionario': p1…p9 con sus puntos,
+    puntos, posibles, plazo y nota; sin percentil)."""
+    filas = []
+    for isin, pc in pct.items():
+        f = fondos[isin]
+        c = m.cuestionario(resultados.get(isin, {}), pc, m.tipo_activo(f.get('categoria')), f.get('gestion') == 'indexada',
+                           f.get('patrimonio_meur'), f.get('gestor_veterano'))
+        if c:
+            filas += [(isin, 'cuestionario', k, x, None) for k, x in c.items()]
+    return filas
+
+
 def diversificacion(rend: dict[str, dict], fondos: dict[str, dict], carteras: dict[int, list[str]]) -> list[tuple]:
     """Para cada cartera, (cartera_id, isin, correlación media con sus fondos, percentil de 1 − correlación en la
     categoría) de cada fondo del universo: el bloque Diversificación del screener."""
@@ -230,9 +247,10 @@ def calcular(datos: dict, hoy: dt.date) -> tuple[list[tuple], dict[str, tuple], 
             filas.append((isin, ventana, nombre, float(valor), pct.get(isin, {}).get((ventana, nombre))))
     for isin, por in bloques.items():
         filas += filas_nota(isin, por)
+    filas += filas_cuestionario(resultados, fondos, pct)
     # las referencias, también de cierre a cierre de mes (y el mes en curso, para el año en curso), para las carteras (que se calculan en la web)
     ref_mes, _ = referencias(fondos, {i: m.mensuales_con_curso(v) for i, v in en_eur.items()},
-                             datos['indices'], datos['categorias'], m.tasa_mensual(datos['estr']))
+                             datos['indices'], datos['categorias'], m.tasa_mensual(datos['estr']), 12)
     refs = {clave: ([m.lunes_de(k) for k in s], list(s.values()),
                     [dt.date(a, mes, 1) for a, mes in ref_mes.get(clave, {})], list(ref_mes.get(clave, {}).values()))
             for clave, s in series_ref.items()}

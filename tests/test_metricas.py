@@ -3,6 +3,7 @@ import math
 
 import pytest
 from fondos.nucleo import metricas as m
+from fondos.nucleo.metricas import PREGUNTAS
 
 from fondos.nucleo.metricas import (a_eur, correlacion_media, anualizada, captura, combinar, consistencia, desviacion_bajista,
                                     maxima_caida, media_rendimientos, metricas_fondo, nota, percentiles, regresion,
@@ -330,3 +331,49 @@ def test_metricas_relativas():
     assert r[('3a', 'caida_relativa')] > 0  # cayó menos
     assert 0.3 < r[('3a', 'volatilidad_relativa')] < 0.7
     assert ('5a', 'caida_relativa') not in r  # no hay 5 años
+
+
+def test_sin_gastos_devuelve_el_ter():
+    r = {(2025, k): 0.0 for k in range(1, 53)}
+    puro = m.sin_gastos(r, 0.52)
+    assert math.prod(1 + x for x in puro.values()) == pytest.approx(1.0052)
+    assert m.sin_gastos(r, None) is r
+    mensual = m.sin_gastos({(2025, k): 0.01 for k in range(1, 13)}, 1.2, 12)
+    assert math.prod(1 + x for x in mensual.values()) == pytest.approx(1.01 ** 12 * 1.012)
+
+
+def _res_cuestionario(**cambios):
+    res = {('5a', 'rentabilidad'): 0.06, ('5a', 'diferencia_seguimiento'): 0.004, ('hist', 'consistencia'): 70.0,
+           ('5a', 'captura_bajista'): 95.0, ('5a', 'caida_relativa'): -0.05}
+    pct = {('hoy', 'ter'): 80.0, ('5a', 'sharpe'): 60.0, ('2021', 'rentabilidad'): 70.0, ('2022', 'rentabilidad'): 20.0,
+           ('2023', 'rentabilidad'): 55.0, ('2024', 'rentabilidad'): 90.0}
+    return {**res, **cambios.get('res', {})}, {**pct, **cambios.get('pct', {})}
+
+
+def test_cuestionario_puntos_y_nota():
+    res, pct = _res_cuestionario()
+    c = m.cuestionario(res, pct, 'renta variable', False, 120.0, 6.0)
+    # 15 + 10 + 5 (captura 95) + 0 (caída −5 pp) + 20 + 5 (Sharpe p60) + 10 (3 de 4 años) + 5 (120 M€) + 10 = 80 de 100
+    assert {k: c[k] for k in PREGUNTAS} == {'p1': 15, 'p2': 10, 'p3': 5, 'p4': 0, 'p5': 20, 'p6': 5, 'p7': 10, 'p8': 5, 'p9': 10}
+    assert c['puntos'] == 80 and c['posibles'] == 100 and c['nota'] == 80 and c['plazo'] == 5
+
+
+def test_cuestionario_reparte_las_preguntas_sin_respuesta():
+    res, pct = _res_cuestionario()
+    monetario = m.cuestionario(res, pct, 'monetario', False, 120.0, None)   # sin 3, 4 ni 9
+    assert 'p3' not in monetario and 'p4' not in monetario and 'p9' not in monetario
+    assert monetario['posibles'] == 75 and monetario['nota'] == round(100 * monetario['puntos'] / 75)
+    indexado = m.cuestionario(res, pct, 'renta variable', True, 120.0, 6.0)
+    assert 'p9' not in indexado
+
+
+def test_cuestionario_tres_anos_y_sin_nota():
+    res, pct = _res_cuestionario()
+    tres = {('3a', 'rentabilidad'): 0.05, ('3a', 'diferencia_seguimiento'): -0.02}
+    c = m.cuestionario(tres, {('hoy', 'ter'): 10.0}, 'renta variable', False, 30.0, 1.0)
+    assert c is None  # solo 1, 5, 8 y 9 tienen respuesta: 55 puntos posibles < 70
+    c = m.cuestionario({**tres, ('3a', 'captura_bajista'): 80.0, ('3a', 'caida_relativa'): 0.01}, {('hoy', 'ter'): 10.0},
+                       'renta variable', False, 30.0, 1.0)
+    assert c['plazo'] == 3 and c['posibles'] == 70 and c['puntos'] == 15 and c['nota'] == 21
+    assert m.cuestionario({}, pct, 'renta variable', False, 300.0, 9.0) is None  # sin 3 años
+    assert m.cuestionario({**res, ('5a', 'diferencia_seguimiento'): -0.5}, pct, 'renta variable', False, 0.0, 0.0)['nota'] >= 1

@@ -246,13 +246,17 @@ class Repo:
         fondos = {isin: {'categoria': cat, 'divisa': div, 'indice_id': iid, 'en_universo': uni, 'fund_id': fid,
                          'ter': None if ter is None else float(ter), 'gestion': ges, 'tir': None if tir is None else float(tir),
                          'patrimonio_meur': None if pat is None else float(pat),
-                         'gestor_anos': None if ges_a is None else float(ges_a)}
-                  for isin, cat, div, iid, uni, fid, ter, ges, tir, pat, ges_a in self._filas("""
+                         'gestor_anos': None if ges_a is None else float(ges_a),
+                         'gestor_veterano': None if ges_v is None else float(ges_v)}
+                  for isin, cat, div, iid, uni, fid, ter, ges, tir, pat, ges_a, ges_v in self._filas("""
             select f.isin, f.categoria, f.divisa, f.indice_id, f.en_universo, f.fund_id, f.ter, f.gestion,
                    case when jsonb_typeof(c.datos->'estadisticas_rf'->'YieldToMaturity') = 'number'
                         then (c.datos->'estadisticas_rf'->>'YieldToMaturity')::numeric end,  -- TIR de la última cartera, %
                    f.patrimonio_meur,
-                   (select (current_date - max(g.fecha)) / 365.25 from fondos.cambio_gestor g where g.fondo_id = f.id)
+                   (select (current_date - max(g.fecha)) / 365.25 from fondos.cambio_gestor g where g.fondo_id = f.id),
+                   (select (current_date - min((g->>'desde')::date)) / 365.25  -- años del gestor más veterano del equipo
+                    from jsonb_array_elements(case when jsonb_typeof(f.gestores) = 'array' then f.gestores end) g
+                    where g->>'desde' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}')
             from fondos.fondo f
             left join fondos.composicion c using (isin)
             where f.en_universo or f.isin in (select isin from fondos.fondo_diario)""")}

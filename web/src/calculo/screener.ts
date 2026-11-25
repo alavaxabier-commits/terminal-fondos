@@ -88,6 +88,7 @@ export const percentilDe = (f: FilaScreener, clave: string): number | null => f.
 
 /** Columnas ordenables: cómo se lee el valor y si menos es mejor (entonces se ordena de menor a mayor). */
 export const COLUMNAS = {
+  cuest: [(f: FilaScreener) => f.cuestionario?.nota ?? null, false],
   ter: [(f: FilaScreener) => f.ter, true], r3: [(f: FilaScreener) => f.r3, false], r5: [(f: FilaScreener) => f.r5, false],
   v3: [(f: FilaScreener) => cifraDe(f, '3a|volatilidad'), true], s3: [(f: FilaScreener) => cifraDe(f, '3a|sharpe'), false],
   m1: [(f: FilaScreener) => cifraDe(f, '1m|rentabilidad'), false], m2: [(f: FilaScreener) => cifraDe(f, '2m|rentabilidad'), false],

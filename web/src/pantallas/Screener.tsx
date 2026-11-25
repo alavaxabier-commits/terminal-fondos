@@ -582,13 +582,14 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
   const cab = { orden, setOrden }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[46rem] whitespace-nowrap text-right text-[13px] tabular">
+      <table className="w-full min-w-[50rem] whitespace-nowrap text-right text-[13px] tabular">
         <thead className="rotulo">
           <tr>
             <th className="w-12 pb-1.5 pl-3 text-left font-normal" title="Lugar en esta lista, con el orden y los filtros de la pantalla (no es el puesto en la categoría)">Orden</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
             <th className="pb-1.5 pl-3 text-left font-normal" title="Puesto en su categoría con la nota guardada el lunes (pesos por defecto) y puestos ganados o perdidos desde hace 4 semanas">{cargandoJornada ? 'Puesto …' : 'Puesto'}</th>
             <Cabecera o="nota" texto="Nota" clase="text-left" {...cab} />
+            <Cabecera o="cuest" texto="Cuest." titulo="Nota del cuestionario (1–100): nueve preguntas frente a su índice puro, su categoría y el propio fondo" {...cab} />
             <Cabecera o="ter" texto="TER" {...cab} />
             <Cabecera o="r3" texto="3 años" titulo="Rentabilidad anualizada a 3 años" {...cab} />
             <Cabecera o="r5" texto="5 años" titulo="Rentabilidad anualizada a 5 años" {...cab} />
@@ -612,6 +613,8 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
                   {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span>
                     : <span className="cifra text-[21px] font-extrabold leading-none">{Math.round(f.nota)}</span>}
                 </td>
+                <td className="pl-3">{f.cuestionario?.nota == null ? <span className="text-suave">—</span>
+                  : <span className="cifra text-[17px] font-bold">{Math.round(f.cuestionario.nota)}</span>}</td>
                 <td className="pl-3">{f.ter == null ? <span className="text-suave">—</span> : `${cifra(f.ter)} %`}</td>
                 {[f.r3, f.r5].map((r, j) => <td key={j} className={`pl-3 ${tono(r)}`}>{r == null ? '—' : pct(r)}</td>)}
                 <ConPct v={cifraDe(f, '3a|volatilidad')} p={percentilDe(f, '3a|volatilidad')} texto={pct(cifraDe(f, '3a|volatilidad'), 1, false)} />

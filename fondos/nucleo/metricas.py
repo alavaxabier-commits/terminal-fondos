@@ -194,6 +194,15 @@ def media_rendimientos(series: list[dict[Semana, float]], minimo: int = 3) -> di
     return {k: fmean(xs) for k, xs in sorted(acum.items()) if len(xs) >= minimo}
 
 
+def sin_gastos(r: dict, ter: float | None, periodos: int = SEMANAS_ANO) -> dict:
+    """Rentabilidades de un fondo sustituto con su TER (% anual) devuelto en cada periodo (52 semanas o 12 meses):
+    el índice puro, sin las comisiones del fondo que lo replica."""
+    if not ter:
+        return r
+    g = (1 + ter / 100) ** (1 / periodos)
+    return {k: (1 + x) * g - 1 for k, x in r.items()}
+
+
 def combinar(componentes: list[tuple[dict[Semana, float], float]]) -> dict[Semana, float]:
     """Índice combinado (p. ej. 60/40) rebalanceado cada semana, solo en semanas en que existen todos."""
     if not componentes:
@@ -684,3 +693,50 @@ def bloques_nota_nueva(pct_cat: dict[tuple[str, str], float], pct_tipo: dict[tup
         'tir': pct_cat.get(('hoy', 'tir_neta')) if tipo == 'renta fija' else None,
     }
     return {b: x for b, x in bloques.items() if x is not None}, ventana is None and v == '3a'
+
+
+# ------------------------------------------------------------------ cuestionario (nota 1–100)
+# Nueve preguntas frente al índice puro (preguntas 1–4), la categoría (5–7) y el propio fondo (8–9); cada una da sus
+# puntos enteros, la mitad o nada. Nota = puntos ÷ puntos de las preguntas con respuesta × 100 (mínimo 1). Plazo: 5A o,
+# si no lo hay, 3A; sin 3 años o con menos de CUESTIONARIO_MINIMO puntos con respuesta, sin nota. Los textos están en
+# web/src/calculo/cuestionario.ts. Los monetarios no responden 3 y 4 (el €STR no cae) y los indexados, 9 (gestor).
+PREGUNTAS = {'p1': 15, 'p2': 10, 'p3': 10, 'p4': 5, 'p5': 20, 'p6': 10, 'p7': 10, 'p8': 10, 'p9': 10}
+CUESTIONARIO_MINIMO = 70
+
+
+def _tramo(x: float | None, maximo: float, entero, medio) -> float | None:
+    """Puntos de una pregunta: todos si `entero(x)`, la mitad si `medio(x)`, 0 si no; None sin dato."""
+    if x is None:
+        return None
+    return float(maximo) if entero(x) else maximo / 2 if medio(x) else 0.0
+
+
+def cuestionario(res: dict[tuple[str, str], float], pct: dict[tuple[str, str], float], tipo: str, indexada: bool,
+                 patrimonio_meur: float | None, gestor_anos: float | None) -> dict[str, float] | None:
+    """Respuestas y nota de un fondo. `res`: sus métricas {(ventana, nombre): valor}; `pct`: sus percentiles en la
+    categoría; `gestor_anos`: años del gestor más veterano del equipo actual. Devuelve {'p1'…'p9' (solo las que tienen
+    respuesta), 'puntos', 'posibles', 'plazo' (5 o 3), 'nota'} o None."""
+    v = '5a' if ('5a', 'rentabilidad') in res else '3a' if ('3a', 'rentabilidad') in res else None
+    if v is None:
+        return None
+    anos = [p for (ventana, nombre), p in pct.items() if nombre == 'rentabilidad' and re.fullmatch(r'\d{4}', ventana)]
+    buenos = sum(p >= 50 for p in anos) / len(anos) if len(anos) >= 3 else None
+    sin_caidas = tipo == 'monetario'
+    r = {
+        'p1': _tramo(res.get((v, 'diferencia_seguimiento')), 15, lambda x: x >= 0, lambda x: x >= -0.01),
+        'p2': _tramo(res.get(('hist', 'consistencia')), 10, lambda x: x >= 60, lambda x: x >= 40),
+        'p3': None if sin_caidas else _tramo(res.get((v, 'captura_bajista')), 10, lambda x: x <= 90, lambda x: x <= 100),
+        'p4': None if sin_caidas else _tramo(res.get((v, 'caida_relativa')), 5, lambda x: x >= 0, lambda x: x >= -0.03),
+        'p5': _tramo(pct.get(('hoy', 'ter')), 20, lambda x: x >= 75, lambda x: x >= 50),
+        'p6': _tramo(pct.get((v, 'sharpe')), 10, lambda x: x >= 75, lambda x: x >= 50),
+        'p7': _tramo(buenos, 10, lambda x: x >= 2 / 3, lambda x: x >= 0.5),
+        'p8': _tramo(patrimonio_meur, 10, lambda x: x >= 200, lambda x: x >= 50),
+        'p9': None if indexada else _tramo(gestor_anos, 10, lambda x: x >= 5, lambda x: x >= 2),
+    }
+    r = {k: x for k, x in r.items() if x is not None}
+    posibles = sum(PREGUNTAS[k] for k in r)
+    if posibles < CUESTIONARIO_MINIMO:
+        return None
+    puntos = sum(r.values())
+    return r | {'puntos': puntos, 'posibles': float(posibles), 'plazo': float(v[0]),
+                'nota': float(max(1, round(100 * puntos / posibles)))}

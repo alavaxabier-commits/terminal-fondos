@@ -198,3 +198,27 @@ def test_percentiles_por_tipo_de_activo_y_nota_nueva():
     notas = calculo.notas_nuevas(res, fondos, calculo.percentiles_categoria(res, fondos))
     assert set(notas) == {'F0', 'F1', 'F2', 'F3', 'F4'}  # el indexado sigue con su nota
     assert notas['F4'][2]['rentabilidad'] == 80 and notas['F4'][1]  # solo 3 años
+
+
+def test_indice_puro_suma_el_ter_del_sustituto():
+    d = datos_base()
+    rend = {i: calculo.m.rendimientos(calculo.m.semanal(v)) for i, v in d['valores'].items()}
+    neto, _ = calculo.referencias(d['fondos'], rend, d['indices'], d['categorias'], {})
+    d['fondos']['PROXYWORLD01']['ter'] = 0.2
+    puro, _ = calculo.referencias(d['fondos'], rend, d['indices'], d['categorias'], {})
+    a, b = neto['indice:msci-world'], puro['indice:msci-world']
+    semanas = len(a) - 1
+    ratio = (list(b.values())[-1] / list(b.values())[0]) / (list(a.values())[-1] / list(a.values())[0])
+    assert ratio == pytest.approx(1.002 ** (semanas / 52))
+    assert puro['media:Sector Equity Technology'] == neto['media:Sector Equity Technology']  # la media no se toca
+
+
+def test_cuestionario_se_guarda_en_metrica():
+    d = datos_base()
+    for f in d['fondos'].values():
+        f.update(ter=1.0, patrimonio_meur=300.0)
+    filas = por_clave(calculo.calcular(d, HOY)[0])
+    nota = filas.get(('GLOBAL000001', 'cuestionario', 'nota'))
+    assert nota is not None and 1 <= nota[0] <= 100 and nota[1] is None
+    assert filas[('GLOBAL000001', 'cuestionario', 'plazo')][0] == 5
+    assert ('PROXYWORLD01', 'cuestionario', 'nota') not in filas  # fuera del universo

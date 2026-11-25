@@ -28,6 +28,13 @@ export function caidas(serie: Punto[]): Punto[] {
   return serie.map((p) => { max = Math.max(max, p.valor); return { fecha: p.fecha, valor: (p.valor / max - 1) * 100 } })
 }
 
+/** Índice puro: la serie del fondo sustituto con su TER (% anual) devuelto día a día (como `sin_gastos` en Python). */
+export function sinGastos(serie: Punto[], ter: number | null | undefined): Punto[] {
+  if (!ter || !serie.length) return serie
+  const t0 = Date.parse(serie[0].fecha + 'T00:00:00Z')
+  return serie.map((p) => ({ fecha: p.fecha, valor: p.valor * (1 + ter / 100) ** ((Date.parse(p.fecha + 'T00:00:00Z') - t0) / (365.25 * 864e5)) }))
+}
+
 /** Índice combinado (p. ej. 60/40) rebalanceado en cada fecha común a todos sus componentes. */
 export function combinar(componentes: { serie: Punto[]; peso: number }[]): Punto[] {
   if (!componentes.length || componentes.some((c) => !c.serie.length)) return []

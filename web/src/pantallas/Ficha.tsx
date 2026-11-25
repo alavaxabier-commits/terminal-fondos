@@ -4,11 +4,13 @@ import type { Composicion } from '../calculo/exposicion'
 import { bloques, grupoPesos, PESOS_TIPO_DEFECTO } from '../calculo/nota'
 import { evolucion, type NotaSemanal } from '../calculo/senales'
 import { cubierta } from '../calculo/screener'
-import { base100, combinar, haceAnos, inicioComun, variacion, type Punto } from '../calculo/series'
+import { base100, combinar, haceAnos, inicioComun, sinGastos, variacion, type Punto } from '../calculo/series'
 import Exposicion from '../componentes/Exposicion'
 import Franja from '../componentes/Franja'
 import Grafico from '../componentes/Grafico'
 import TablaNota from '../componentes/TablaNota'
+import TarjetaCuestionario from '../componentes/TarjetaCuestionario'
+import { leer as leerCuestionario } from '../calculo/cuestionario'
 import Tarjeta from '../componentes/Tarjeta'
 import { escribiendo } from '../componentes/teclas'
 import { alternar, MAX_BANDEJA, useBandeja } from '../datos/bandeja'
@@ -42,10 +44,13 @@ const RANGOS = [['1a', 1], ['3a', 3], ['5a', 5], ['10a', 10]] as const
 const PESTANAS = ['resumen', 'métricas', 'exposición', 'fondo', 'clases'] as const
 type Pestana = (typeof PESTANAS)[number]
 
-/** Serie del índice de referencia: su sustituto o la combinación de sus componentes. */
+/** Serie del índice de referencia: su sustituto con su TER devuelto (índice puro) o la combinación de sus componentes. */
 async function serieIndice(ind: q.Indice | null): Promise<Punto[]> {
   if (!ind) return []
-  if (ind.proxy_isin) return serieEur(ind.proxy_isin, (await q.fondo(ind.proxy_isin))?.divisa ?? null)
+  if (ind.proxy_isin) {
+    const proxy = await q.fondo(ind.proxy_isin)
+    return sinGastos(await serieEur(ind.proxy_isin, proxy?.divisa ?? null), proxy?.ter)
+  }
   if (ind.componentes?.length) {
     const comps = await q.indices(ind.componentes.map((c) => c.id))
     const series = await Promise.all(
@@ -327,6 +332,8 @@ export default function Ficha({ isin }: { isin: string }) {
                   <p className="mt-2 text-[11px] text-suave">Rentabilidad en %, en euros.</p>
                 </Tarjeta>
               )}
+            <TarjetaCuestionario c={leerCuestionario(new Map(datos.metricas.filter((x) => x.ventana === 'cuestionario').map((x) => [`cuestionario|${x.nombre}`, Number(x.valor)])))}
+              valor={(k) => m.get(k)?.valor} percentil={(k) => m.get(k)?.percentil} patrimonio={f.patrimonio_meur} />
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
               <Tarjeta titulo={`Por qué la nota${b?.solo3a ? ' · con métricas a 3 años' : ''}`}>
                 {b && e ? <TablaNota bloques={b.bloques} pesos={PESOS_TIPO_DEFECTO[grupoPesos(f.categoria, f.gestion === 'indexada')]} nota={e.nota} /> : <p className="text-suave">—</p>}

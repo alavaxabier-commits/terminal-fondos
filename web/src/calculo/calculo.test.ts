@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { cifra, colorPercentil, fecha, millones, pct } from './formato'
 import { simularCartera } from './metricas'
-import { aEur, base100, caidas, combinar, haceAnos, haceDias, inicioComun, lineasCartera, muestra, variacion } from './series'
+import { aEur, base100, caidas, combinar, haceAnos, haceDias, inicioComun, lineasCartera, muestra, sinGastos, variacion } from './series'
 
 describe('series', () => {
+  it('sinGastos devuelve el TER del sustituto: +0,5 % en un año con TER 0,5', () => {
+    const s = sinGastos([{ fecha: '2025-01-01', valor: 100 }, { fecha: '2026-01-01', valor: 100 }], 0.5)
+    expect(s[0].valor).toBe(100)
+    expect(s[1].valor).toBeCloseTo(100.5, 1)
+    expect(sinGastos(s, null)).toBe(s)
+  })
+
   it('variacion frente al último dato en o antes de la fecha; null si la serie no llega', () => {
     const s = [{ fecha: '2026-01-02', valor: 100 }, { fecha: '2026-01-05', valor: 110 }, { fecha: '2026-01-09', valor: 121 }]
     expect(variacion(s, '2026-01-04')).toBeCloseTo(0.21) // base: el 2 (el 4 no hay dato)

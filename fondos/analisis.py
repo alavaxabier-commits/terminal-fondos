@@ -63,7 +63,8 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
     """Todo calculado como si fuera `corte`: {isin: {'bloques': {...}, 'valores': {(ventana, nombre): valor}}}."""
     recortados = {**datos, 'carteras': {},
                   # la TIR, el patrimonio y los cambios de gestor de hoy no se sabían entonces
-                  'fondos': {i: {**f, 'tir': None, 'patrimonio_meur': None, 'gestor_anos': None} for i, f in datos['fondos'].items()},
+                  'fondos': {i: {**f, 'tir': None, 'patrimonio_meur': None, 'gestor_anos': None, 'gestor_veterano': None}
+                             for i, f in datos['fondos'].items()},
                   'valores': {i: {d: v for d, v in s.items() if d <= corte} for i, s in datos['valores'].items()}}
     filas = calcular(recortados, corte)[0]
     pct: dict[str, dict] = defaultdict(dict)
@@ -87,6 +88,8 @@ def foto(datos: dict, corte: dt.date) -> dict[str, dict]:
         out[isin] = {'bloques': b[0] if b else {}, 'sin_propios': sin[0] if sin else {}, 'indexada': indexada,
                      'nueva': nuevas[isin][0] if isin in nuevas else None,
                      'bloques_nueva': nuevas[isin][2] if isin in nuevas else {},
+                     # cuestionario sin tamaño ni gestor (preguntas 8 y 9): no hay historia de ninguno de los dos
+                     'cuestionario': todos.get(isin, {}).get(('cuestionario', 'nota')),
                      'valores': valores.get(isin, {}),
                      'ventanas': por_plazo if len(por_plazo) == len(VENTANAS) else {}}  # solo con todos: misma muestra
     return out
@@ -138,7 +141,9 @@ def evaluar(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str, 
     for cat, xs in muestra(antes, despues, fondos, horizonte, resultado).items():
         t = tipo(cat)
         futuro = dict(xs)
-        punt = {i: puntuaciones(antes[i]['bloques'], t, antes[i].get('ventanas')) for i in futuro}
+        punt = {i: puntuaciones(antes[i]['bloques'], t, antes[i].get('ventanas'))
+                | ({'cuestionario': antes[i]['cuestionario']} if antes[i].get('cuestionario') is not None else {})
+                for i in futuro}
         for nombre in {k for p in punt.values() for k in p}:
             con = [(punt[i][nombre], futuro[i]) for i in futuro if nombre in punt[i]]
             if len(con) < MIN_CATEGORIA:
@@ -375,7 +380,9 @@ def seleccion(antes: dict[str, dict], despues: dict[str, dict], fondos: dict[str
         a = antes[i]
         hoy_ = m.ponderar(a['bloques'], m.PESOS_TIPO[m.grupo_pesos(fondos[i]['categoria'], False)])
         if hoy_ is not None:
-            p = {'nota de hoy': hoy_, 'nota nueva': a['nueva'], **{f'hoy · {b}': x for b, x in a['bloques'].items()},
+            p = {'nota de hoy': hoy_, 'nota nueva': a['nueva'],
+                 **({'cuestionario': a['cuestionario']} if a.get('cuestionario') is not None else {}),
+                 **{f'hoy · {b}': x for b, x in a['bloques'].items()},
                  **{f'nueva · {b}': x for b, x in a.get('bloques_nueva', {}).items()},
                  **{f'reparto {n}': x for n, w in CANDIDATOS.items() if (x := m.ponderar(a['bloques'], w)) is not None}}
             v = despues[i]['valores']
@@ -407,7 +414,7 @@ def comparar_notas(fotos: dict[dt.date, dict], fondos: dict[str, dict]) -> str:
             for (g, nombre), ys in elegidos.items():
                 res[(h, g, nombre)].append((c, 100 * fmean(y[1] > 0 for y in ys), 100 * fmean(y[1] for y in ys),
                                             100 * fmean(y[2] for y in ys), len(ys)))
-    lineas = ['## Nota de hoy frente a la nueva', '',
+    lineas = ['## Nota de hoy frente a la nueva (y el cuestionario)', '',
               'El 20 % con mejor puntuación de cada categoría (al menos uno) en cada corte, y qué le pasó después: % que '
               'batió a su índice, exceso medio sobre él (% anual) y caída máxima media (%). Media de los cortes; «a favor», '
               'cortes en los que esa puntuación elige fondos que baten más a menudo que la nota de hoy. Cada bloque, solo. '

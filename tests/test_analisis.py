@@ -86,3 +86,18 @@ def test_nota_de_hoy_frente_a_la_nueva():
     assert '| nota nueva | 100.0 % | +3.50 | -10.0 | 1/1 | 2 |' in texto
     assert '| hoy · coste | 0.0 % |' in texto
     assert '| todos (sin elegir) | 40.0 % |' in texto
+
+
+def test_foto_lleva_el_cuestionario_sin_tamano_ni_gestor():
+    from fondos.analisis import foto
+    from tests.test_calculo import datos_base
+    d = datos_base()
+    for f in d['fondos'].values():
+        f.update(ter=1.0, patrimonio_meur=300.0, gestor_veterano=8.0)
+    hoy = foto(d, dt.date(2026, 11, 13))
+    assert hoy['GLOBAL000001']['cuestionario'] is not None
+    # el tamaño y el gestor de hoy no se sabían entonces: no cuentan
+    from fondos.calculo import calcular
+    filas = {(i, v, n): x for i, v, n, x, _ in calcular({**d, 'fondos': {i: {**f, 'patrimonio_meur': None, 'gestor_veterano': None}
+                                                                         for i, f in d['fondos'].items()}}, dt.date(2026, 11, 13))[0]}
+    assert hoy['GLOBAL000001']['cuestionario'] == filas[('GLOBAL000001', 'cuestionario', 'nota')]
