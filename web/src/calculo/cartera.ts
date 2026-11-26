@@ -115,10 +115,11 @@ export function rendMensuales(serie: Punto[]): number[] {
 
 /** Montecarlo: `caminos` futuros de `meses` meses hechos con tramos de `bloque` meses seguidos de la historia, elegidos al
  *  azar (bootstrap por bloques: conserva rachas y correlaciones entre fondos, porque son los meses de la cartera entera).
- *  Devuelve, para cada mes, los percentiles 5, 25, 50, 75 y 95 del valor (base 100) y la probabilidad de acabar por debajo
- *  de 100. Semilla fija: el mismo resultado cada vez. */
+ *  Se empieza con `inicial` y `aportes[m]` entra al empezar el mes m + 1 (0 = sin aportación ese mes). Devuelve, para cada
+ *  mes, los percentiles 5, 25, 50, 75 y 95 del valor, lo aportado en total y la probabilidad de acabar con menos de lo
+ *  aportado. Semilla fija: el mismo resultado cada vez. */
 export const PERCENTILES_MC = [5, 25, 50, 75, 95]
-export function montecarlo(rends: number[], meses: number, caminos = 2000, bloque = 12, semilla = 1) {
+export function montecarlo(rends: number[], meses: number, { inicial = 100, aportes = [] as number[] } = {}, caminos = 2000, bloque = 12, semilla = 1) {
   let t = semilla
   const azar = () => { // mulberry32
     t = (t + 0x6d2b79f5) | 0
@@ -128,15 +129,16 @@ export function montecarlo(rends: number[], meses: number, caminos = 2000, bloqu
   }
   const valores = Array.from({ length: meses + 1 }, () => new Float64Array(caminos))
   for (let c = 0; c < caminos; c++) {
-    let v = 100, i = 0
+    let v = inicial, i = 0
     valores[0][c] = v
     for (let m = 1; m <= meses; m++) {
       if ((m - 1) % bloque === 0) i = Math.floor(azar() * rends.length)
-      v *= 1 + rends[i++ % rends.length] // el tramo sigue por el principio si se sale de la historia
+      v = (v + (aportes[m - 1] ?? 0)) * (1 + rends[i++ % rends.length]) // el tramo sigue por el principio si se sale de la historia
       valores[m][c] = v
     }
   }
   const bandas = valores.map((xs) => { xs.sort(); return PERCENTILES_MC.map((p) => xs[Math.round((p / 100) * (caminos - 1))]) })
-  const final = valores[meses], sobre = final.findIndex((x) => x >= 100) // ya ordenado
-  return { bandas, perdida: (sobre < 0 ? caminos : sobre) / caminos }
+  const aportado = inicial + aportes.slice(0, meses).reduce((a, x) => a + x, 0)
+  const final = valores[meses], sobre = final.findIndex((x) => x >= aportado) // ya ordenado
+  return { bandas, aportado, perdida: (sobre < 0 ? caminos : sobre) / caminos }
 }

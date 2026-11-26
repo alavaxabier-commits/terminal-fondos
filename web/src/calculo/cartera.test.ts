@@ -76,11 +76,11 @@ describe('lecturaRiesgo', () => {
 
 describe('montecarlo', () => {
   it('con un rendimiento fijo, todos los caminos coinciden', () => {
-    const r = montecarlo([0.01, 0.01, 0.01], 24, 200)
+    const r = montecarlo([0.01, 0.01, 0.01], 24, {}, 200)
     expect(r.bandas).toHaveLength(25)
     for (const v of r.bandas[24]) expect(v).toBeCloseTo(100 * 1.01 ** 24)
     expect(r.perdida).toBe(0)
-    expect(montecarlo([-0.01], 12, 50).perdida).toBe(1)
+    expect(montecarlo([-0.01], 12, {}, 50).perdida).toBe(1)
   })
   it('percentiles ordenados y el mismo resultado con la misma semilla', () => {
     const rends = [0.05, -0.04, 0.02, -0.08, 0.06, 0.01, -0.02, 0.03, 0.04, -0.05, 0.02, 0.01, -0.03, 0.07]
@@ -90,6 +90,13 @@ describe('montecarlo', () => {
     expect(r.perdida).toBeGreaterThan(0)
     expect(r.perdida).toBeLessThan(1)
     expect(montecarlo(rends, 60)).toEqual(r)
+  })
+  it('aportaciones: entran al empezar el mes y cuentan en lo aportado', () => {
+    const r = montecarlo([0.1], 2, { inicial: 1000, aportes: [100, 0] }, 10)
+    expect(r.bandas[1][2]).toBeCloseTo(1210) // (1000 + 100) × 1,1
+    expect(r.bandas[2][2]).toBeCloseTo(1331)
+    expect(r.aportado).toBe(1100)
+    expect(montecarlo([0], 12, { inicial: 0, aportes: Array(12).fill(50) }, 10).perdida).toBe(0) // sin ganar ni perder: no acaba con menos
   })
   it('meses de una serie diaria, sin el mes en curso', () => {
     const s = puntos([['2026-01-15', 100], ['2026-01-31', 100], ['2026-02-27', 110], ['2026-03-31', 99], ['2026-04-10', 120]])
