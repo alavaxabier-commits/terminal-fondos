@@ -97,3 +97,17 @@ export function lineasCartera(nombre: string, sim: Punto[], ref: Punto[]) {
   }
   return out
 }
+
+/** Rentabilidad móvil: en cada fecha, la anualizada de los últimos `anos` años, en % ((v / v hace N años)^(1/N) − 1).
+ *  Solo donde hay un valor como mucho 10 días antes de esa fecha de hace N años (si no, la serie tiene un hueco). */
+export function movil(serie: Punto[], anos: number): Punto[] {
+  const out: Punto[] = []
+  let j = 0
+  for (const p of serie) {
+    const desde = haceAnos(p.fecha, anos)
+    while (j + 1 < serie.length && serie[j + 1].fecha <= desde) j++
+    const a = serie[j]
+    if (a.fecha <= desde && haceDias(desde, 10) <= a.fecha) out.push({ fecha: p.fecha, valor: ((p.valor / a.valor) ** (1 / anos) - 1) * 100 })
+  }
+  return out
+}

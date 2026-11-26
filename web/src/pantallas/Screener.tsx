@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { cifra, hoy, pct } from '../calculo/formato'
 import { aPesosTipo, BLOQUES, GRUPOS_PESOS, NOMBRE_BLOQUE, PESOS_TIPO_DEFECTO, PLAZOS, type Bloque, type GrupoPesos, type PesosTipo, type Plazo } from '../calculo/nota'
-import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, deModo, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
+import { cifraDe, COLUMNAS, cubierta, DE_MONETARIOS, deModo, METRICAS_RANGO, type MetricaRango, type Rango, grupo, grupos, indexada, NOMBRE_GRUPO, mediana, MIN_CATEGORIA, ordenar, pasa, percentilDe, puntuar, tipoActivo, TIPOS, type Filtros, type Modo, type Orden, type Puntuado } from '../calculo/screener'
 import Franja from '../componentes/Franja'
 import { movimiento, tintas, ultimaSemana, viejo, type Puestos } from '../calculo/jornada'
 import Tarjeta from '../componentes/Tarjeta'
@@ -16,7 +16,7 @@ import Fallo from '../componentes/Fallo'
 const POR_PAGINA = 100
 type Gestion = 'todas' | 'indexada' | 'activa' | 'separados'
 const GESTIONES: [Gestion, string, string][] = [['todas', 'Todas', ''], ['indexada', 'Indexadas', 'indexadas'], ['activa', 'Activas', 'activas'], ['separados', 'Separadas', 'separadas']]
-type Panel = 'perfil' | 'liga' | 'cartera' | 'coste' | 'donde' | 'pesos' | null
+type Panel = 'perfil' | 'liga' | 'cartera' | 'coste' | 'metricas' | 'donde' | 'columnas' | 'pesos' | null
 /** Lo de la jornada que necesitan las filas: puestos de la nota guardada, carteras de cada fondo y la tinta de cada cartera. */
 type Jornada = { puestos: Map<string, Puestos>; ultima: string; carteras: Map<string, { id: number; nombre: string }[]>; tinta: Map<number, string> }
 const fechaCorta = (f: string) => new Date(f + 'T12:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
@@ -33,9 +33,47 @@ const COLOR_BLOQUE: Record<Bloque, string> = {
 // Lo elegido se guarda en la pestaña (sessionStorage) para encontrarlo igual al volver de una ficha.
 const CLAVE = 'screener'
 type Guardado = { pesos: PesosTipo; tipoPesos: GrupoPesos; filtros: Filtros; modo: Modo; carteraId: number | ''; excluirSuyos: boolean; sel: string | null; mostrar: number; orden: Orden; plazo: Plazo | ''; y: number }
+const textoRango = (m: MetricaRango, x: Rango) => {
+  const [, nombre, u] = METRICAS_RANGO.find(([k]) => k === m)!
+  const n = (v: number) => cifra(v, m === 'sharpe' ? 2 : 1)
+  const que = x.min != null && x.max != null ? `${n(x.min)}–${n(x.max)}` : x.min != null ? `≥ ${n(x.min)}` : `≤ ${n(x.max!)}`
+  return `${nombre} ${x.plazo.toUpperCase()} ${que}${u && ` ${u}`}`
+}
 const anos = (p: Plazo) => (p === '1a' ? '1 año' : `${parseInt(p)} años`)
 const leer = (): Partial<Guardado> => { try { return JSON.parse(sessionStorage.getItem(CLAVE) ?? '{}') } catch { return {} } }
 const escribir = (g: Partial<Guardado>) => { try { sessionStorage.setItem(CLAVE, JSON.stringify({ ...leer(), ...g })) } catch { /* sin almacenamiento: se pierde al salir */ } }
+
+/** Columnas que se pueden poner en cada hueco de la tabla (las dos primeras, orden y fondo, son fijas). */
+type Col = { texto: string; titulo?: string; orden?: Orden; izq?: boolean; celda: (f: Puntuado, x: { jornada: Jornada; plazo: Plazo | '' }) => React.ReactNode }
+const fmtMetrica: Record<MetricaRango, (v: number | null) => string> = {
+  rentabilidad: (v) => pct(v), volatilidad: (v) => pct(v, 1, false), sharpe: (v) => cifra(v), max_caida: (v) => pct(v),
+}
+const CORTO: Record<MetricaRango, string> = { rentabilidad: 'Rent.', volatilidad: 'Volat.', sharpe: 'Sharpe', max_caida: 'Caída' }
+const COLS: Record<string, Col> = {
+  puesto: { texto: 'Puesto', izq: true, titulo: 'Puesto en su categoría con la nota guardada el lunes (pesos por defecto) y puestos ganados o perdidos desde hace 4 semanas',
+    celda: (f, x) => <CeldaSemana p={x.jornada.puestos.get(f.isin)} ultima={x.jornada.ultima} /> },
+  nota: { texto: 'Nota', orden: 'nota', izq: true, celda: (f, x) => (
+    <td className="pl-3 text-left">
+      {f.nota == null ? <span className="text-[12px] text-suave">{x.plazo ? `sin ${anos(x.plazo)}` : 'sin historial'}</span>
+        : <span className="cifra text-[21px] font-extrabold leading-none">{Math.round(f.nota)}</span>}
+    </td>) },
+  cuest: { texto: 'Cuest.', orden: 'cuest', titulo: 'Nota del cuestionario (1–100): nueve preguntas frente a su índice puro, su categoría y el propio fondo',
+    celda: (f) => <td className="pl-3">{f.cuestionario?.nota == null ? <span className="text-suave">—</span> : <span className="cifra text-[17px] font-bold">{Math.round(f.cuestionario.nota)}</span>}</td> },
+  ter: { texto: 'TER', orden: 'ter', celda: (f) => <td className="pl-3">{f.ter == null ? <span className="text-suave">—</span> : `${cifra(f.ter)} %`}</td> },
+  srri: { texto: 'SRRI', orden: 'srri', celda: (f) => <td className="pl-3">{f.srri ?? <span className="text-suave">—</span>}</td> },
+  patrimonio: { texto: 'Patrim.', orden: 'patrimonio', titulo: 'Patrimonio del fondo, en millones de euros',
+    celda: (f) => <td className="pl-3">{f.patrimonio_meur == null ? <span className="text-suave">—</span> : `${cifra(f.patrimonio_meur, 0)} M€`}</td> },
+  ...Object.fromEntries(PLAZOS.flatMap((p) => METRICAS_RANGO.map(([n, nombre]): [string, Col] => {
+    const k = `${p}|${n}`
+    return [k, { texto: `${CORTO[n]} ${p}`, orden: k, titulo: `${nombre} a ${anos(p)}`, celda: (f) => (
+      <ConPct v={cifraDe(f, k)} p={percentilDe(f, k)} texto={fmtMetrica[n](cifraDe(f, k))} clase={n === 'rentabilidad' ? tono(cifraDe(f, k)) : ''} />) }]
+  }))),
+}
+const COLS_DEFECTO = ['puesto', 'nota', 'cuest', 'ter', '3a|rentabilidad', '5a|rentabilidad', '3a|volatilidad', '3a|sharpe']
+// Las columnas elegidas se recuerdan en este navegador (no son de un perfil ni de la pestaña).
+const leerColumnas = (): string[] => {
+  try { const c = JSON.parse(localStorage.getItem('screener-columnas') ?? 'null'); return Array.isArray(c) && c.length === COLS_DEFECTO.length && c.every((k) => COLS[k]) ? c : COLS_DEFECTO } catch { return COLS_DEFECTO }
+}
 
 /** Screener: el universo ordenado por la nota (bloques de 0 a 100 calculados en Python, pesos ajustables), con filtros y perfiles. */
 export default function Screener() {
@@ -60,6 +98,8 @@ export default function Screener() {
   const [orden, setOrden] = useState<Orden>(g.orden ?? 'nota')
   const [plazo, setPlazo] = useState<Plazo | ''>(g.plazo ?? '')
   const [panel, setPanel] = useState<Panel>(null)
+  const [columnas, setColumnas] = useState<string[]>(leerColumnas)
+  useEffect(() => { try { localStorage.setItem('screener-columnas', JSON.stringify(columnas)) } catch { /* sin almacenamiento */ } }, [columnas])
   const [cats, setCats] = useState<Awaited<ReturnType<typeof q.categoriasReferencia>> | null>(null)
   const [senales, setSenales] = useState<Map<string, Senal[]>>(new Map())
   const [puestos, setPuestos] = useState<Map<string, Puestos> | null>(null)
@@ -176,6 +216,9 @@ export default function Screener() {
     b: (i) => { const f = visibles.find((x) => x.isin === i); if (f) alternar(f) },
   })
 
+  const rangosPuestos = (Object.entries(filtros.rangos ?? {}) as [MetricaRango, Rango | undefined][])
+    .filter((e): e is [MetricaRango, Rango] => !!e[1] && (e[1].min != null || e[1].max != null))
+  const ponRango = (m: MetricaRango, x: Partial<Rango>) => filtrar({ rangos: { ...filtros.rangos, [m]: { plazo: '3a', ...filtros.rangos?.[m], ...x } } })
   // filtros activos como pastillas: ✕ quita ese filtro (y los que dependen de él)
   const activos = ([
     [filtros.tipo, filtros.tipo, () => filtrar({ tipo: undefined, grupo: undefined, categoria: undefined })],
@@ -186,6 +229,7 @@ export default function Screener() {
     [filtros.srriMax, `SRRI ≤ ${filtros.srriMax}`, () => filtrar({ srriMax: undefined })],
     [filtros.anosMin, `≥ ${cifra(filtros.anosMin, 0)} años`, () => filtrar({ anosMin: undefined })],
     [filtros.patrimonioMin, `≥ ${cifra(filtros.patrimonioMin, 0)} M€`, () => filtrar({ patrimonioMin: undefined })],
+    ...rangosPuestos.map(([m, x]) => [true, textoRango(m, x), () => filtrar({ rangos: { ...filtros.rangos, [m]: undefined } })]),
     [filtros.divisa, filtros.divisa, () => filtrar({ divisa: undefined })],
     [filtros.soloMyinvestor, 'Solo MyInvestor', () => filtrar({ soloMyinvestor: undefined })],
     [carteraId, `Diversificar con ${carteras.find((c) => c.id === carteraId)?.nombre ?? 'su cartera'}`, () => { setCarteraId(''); setExcluirSuyos(false) }],
@@ -238,9 +282,12 @@ export default function Screener() {
     { k: 'coste', t: 'Coste y riesgo', v: unir([filtros.terMax != null && `TER ≤ ${cifra(filtros.terMax)} %`, filtros.srriMax && `SRRI ≤ ${filtros.srriMax}`,
       filtros.anosMin != null && `≥ ${cifra(filtros.anosMin, 0)} años`, filtros.patrimonioMin != null && `≥ ${cifra(filtros.patrimonioMin, 0)} M€`]) || 'sin límites',
       puesto: filtros.terMax != null || !!filtros.srriMax || filtros.anosMin != null || filtros.patrimonioMin != null },
+    { k: 'metricas', t: 'Métricas', v: rangosPuestos.length ? rangosPuestos.map(([m, x]) => textoRango(m, x)).join(' · ') : 'sin rangos', puesto: rangosPuestos.length > 0 },
     { k: 'donde', t: 'Dónde', v: unir([filtros.soloMyinvestor && 'solo MyInvestor', filtros.divisa]) || 'todos', puesto: !!(filtros.soloMyinvestor || filtros.divisa) },
     { k: 'pesos', t: 'Pesos', v: monetarios ? 'no se usan en monetarios' : `${plazo ? plazo.toUpperCase() : 'auto'} · ${NOMBRE_BLOQUE[mayorPeso].toLowerCase()} ${Math.round(pesoReal(mayorPeso) * 100)} %`,
       puesto: !!plazo, no: monetarios },
+    { k: 'columnas', t: 'Columnas', v: monetarios ? 'fijas en monetarios' : columnas.join() === COLS_DEFECTO.join() ? 'por defecto' : 'a tu gusto',
+      puesto: columnas.join() !== COLS_DEFECTO.join(), no: monetarios },
   ]
   const abrir = (k: Panel) => setPanel(panel === k ? null : k)
 
@@ -312,6 +359,37 @@ export default function Screener() {
         <Campo etiqueta="Patrimonio mínimo (M€)"><CampoNumero valor={filtros.patrimonioMin} cambiar={(v) => filtrar({ patrimonioMin: v })} /></Campo>
       </div>
     ),
+    metricas: (
+      <div className="space-y-2.5">
+        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-2 gap-y-1.5 text-[13px]">
+          <span /><span className="rotulo">Plazo</span><span className="rotulo">Desde</span><span className="rotulo">Hasta</span>
+          {METRICAS_RANGO.map(([m, nombre, u]) => (
+            <Fragment key={m}>
+              <span>{nombre}{u && <span className="text-suave"> ({u})</span>}</span>
+              <select value={filtros.rangos?.[m]?.plazo ?? '3a'} onChange={(e) => ponRango(m, { plazo: e.target.value as Plazo })} aria-label={`Plazo de ${nombre}`} className={control}>
+                {PLAZOS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
+              </select>
+              <CampoNumero valor={filtros.rangos?.[m]?.min} cambiar={(v) => ponRango(m, { min: v })} etiqueta={`${nombre}: desde`} />
+              <CampoNumero valor={filtros.rangos?.[m]?.max} cambiar={(v) => ponRango(m, { max: v })} etiqueta={`${nombre}: hasta`} />
+            </Fragment>
+          ))}
+        </div>
+        <p className="text-[12px] text-suave">En % salvo el Sharpe; la caída, en positivo (hasta 20 = no ha caído más de un 20 %). Los fondos sin esa cifra (sin historial suficiente) no pasan.</p>
+      </div>
+    ),
+    columnas: (
+      <div className="space-y-2.5">
+        {columnas.map((k, i) => (
+          <Campo key={i} etiqueta={`Columna ${i + 3}`}>
+            <select value={k} onChange={(e) => setColumnas((c) => c.map((x, j) => (j === i ? e.target.value : x)))} className={`${control} max-w-48`}>
+              {Object.entries(COLS).map(([id, c]) => <option key={id} value={id}>{c.titulo && !['puesto', 'cuest'].includes(id) ? c.titulo : c.texto}</option>)}
+            </select>
+          </Campo>
+        ))}
+        <p className="text-[12px] text-suave">Orden y Fondo son fijas. Se recuerdan en este navegador.</p>
+        <button type="button" onClick={() => setColumnas(COLS_DEFECTO)} className="boton w-full text-[13px]">Columnas por defecto</button>
+      </div>
+    ),
     donde: (
       <div className="space-y-2.5">
         <Campo etiqueta="Solo MyInvestor">
@@ -355,7 +433,7 @@ export default function Screener() {
       </div>
     ),
   }
-  const titulos: Record<Exclude<Panel, null>, string> = { perfil: 'Perfil', liga: 'Categoría', cartera: 'Frente a una cartera', coste: 'Coste y riesgo', donde: 'Dónde', pesos: 'Pesos de la nota' }
+  const titulos: Record<Exclude<Panel, null>, string> = { perfil: 'Perfil', liga: 'Categoría', cartera: 'Frente a una cartera', coste: 'Coste y riesgo', metricas: 'Rangos de métricas', donde: 'Dónde', columnas: 'Columnas de la tabla', pesos: 'Pesos de la nota' }
   // un desplegable no bloquea: la tabla se recalcula con él abierto; se cierra con ✕, Esc o al pulsar fuera
   // función, no componente: definido aquí dentro se volvería a montar en cada cambio y los campos perderían el foco
   const desplegable = (k: Exclude<Panel, null>, clase: string) => (
@@ -427,7 +505,7 @@ export default function Screener() {
             <Tarjeta key={titulo} titulo={titulo ? `${titulo} · ${filas.length}` : undefined}>
               {monetarios
                 ? <TablaMonetarios filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} jornada={jornada} />
-                : <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} pocos={pocos} plazo={plazo} jornada={jornada} cargandoJornada={puestos == null} />}
+                : <Tabla filas={filas.slice(0, mostrar)} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguirFondo} conCategoria={!filtros.categoria} orden={ordenEf} setOrden={setOrden} pocos={pocos} plazo={plazo} jornada={jornada} cargandoJornada={puestos == null} columnas={columnas} />}
               {filas.length > mostrar && (
                 <button onClick={() => setMostrar((n) => n + POR_PAGINA)} className="boton mt-3 text-[13px]">Ver {Math.min(POR_PAGINA, filas.length - mostrar)} más</button>
               )}
@@ -484,12 +562,12 @@ const numero = (v: string) => {
 }
 
 /** Campo numérico que guarda lo escrito tal cual («0,» mientras se teclea «0,5») y avisa con el número. */
-function CampoNumero({ valor, cambiar }: { valor: number | undefined; cambiar: (v: number | undefined) => void }) {
+function CampoNumero({ valor, cambiar, etiqueta }: { valor: number | undefined; cambiar: (v: number | undefined) => void; etiqueta?: string }) {
   const [texto, setTexto] = useState(valor == null ? '' : String(valor).replace('.', ','))
   useEffect(() => { // cambio desde fuera (perfil, quitar filtros)
     if (numero(texto) !== valor) setTexto(valor == null ? '' : String(valor).replace('.', ','))
   }, [valor]) // eslint-disable-line react-hooks/exhaustive-deps
-  return <input inputMode="decimal" value={texto} onChange={(e) => { setTexto(e.target.value); cambiar(numero(e.target.value)) }} className={`${control} w-20 text-right`} />
+  return <input inputMode="decimal" aria-label={etiqueta} value={texto} onChange={(e) => { setTexto(e.target.value); cambiar(numero(e.target.value)) }} className={`${control} w-20 text-right`} />
 }
 
 type PropsTabla = {
@@ -578,8 +656,9 @@ function MovilMovimiento({ p }: { p: Puestos | undefined }) {
   return <span className={`estrecha ml-1.5 text-[13px] font-bold sm:hidden ${m > 0 ? 'text-sube' : 'text-baja'}`}>{m > 0 ? `▲${m}` : `▼${-m}`}</span>
 }
 
-function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, jornada, cargandoJornada }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; cargandoJornada: boolean }) {
+function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setOrden, pocos, plazo, jornada, cargandoJornada, columnas }: PropsTabla & { pocos: (f: Puntuado) => number; plazo: Plazo | ''; cargandoJornada: boolean; columnas: string[] }) {
   const cab = { orden, setOrden }
+  const cols = columnas.map((k) => COLS[k])
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[50rem] whitespace-nowrap text-right text-[13px] tabular">
@@ -587,41 +666,24 @@ function Tabla({ filas, sel, setSel, seguidos, seguir, conCategoria, orden, setO
           <tr>
             <th className="w-12 pb-1.5 pl-3 text-left font-normal" title="Lugar en esta lista, con el orden y los filtros de la pantalla (no es el puesto en la categoría)">Orden</th>
             <th className="pb-1.5 pl-3 text-left font-normal">Fondo</th>
-            <th className="pb-1.5 pl-3 text-left font-normal" title="Puesto en su categoría con la nota guardada el lunes (pesos por defecto) y puestos ganados o perdidos desde hace 4 semanas">{cargandoJornada ? 'Puesto …' : 'Puesto'}</th>
-            <Cabecera o="nota" texto="Nota" clase="text-left" {...cab} />
-            <Cabecera o="cuest" texto="Cuest." titulo="Nota del cuestionario (1–100): nueve preguntas frente a su índice puro, su categoría y el propio fondo" {...cab} />
-            <Cabecera o="ter" texto="TER" {...cab} />
-            <Cabecera o="r3" texto="3 años" titulo="Rentabilidad anualizada a 3 años" {...cab} />
-            <Cabecera o="r5" texto="5 años" titulo="Rentabilidad anualizada a 5 años" {...cab} />
-            <Cabecera o="v3" texto="Volat. 3a" titulo="Volatilidad a 3 años" {...cab} />
-            <Cabecera o="s3" texto="Sharpe 3a" titulo="Sharpe a 3 años" {...cab} />
+            {cols.map((c, i) => c.orden
+              ? <Cabecera key={i} o={c.orden} texto={c.texto} titulo={c.titulo} clase={c.izq ? 'text-left' : ''} {...cab} />
+              : <th key={i} className="pb-1.5 pl-3 text-left font-normal" title={c.titulo}>{c === COLS.puesto && cargandoJornada ? `${c.texto} …` : c.texto}</th>)}
             <th className="relative w-8"><span className="sr-only">Seguir</span></th>
           </tr>
         </thead>
         <tbody>
-          {filas.map((f, i) => {
-            return (
-              <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
-                <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} extra={<>
-                  {f.nota != null && <span className="estrecha ml-1.5 text-[15px] font-extrabold sm:hidden">· {Math.round(f.nota)}</span>}
-                  <MovilMovimiento p={jornada.puestos.get(f.isin)} />
-                  {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
-                  {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
-                </>} />
-                <CeldaSemana p={jornada.puestos.get(f.isin)} ultima={jornada.ultima} />
-                <td className="pl-3 text-left">
-                  {f.nota == null ? <span className="text-[12px] text-suave">{plazo ? `sin ${anos(plazo)}` : 'sin historial'}</span>
-                    : <span className="cifra text-[21px] font-extrabold leading-none">{Math.round(f.nota)}</span>}
-                </td>
-                <td className="pl-3">{f.cuestionario?.nota == null ? <span className="text-suave">—</span>
-                  : <span className="cifra text-[17px] font-bold">{Math.round(f.cuestionario.nota)}</span>}</td>
-                <td className="pl-3">{f.ter == null ? <span className="text-suave">—</span> : `${cifra(f.ter)} %`}</td>
-                {[f.r3, f.r5].map((r, j) => <td key={j} className={`pl-3 ${tono(r)}`}>{r == null ? '—' : pct(r)}</td>)}
-                <ConPct v={cifraDe(f, '3a|volatilidad')} p={percentilDe(f, '3a|volatilidad')} texto={pct(cifraDe(f, '3a|volatilidad'), 1, false)} />
-                <ConPct v={cifraDe(f, '3a|sharpe')} p={percentilDe(f, '3a|sharpe')} texto={cifra(cifraDe(f, '3a|sharpe'))} />
-              </Fila>
-            )
-          })}
+          {filas.map((f, i) => (
+            <Fila key={f.isin} f={f} i={f.nota == null && orden === 'nota' ? null : i + 1} k={i} sel={sel} setSel={setSel} seguidos={seguidos} seguir={seguir} jornada={jornada}>
+              <CeldaFondo f={f} conCategoria={conCategoria} jornada={jornada} extra={<>
+                {f.nota != null && <span className="estrecha ml-1.5 text-[15px] font-extrabold sm:hidden">· {Math.round(f.nota)}</span>}
+                <MovilMovimiento p={jornada.puestos.get(f.isin)} />
+                {f.solo3a && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title="Menos de 5 años: métricas a 3 años">3A</span>}
+                {pocos(f) > 0 && <span className="ml-1.5 rounded-sm bg-aviso/15 px-1.5 align-[1px] text-[11px] text-aviso" title={`Su categoría solo tiene ${pocos(f)} fondos en el universo: el percentil dice poco`}>de {pocos(f)}</span>}
+              </>} />
+              {cols.map((c, j) => <Fragment key={j}>{c.celda(f, { jornada, plazo })}</Fragment>)}
+            </Fila>
+          ))}
         </tbody>
       </table>
     </div>

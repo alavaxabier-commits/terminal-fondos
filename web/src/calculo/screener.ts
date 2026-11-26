@@ -1,6 +1,6 @@
 // Screener: filtros y nota de cada fondo del universo con los pesos elegidos (sin red).
 import type { FilaScreener } from '../datos/consultas'
-import { bloques, grupoPesos, nota, tipoActivo, type Bloque, type PesosTipo, type Plazo, type Tipo } from './nota'
+import { bloques, grupoPesos, nota, PLAZOS, tipoActivo, type Bloque, type PesosTipo, type Plazo, type Tipo } from './nota'
 export { TIPOS, tipoActivo, type Tipo } from './nota'
 
 /** Segundo nivel dentro del tipo: región o estilo, por el nombre de la categoría (el orden de las reglas importa). */
@@ -40,8 +40,14 @@ export function grupo(categoria: string | null): string | null {
 
 export type Filtros = {
   tipo?: Tipo; grupo?: string; categoria?: string; gestion?: 'activa' | 'indexada'; terMax?: number; srriMax?: number; anosMin?: number
-  patrimonioMin?: number; divisa?: string; soloMyinvestor?: boolean
+  patrimonioMin?: number; divisa?: string; soloMyinvestor?: boolean; rangos?: Partial<Record<MetricaRango, Rango>>
 }
+/** Métricas que se pueden filtrar por rango, con su unidad: rentabilidad, volatilidad y caída en %, la caída en positivo. */
+export const METRICAS_RANGO = [['rentabilidad', 'Rentabilidad anual', '%'], ['volatilidad', 'Volatilidad', '%'], ['sharpe', 'Sharpe', ''], ['max_caida', 'Caída máxima', '%']] as const
+export type MetricaRango = (typeof METRICAS_RANGO)[number][0]
+export type Rango = { plazo: Plazo; min?: number; max?: number }
+/** La cifra en la unidad del filtro: % (la caída, en positivo) o tal cual (Sharpe). */
+export const enUnidad = (m: MetricaRango, v: number) => (m === 'sharpe' ? v : m === 'max_caida' ? Math.abs(v) * 100 : v * 100)
 // Indexados y activos se eligen con el filtro de gestión; el modo solo dice si van en una tabla o en dos.
 export type Modo = 'juntos' | 'separados'
 
@@ -70,6 +76,13 @@ export function pasa(f: FilaScreener, x: Filtros, hoy: string, excluir: Set<stri
   if (x.patrimonioMin != null && (f.patrimonio_meur ?? 0) < x.patrimonioMin) return false
   if (x.divisa && f.divisa !== x.divisa) return false
   if (x.soloMyinvestor && !f.myinvestor) return false
+  for (const [m, r] of Object.entries(x.rangos ?? {}) as [MetricaRango, Rango | undefined][]) {
+    if (!r || (r.min == null && r.max == null)) continue
+    const v = cifraDe(f, `${r.plazo}|${m}`)
+    if (v == null) return false
+    const y = enUnidad(m, v)
+    if ((r.min != null && y < r.min) || (r.max != null && y > r.max)) return false
+  }
   if (x.anosMin != null) {
     const limite = `${+hoy.slice(0, 4) - x.anosMin}${hoy.slice(4, 10)}`
     if (!f.fecha_lanzamiento || f.fecha_lanzamiento > limite) return false
@@ -95,14 +108,17 @@ export const COLUMNAS = {
   m3: [(f: FilaScreener) => cifraDe(f, '3m|rentabilidad'), false], m12: [(f: FilaScreener) => cifraDe(f, '1a|rentabilidad'), false],
   dif: [(f: FilaScreener) => cifraDe(f, '3m|diferencial_estr'), false],
   mneg: [(f: FilaScreener) => cifraDe(f, '12m|meses_negativos'), true],
-} satisfies Record<string, [(f: FilaScreener) => number | null, boolean]>
-export type Orden = 'nota' | keyof typeof COLUMNAS
+  srri: [(f: FilaScreener) => f.srri, true], patrimonio: [(f: FilaScreener) => f.patrimonio_meur, false],
+  // cada métrica de la vista a cada plazo ('3a|volatilidad'…), para las columnas que se eligen
+  ...Object.fromEntries(PLAZOS.flatMap((p) => METRICAS_RANGO.map(([n]) => [`${p}|${n}`, [(f: FilaScreener) => cifraDe(f, `${p}|${n}`), n === 'volatilidad']]))),
+} as Record<string, [(f: FilaScreener) => number | null, boolean]>
+export type Orden = string // 'nota' o una clave de COLUMNAS
 /** Columnas propias de la vista Monetarios (con el tipo «monetario», el ranking cambia a ellas; por defecto, 3M). */
 export const DE_MONETARIOS: Orden[] = ['m1', 'm2', 'm3', 'm12', 'dif', 'mneg']
 
 /** Orden de la tabla: por nota (como sale de puntuar) o por una columna; los que no tienen el dato, al final. */
 export function ordenar(filas: Puntuado[], orden: Orden): Puntuado[] {
-  if (orden === 'nota') return filas
+  if (orden === 'nota' || !COLUMNAS[orden]) return filas
   const [v, menos] = COLUMNAS[orden]
   const signo = menos ? 1 : -1
   return [...filas].sort((a, b) => (v(a) == null ? 1 : 0) - (v(b) == null ? 1 : 0) || signo * ((v(a) ?? 0) - (v(b) ?? 0)))

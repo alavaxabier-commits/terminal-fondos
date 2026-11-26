@@ -13,6 +13,8 @@ import { novedades as calcularNovedades, umbralesNovedades, type Novedad } from 
 import Exposicion from '../componentes/Exposicion'
 import Franja from '../componentes/Franja'
 import Grafico from '../componentes/Grafico'
+import Moviles from '../componentes/Moviles'
+import MonteCarlo from '../componentes/MonteCarlo'
 import Tarjeta from '../componentes/Tarjeta'
 import { escribiendo } from '../componentes/teclas'
 import * as q from '../datos/consultas'
@@ -121,6 +123,9 @@ export default function Cartera({ id }: { id: number }) {
     const desde = rango ? haceAnos(sim.at(-1)!.fecha, rango) : sim[0].fecha
     return lineasCartera(cartera?.nombre ?? 'Cartera', base100(sim, desde < sim[0].fecha ? sim[0].fecha : desde), calc?.referenciaSerie ?? [])
   }, [sim, rango, calc, cartera?.nombre])
+
+  const movilesCartera = useMemo(() => [{ nombre: cartera?.nombre ?? 'Cartera', serie: sim, color: 'acento' },
+    ...(calc?.referenciaSerie.length ? [{ nombre: 'Referencia', serie: calc.referenciaSerie, color: 'suave' }] : [])], [sim, calc, cartera?.nombre])
 
   // ← y → cambian de pestaña, como en la ficha
   const pestanas = PESTANAS.filter((p) => p !== 'cambios' || historial.length > 0)
@@ -445,6 +450,12 @@ export default function Cartera({ id }: { id: number }) {
             </Tarjeta>
 
             {calc && <AnoAno calc={calc} />}
+            {hayCalculo && sim.length > 1 && (
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
+                <Tarjeta titulo="Rentabilidad móvil"><Moviles lineas={movilesCartera} /></Tarjeta>
+                <Tarjeta titulo="Montecarlo"><MonteCarlo sim={sim} /></Tarjeta>
+              </div>
+            )}
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
               <Tarjeta titulo="Tipo de activo" extra={<button onClick={() => setPestana('exposición')} className="text-[12px] text-suave hover:text-acento">Exposición →</button>}>
                 {expo ? <Reparto activos={expo.activos} cobertura={expo.cobertura} /> : <Cargando alto="h-14" />}

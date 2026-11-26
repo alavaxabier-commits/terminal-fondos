@@ -8,6 +8,7 @@ import { base100, combinar, haceAnos, inicioComun, sinGastos, variacion, type Pu
 import Exposicion from '../componentes/Exposicion'
 import Franja from '../componentes/Franja'
 import Grafico from '../componentes/Grafico'
+import Moviles from '../componentes/Moviles'
 import TablaNota from '../componentes/TablaNota'
 import TarjetaCuestionario from '../componentes/TarjetaCuestionario'
 import { leer as leerCuestionario } from '../calculo/cuestionario'
@@ -191,6 +192,10 @@ export default function Ficha({ isin }: { isin: string }) {
     return out
   }, [datos, rango])
 
+  // rentabilidad móvil con las series enteras (no las del periodo del gráfico de arriba)
+  const movilesFicha = useMemo(() => !datos?.serie.length ? [] : [{ nombre: 'Fondo', serie: datos.serie, color: 'acento' },
+    ...(datos.serieRef.length ? [{ nombre: datos.ref.indice?.nombre ?? 'Índice', serie: datos.serieRef, color: 'suave' }] : [])], [datos])
+
   if (error) return <Fallo>No se ha podido cargar el fondo: {error}</Fallo>
   if (datos === undefined) return <Cargando pagina texto={`Cargando ${isin}…`} />
   if (datos === null) return <p className="text-suave">No hay ningún fondo con ISIN {isin}.</p>
@@ -312,6 +317,7 @@ export default function Ficha({ isin }: { isin: string }) {
                 </dl>
               </Tarjeta>
             </div>
+              {movilesFicha.length > 0 && <Tarjeta titulo="Rentabilidad móvil"><Moviles lineas={movilesFicha} /></Tarjeta>}
               {ultimosAnos.length > 0 && (
                 <Tarjeta titulo="Por año natural" extra={<span className="text-[12px] text-suave">cuartil en su categoría · 1 es el mejor</span>}>
                   <div className="overflow-x-auto">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcularCartera, cambiosCartera, lecturaRiesgo, type CalculoCartera } from './cartera'
+import { calcularCartera, cambiosCartera, lecturaRiesgo, montecarlo, rendMensuales, type CalculoCartera } from './cartera'
 import caso from './caso_metricas.json'
 import { semanal } from './metricas'
 
@@ -71,5 +71,28 @@ describe('lecturaRiesgo', () => {
   it('sin correlaciones ni volatilidad media', () => {
     const calc = { metricas: {}, volatilidadMedia: null, correlacion: null, fondos: [{ riesgo: null }] } as unknown as CalculoCartera
     expect(lecturaRiesgo(calc, [100])).toEqual({ vol: null, quita: null, mayor: null, pareja: null, parecido: [null] })
+  })
+})
+
+describe('montecarlo', () => {
+  it('con un rendimiento fijo, todos los caminos coinciden', () => {
+    const r = montecarlo([0.01, 0.01, 0.01], 24, 200)
+    expect(r.bandas).toHaveLength(25)
+    for (const v of r.bandas[24]) expect(v).toBeCloseTo(100 * 1.01 ** 24)
+    expect(r.perdida).toBe(0)
+    expect(montecarlo([-0.01], 12, 50).perdida).toBe(1)
+  })
+  it('percentiles ordenados y el mismo resultado con la misma semilla', () => {
+    const rends = [0.05, -0.04, 0.02, -0.08, 0.06, 0.01, -0.02, 0.03, 0.04, -0.05, 0.02, 0.01, -0.03, 0.07]
+    const r = montecarlo(rends, 60)
+    for (const b of r.bandas) expect([...b].sort((x, y) => x - y)).toEqual(b)
+    expect(r.bandas[60][0]).toBeLessThan(r.bandas[60][4])
+    expect(r.perdida).toBeGreaterThan(0)
+    expect(r.perdida).toBeLessThan(1)
+    expect(montecarlo(rends, 60)).toEqual(r)
+  })
+  it('meses de una serie diaria, sin el mes en curso', () => {
+    const s = puntos([['2026-01-15', 100], ['2026-01-31', 100], ['2026-02-27', 110], ['2026-03-31', 99], ['2026-04-10', 120]])
+    expect(rendMensuales(s).map((x) => +x.toFixed(4))).toEqual([0.1, -0.1])
   })
 })

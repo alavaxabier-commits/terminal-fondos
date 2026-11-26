@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FilaScreener } from '../datos/consultas'
 import { PESOS_TIPO_DEFECTO } from './nota'
+import type { Filtros } from './screener'
 import { alternativas, cubierta, deModo, grupo, grupos, mediana, ordenar, pasa, plazoDe, puntuar, tipoActivo } from './screener'
 
 const fila = (x: Partial<FilaScreener>): FilaScreener => ({
@@ -36,6 +37,20 @@ describe('screener', () => {
     expect(r.map((x) => x.isin)).toEqual(['C', 'B', 'A'])
     expect(r[0].nota).toBeCloseTo((80 * 5 + 100 * 45) / 50)
     expect(r[2].nota).toBeNull()
+  })
+})
+
+describe('filtros por rango', () => {
+  const f = fila({ cifras: { '3a|volatilidad': [0.1, 50], '3a|sharpe': [0.8, 60], '5a|max_caida': [-0.22, 40] } })
+  const pasaR = (rangos: Filtros['rangos'], x = f) => pasa(x, { rangos }, '2026-11-13', new Set())
+  it('en %, la caída en positivo y el Sharpe tal cual; sin el dato no pasa', () => {
+    expect(pasaR({ volatilidad: { plazo: '3a', min: 5, max: 12 } })).toBe(true)
+    expect(pasaR({ volatilidad: { plazo: '3a', max: 9 } })).toBe(false)
+    expect(pasaR({ sharpe: { plazo: '3a', min: 1 } })).toBe(false)
+    expect(pasaR({ max_caida: { plazo: '5a', max: 25 } })).toBe(true)
+    expect(pasaR({ max_caida: { plazo: '5a', max: 20 } })).toBe(false)
+    expect(pasaR({ volatilidad: { plazo: '5a', max: 50 } })).toBe(false)
+    expect(pasaR({ volatilidad: { plazo: '5a' } })).toBe(true) // sin límites no filtra
   })
 })
 
@@ -79,6 +94,8 @@ describe('región o estilo', () => {
     expect(ordenar(fs, 'v3').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
     expect(ordenar(fs, 'm3').map((f) => f.isin)).toEqual(['A', 'B', 'C'])
     expect(ordenar(fs, 'mneg').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
+    expect(ordenar(fs, '3a|volatilidad').map((f) => f.isin)).toEqual(['B', 'A', 'C'])
+    expect(ordenar(fs, 'no-existe').map((f) => f.isin)).toEqual(fs.map((f) => f.isin)) // orden guardado de otra versión
     expect(mediana([3, null, 1, 2])).toBe(2)
     expect(mediana([4, 1, 2, 3])).toBe(2.5)
     expect(mediana([null])).toBeNull()

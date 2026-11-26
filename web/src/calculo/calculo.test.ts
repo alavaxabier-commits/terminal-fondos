@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cifra, colorPercentil, fecha, millones, pct } from './formato'
 import { simularCartera } from './metricas'
-import { aEur, base100, caidas, combinar, haceAnos, haceDias, inicioComun, lineasCartera, muestra, sinGastos, variacion } from './series'
+import { aEur, base100, caidas, combinar, haceAnos, haceDias, inicioComun, lineasCartera, movil, muestra, sinGastos, variacion } from './series'
 
 describe('series', () => {
   it('sinGastos devuelve el TER del sustituto: +0,5 % en un año con TER 0,5', () => {
@@ -64,6 +64,16 @@ describe('series', () => {
   it('fechas', () => {
     expect(haceAnos('2026-11-12', 3)).toBe('2023-11-12')
     expect(inicioComun([[{ fecha: '2020-01-03', valor: 1 }], [{ fecha: '2021-05-07', valor: 1 }]], '2019-01-01')).toBe('2021-05-07')
+  })
+})
+
+describe('rentabilidad móvil', () => {
+  it('anualizada a N años, solo con dato cerca de la fecha de hace N años', () => {
+    const s = [['2020-01-01', 100], ['2021-01-01', 110], ['2022-01-01', 121], ['2022-06-01', 130]].map(([fecha, valor]) => ({ fecha: String(fecha), valor: Number(valor) }))
+    const m = movil(s, 2)
+    expect(m.map((p) => p.fecha)).toEqual(['2022-01-01'])
+    expect(m[0].valor).toBeCloseTo(10)
+    expect(movil(s, 1).map((p) => p.fecha)).toEqual(['2021-01-01', '2022-01-01']) // 2022-06 no tiene dato en 2021-06
   })
 })
 
